@@ -1,4 +1,4 @@
-//Dernière modification : mar. 31 déc. 2024,  04:13
+//Dernière modification : mer. 01 janv. 2025,  07:06
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -275,21 +275,21 @@ var COFantasy2 = COFantasy2 || function() {
         visibleto: '',
         istokenaction: false,
         inBar: true
-      }, {
+      },*/ {
         name: MONTER,
         oldName: 'Monter',
-        action: "!cof-escalier haut",
+        action: "!cof2-escalier haut",
         visibleto: 'all',
         istokenaction: true,
         inBar: false
       }, {
         name: DESCENDRE,
         oldName: 'Descendre',
-        action: "!cof-escalier bas",
+        action: "!cof2-escalier bas",
         visibleto: 'all',
         istokenaction: true,
         inBar: false
-      }, {
+      }, /*{
         name: 'Fin-combat',
         action: "!cof-fin-combat",
         visibleto: '',
@@ -1158,6 +1158,20 @@ var COFantasy2 = COFantasy2 || function() {
     note = note.replace(/<p>/g, '<br>');
     note = note.replace(/<\/p>/g, '');
     return note.trim().split('<br>');
+  }
+
+  function normalizeTokenImg(img) {
+    let m = img.match(/(.*\/images\/.*)(thumb|med|original|max)([^?]*)(\?[^?]+)?$/);
+    if (!m || m.length < 4) {
+      error("Impossible d'utiliser l'image " + img, img);
+      return img;
+    }
+    let body = m[1];
+    let extension = m[3];
+    let query;
+    if (m.length > 4 && m[4]) query = m[4];
+    else query = '?' + randomInteger(9999999);
+    return body + 'thumb' + extension + query;
   }
 
   // Interface dans le chat ---------------------------------------------
@@ -2286,6 +2300,13 @@ var COFantasy2 = COFantasy2 || function() {
     },
   };
 
+  //Attention : ne tient pas compte de la rotation !
+  function intersection(pos1, size1, pos2, size2) {
+    if (pos1 == pos2) return true;
+    if (pos1 < pos2) return ((pos1 + size1 / 2) > pos2 - size2 / 2);
+    return ((pos2 + size2 / 2) > pos1 - size1 / 2);
+  }
+
   function computeScale(pageId) {
     const page = getObj("page", pageId);
     let scale = parseFloat(page.get('scale_number'));
@@ -2997,6 +3018,216 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  const labelsEscalier = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+
+  function findEsc(escaliers, escName, i) {
+    let fullEscName = escName + labelsEscalier[i];
+    let sortieEscalier = escaliers.find(function(esc) {
+      return esc.get('name') == fullEscName;
+    });
+    if (sortieEscalier === undefined && i > 0) return findEsc(escName, i - 1);
+    return sortieEscalier;
+  }
+
+  //esc est un token, le reste est optionnel
+  function trouveSortieEscalier(esc, versLeHaut, loop, escaliers, tmaps) {
+    let escName; //Contiendra le nom de l'escalier vers lequel aller
+    //On regarde d'abord le gmnote
+    let gmNotes = esc.get('gmnotes');
+    try {
+      gmNotes = _.unescape(decodeURIComponent(gmNotes)).replace('&nbsp;', ' ');
+      gmNotes = linesOfNote(gmNotes);
+      gmNotes.find(function(l) {
+        if (versLeHaut) {
+          if (l.startsWith('monte:')) {
+            escName = l.substring(6);
+            return true;
+          }
+          if (l.startsWith('monter:')) {
+            escName = l.substring(7);
+            return true;
+          }
+          if (l.startsWith('bas:')) {
+            escName = l.substring(4);
+            return true;
+          }
+          return false;
+        } else {
+          if (l.startsWith('descend:')) {
+            escName = l.substring(8);
+            return true;
+          }
+          if (l.startsWith('descendre:')) {
+            escName = l.substring(10);
+            return true;
+          }
+          if (l.startsWith('haut:')) {
+            escName = l.substring(5);
+            return true;
+          }
+          return false;
+        }
+        return false;
+      });
+    } catch (uriError) {
+      log("Erreur de décodage URI dans la note GM de " + esc.get('name') + " : " + gmNotes);
+    }
+    let i; //index de label si on n'utilise pas gmnote
+    if (escName === undefined) {
+      //Si on n'a pas trouvé, on regarde le nom
+      escName = esc.get('name');
+      let l = escName.length;
+      if (l > 1) {
+        let label = escName.substr(l - 1, 1);
+        escName = escName.substr(0, l - 1);
+        i = labelsEscalier.indexOf(label);
+        if (versLeHaut) {
+          if (i == 11) {
+            if (loop) escName += labelsEscalier[0];
+          } else escName += labelsEscalier[i + 1];
+        } else {
+          if (i === 0) {
+            if (loop) escName += labelsEscalier[11];
+          } else escName += labelsEscalier[i - 1];
+        }
+      }
+    }
+    if (!escName) return;
+    //Ensuite on cherche l'escalier de nom escName
+    let escs = escaliers;
+    if (escName.startsWith('tmap_')) {
+      if (!tmaps) {
+        tmaps = findObjs({
+          _type: 'graphic',
+          layer: 'gmlayer'
+        });
+        tmaps = tmaps.filter(function(e) {
+          return e.get('name').startsWith('tmap_');
+        });
+      }
+      escs = tmaps;
+    }
+    if (!escs) {
+      let pageId = esc.get('pageid');
+      escs = findObjs({
+        _type: 'graphic',
+        _pageid: pageId,
+        layer: 'gmlayer'
+      });
+    }
+    let sortieEscalier = escs.find(function(esc2) {
+      return esc2.get('name') == escName;
+    });
+    if (sortieEscalier === undefined && i !== undefined && loop) {
+      if (i > 0) { //sortie par le plus petit
+        escName = escName.substr(-1) + 'A';
+        sortieEscalier = escs.find(function(esc2) {
+          return esc2.get('name') == escName;
+        });
+      } else {
+        sortieEscalier = findEsc(escs, escName.substr(-1), 10);
+      }
+    }
+    return {
+      sortieEscalier,
+      tmaps
+    };
+  }
+
+  //retourne true si le joueur est effectivement déplacé
+  function movePlayerToPage(pid, oldPageId, newPageId) {
+    if (getObj('player', pid) === undefined) return;
+    const c = Campaign();
+    let playerPages = c.get('playerspecificpages');
+    const playersMainPage = c.get('playerpageid');
+    if (!playerPages) playerPages = {};
+    if ((playerPages[pid] && playerPages[pid] == oldPageId)) {
+      if (playersMainPage == newPageId) {
+        c.set('playerspecificpages', false);
+        if (_.size(playerPages) > 1) {
+          delete playerPages[pid];
+          c.set('playerspecificpages', playerPages);
+        }
+      } else {
+        playerPages[pid] = newPageId;
+        c.set('playerspecificpages', false);
+        c.set('playerspecificpages', playerPages);
+      }
+    } else if ((!playerPages[pid] && playersMainPage == oldPageId)) {
+      playerPages[pid] = newPageId;
+      let allPlayers = findObjs({
+        _type: 'player'
+      });
+      let allOnNewPage = allPlayers.every(function(p) {
+        if (playerIsGM(p.id)) return true;
+        return playerPages[p.id] == newPageId;
+      });
+      c.set('playerspecificpages', false);
+      if (allOnNewPage) {
+        Campaign().set('playerpageid', newPageId);
+      } else {
+        c.set('playerspecificpages', playerPages);
+      }
+    }
+  }
+
+  function prendreEscalier(perso, pageId, sortieEscalier) {
+    let token = perso.token;
+    let left = sortieEscalier.get('left');
+    let top = sortieEscalier.get('top');
+    let newPageId = sortieEscalier.get('pageid');
+    //Déplacement du token
+    if (newPageId == pageId) {
+      token.set('left', left);
+      token.set('top', top);
+    } else {
+      //On change de carte, il faut donc copier le token
+      let tokenObj = JSON.parse(JSON.stringify(token));
+      tokenObj._pageid = newPageId;
+      //On met la taille du token à jour en fonction des échelles des cartes.
+      let ratio = computeScale(pageId) / computeScale(newPageId);
+      if (ratio < 0.9 || ratio > 1.1) {
+        if (ratio < 0.25) ratio = 0.25;
+        else if (ratio > 4) ratio = 4;
+        tokenObj.width *= ratio;
+        tokenObj.height *= ratio;
+      }
+      tokenObj.imgsrc = normalizeTokenImg(tokenObj.imgsrc);
+      tokenObj.left = left;
+      tokenObj.top = top;
+      let newToken = createObj('graphic', tokenObj);
+      if (newToken === undefined) {
+        error("Impossible de copier le token, et donc de faire le changement de carte", tokenObj);
+        return;
+      }
+    }
+    //On déplace ensuite le joueur.
+    let character = getObj('character', perso.charId);
+    if (character === undefined) return;
+    let charControlledby = character.get('controlledby');
+    if (charControlledby === '') {
+      //Seul le MJ contrôle le personnage
+      let players = findObjs({
+        _type: 'player',
+        online: true
+      });
+      let gm = players.find(function(p) {
+        return playerIsGM(p.id);
+      });
+      if (gm) {
+        if (newPageId != pageId) movePlayerToPage(gm.id, pageId, newPageId);
+        sendPing(left, top, newPageId, gm.id, true, gm.id);
+      }
+    } else {
+      charControlledby.split(",").forEach(function(pid) {
+        if (newPageId != pageId) movePlayerToPage(pid, pageId, newPageId);
+        sendPing(left, top, newPageId, pid, true, pid);
+      });
+    }
+    //Enfin, on efface le token de départ si on a changé de page
+    if (newPageId != pageId) token.remove();
+  }
+
   //Pour ouvrir une porte sans event, en particulier en cas de pause
   // !cof2-open-door id
   function openDoor(msg, cmd, options) {
@@ -3010,6 +3241,70 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     door.set('isOpen', true);
+  }
+
+  //!cof2-escalier
+  function commandeEscalier(msg, cmd, options) {
+    let {
+      selected
+    } = getSelected(msg, options);
+    let playerId = options.playerId;
+    if (selected.length === 0) {
+      sendPlayer(msg, "Pas de sélection de token pour !cof-escalier", playerId);
+      log("!cof-escalier requiert de sélectionner des tokens");
+      return;
+    }
+    let pageId = getObj('graphic', selected[0]._id).get('pageid');
+    let escaliers = findObjs({
+      _type: 'graphic',
+      _pageid: pageId,
+      layer: 'gmlayer'
+    });
+    if (escaliers.length === 0) {
+      sendPlayer(msg, "Pas de token dans le layer GM", playerId);
+      return;
+    }
+    let tmaps; //Les passages entre les maps.
+    let versLeHaut = true;
+    let loop = true;
+    if (msg.content) {
+      if (msg.content.includes(' bas')) {
+        versLeHaut = false;
+        loop = false;
+      } else if (msg.content.includes(' haut')) {
+        versLeHaut = true;
+        loop = false;
+      }
+    }
+    iterSelected(selected, function(perso) {
+      let token = perso.token;
+      let posX = token.get('left');
+      let sizeX = token.get('width');
+      let posY = token.get('top');
+      let sizeY = token.get('height');
+      let sortieEscalier;
+      escaliers.forEach(function(esc) {
+        if (sortieEscalier) return;
+        if (intersection(posX, sizeX, esc.get('left'), esc.get('width')) &&
+          intersection(posY, sizeY, esc.get('top'), esc.get('height'))) {
+          let s = trouveSortieEscalier(esc, versLeHaut, loop, escaliers, tmaps);
+          if (s) {
+            sortieEscalier = s.sortieEscalier;
+            tmaps = s.tmaps;
+          }
+        }
+      });
+      if (sortieEscalier) {
+        prendreEscalier(perso, pageId, sortieEscalier);
+        return;
+      }
+      let err = nomPerso(perso) + " n'est pas sur un escalier";
+      if (!loop) {
+        if (versLeHaut) err += " qui monte";
+        else err += " qui descend";
+      }
+      sendPlayer(msg, err, playerId);
+    });
   }
 
   //!cof2-reveler-nom [nouveau nom]
@@ -3358,7 +3653,8 @@ var COFantasy2 = COFantasy2 || function() {
     let tokenName = token.get('name');
     //La plupart du temps, il faut attendre un peu que le nom soit affecté
     if (tokenName === '') {
-      if (essai > 10 && COF2_BETA) {
+      if (essai > 10) {
+        if (COF2_BETA && false)
         error("Token posé sans nom, ou alors gros lag chez Roll20", token);
       } else {
         _.delay(function() {
@@ -3570,14 +3866,17 @@ var COFantasy2 = COFantasy2 || function() {
     } = parseOptions(msg);
     let commande = cmd[0].substring(6);
     switch (commande) {
-      case 'reveler-nom':
-        commandeRevelerNom(msg, cmd, options);
+      case 'escalier':
+        commandeEscalier(msg, cmd, options);
         return;
       case 'open-door':
         openDoor(msg, cmd, options);
         return;
       case 'pause':
         pauseGame();
+        return;
+      case 'reveler-nom':
+        commandeRevelerNom(msg, cmd, options);
         return;
       case 'undo':
         undoEvent();
