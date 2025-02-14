@@ -198,6 +198,8 @@ tr {line-height: 25px;}
                 <ul>
                   <li><code>--difficulte <i>i</i></code> la difficulté du test
                   <li><code>--bonus</code> pour spécifier un bonus numérique au jet.</li>
+                  <li><code>--deBonus</code> lance le jet avec un dé bonus.</li>
+                  <li><code>--deMalus</code> lance le jet avec un dé malus.</li>
                   <li><code>--predicat</code> pour spécifier un prédicat dont la valeur doit être ajoutée au jet. Il est possible de spécifier plusieurs prédicats.</li>
                   <li><code>--attribut</code> pour spécifier un attribut dont la valeur doit être ajoutée au jet. C'est pratique, par exemple pour avoir un bonus temporaire générique.</li>
                   <li><code>--competence</code> précise le nom du jet à afficher. De plus, cela va aussi faire rechercher une compétence de même nom (sans tenir compte des majuscules) pour une fiche de PJ et un attribut ou un prédicat pour une fiche de PNJ. Par exemple <code>!cof2-jet AGI --competence Discrétion</code> va lancer un jet d'agilité, qui sera affiché comme un jet de Discrétion, et qui va ajouter au jet le bonus d'une compétence discrétion ou d'un éventuel prédicat <code>discrétion</code>.</li>
@@ -209,7 +211,6 @@ tr {line-height: 25px;}
                 <p>Si le personnage possède un attribut numérique <code>modificateurTests</code>, ce modificateur sera pris en compte pour tous les tests.</p>
                 <p>Dans les options de jeu (affichés en utilisant <code>!cof2-options</code>, dans le menu des options d'affichage, il est possible de choisir de ne faire afficher les résultats qu'au MJ, qui peut alors en cliquant sur un bouton le montrer aux joueurs (ou pas).</p>
               </div>
-</body></html>
 <!--
             <h3 class="text-info" id="le_combat">2.1 Le combat</h3>
             <div class="decalage">
@@ -2573,9 +2574,15 @@ tr {line-height: 25px;}
                 <p>Pour son bon fonctionnement, le script stoque des données, parfois complexes, et il peut arriver que ces données soient corrompues. Dans ce cas, le script peut planter de manière systématique, même sur des actions simples. Si vous soupçonnez une corruption des données, vous pouvez tenter de lancer la commande <code>!cof-clean-global-state</code>.
                 </p>
               </div>
-              <h2 class="text-primary" id="index_predicats">7. Index des prédicats</h2>
+-->
+              <h2 class="text-primary" id="index_predicats">9. Index des prédicats</h2>
               <div class="decalage">
                 <ul>
+                  <li><strong>bonusTest_<i>carac</i></strong>: bonus aux tests de caractéristique <i>carac</i>. Ne se cumule pas.</li>
+                  <li><strong>bonusTest_<i>competence</i></strong>: bonus aux tests de compétence <i>competence</i>. Ne se cumule pas.</li>
+                  <li><strong>bonusTestEvolutif_<i>competence</i></strong>: nom ou numéro de voie, le bonus est le rang dans la voie + 2, capé à 7.</li>
+                  <li><strong>bonusTestPeuple_<i>competence</i></strong>: bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 3.</li>
+                  <li><strong>bonusTestPrestige_<i>competence</i></strong>: bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 5.</li>
                 </ul>
               </div>
             </div>
@@ -2585,4 +2592,3 @@ tr {line-height: 25px;}
         
   </body>
 </html>
--->

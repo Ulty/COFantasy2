@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 06 févr. 2025,  06:17
+//Dernière modification : ven. 14 févr. 2025,  06:33
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1130,10 +1130,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function lastEvent() {
-    let l = eventHistory.length;
-    if (l === 0) return;
-    return eventHistory[l - 1];
+  function findEvent(id) {
+    return eventHistory.find(function(evt) {
+      return (evt.id == id);
+    });
   }
 
   function setDefaultTokenFromSpec(character, spec, token) {
@@ -1460,6 +1460,30 @@ var COFantasy2 = COFantasy2 || function() {
       if (HTdeclared) HealthColors.Update(tok, prevTok);
       sendChat("COF", "État de " + tok.get("name") + " restauré.");
     });
+  }
+
+    //Renvoie true si redo possible, false sinon
+  function redoEvent(evt, action, perso) {
+    let options = action.options || {};
+    options.rolls = action.rolls;
+    options.choices = action.choices;
+    switch (evt.type) {
+      case 'jetPerso':
+        jetPerso(perso, action.caracteristique, action.difficulte, action.titre, action.playerId, options);
+        return true;
+      case 'nextTurn':
+        let turnOrder = Campaign().get('turnorder');
+        if (turnOrder === '') return false; // nothing in the turn order
+        turnOrder = JSON.parse(turnOrder);
+        if (turnOrder.length < 1) return false; // Juste le compteur de tour
+        let lastTurn = turnOrder.shift();
+        turnOrder.push(lastTurn);
+        Campaign().set('turnorder', JSON.stringify(turnOrder));
+        nextTurn(Campaign());
+        return true;
+      default:
+        return false;
+    }
   }
 
   //pour se débarasser des balises html
@@ -2742,74 +2766,24 @@ var COFantasy2 = COFantasy2 || function() {
     return crit;
   }
 
-  //Calcul du dé, du nombre de dé, d'un malus à l'attaque, des chances de crit et plusFort
+  //Calcul du dé, du nombre de dé, d'un malus à l'attaque, des chances de crit
   //peut modifier options
   //TODO: revoir tous ces effets
   function computeAttackDiceOptions(attaquant, weaponStats, expliquer, evt, options = {}) {
     let crit = critEnAttaque(attaquant, weaponStats, options);
-    let dice = 20;
-    let malusAttaque = 0;
-    if ((!options.auto || (!options.pasDeDmg && options.contact)) &&
-      attributeAsBool(attaquant, 'drainDeForceSup')) {
-      dice = 12;
-      let msgDrain = "Drain de force => ";
-      if (!options.auto) msgDrain += "D12 au lieux de D20 en attaque";
-      if (!options.pasDeDmg && options.contact) {
-        if (!options.auto) msgDrain += " et ";
-        msgDrain += "DM/2";
-        if (!options.redo) {
-          options.diviseDmg = options.diviseDmg || 1;
-          options.diviseDmg *= 2;
-        }
-      }
-      expliquer(msgDrain);
-    }
+    let deMalus;
     if (!options.auto) {
       if (estAffaibli(attaquant)) {
-        if (predicateAsBool(attaquant, 'insensibleAffaibli')) {
-          malusAttaque = -2;
-          expliquer("Attaquant affaibli, mais insensible => -2 en Attaque");
-        } else {
-          dice = 12;
-          expliquer("Attaquant affaibli => D12 au lieu de D20 en Attaque");
-        }
+        deMalus = true;
+        expliquer("Attaquant affaibli => dé malus en Attaque");
       } else if (getState(attaquant, 'immobilise')) {
-        dice = 12;
-        expliquer("Attaquant immobilisé => D12 au lieu de D20 en Attaque");
-      } else if (attributeAsBool(attaquant, 'mortMaisNAbandonnePas')) {
-        dice = 12;
-        expliquer("Attaquant mort mais n'abandonne pas => D12 au lieu de D20 en Attaque");
-      }
-    }
-    if (options.avecd12) {
-      dice = 12;
-      if (options.avecd12.crit) crit = Math.floor(crit / 2) + 3;
-    }
-    let nbDe = 1;
-    let plusFort = true;
-    if (options.avantage !== undefined) {
-      if (options.avantage > 0) nbDe = options.avantage;
-      else {
-        nbDe = 2 - options.avantage; //désavantage
-        plusFort = false;
-      }
-    }
-    if (options.sortilege && (options.rituelAssure || attributeAsBool(attaquant, 'rituelAssure'))) {
-      options.rituelAssure = true;
-      finDEffetDeNom(attaquant, 'rituelAssure', evt);
-      if (plusFort) nbDe++;
-      else if (nbDe > 1) nbDe--;
-      else {
-        plusFort = true;
-        nbDe = 2;
+        deMalus = true;
+        expliquer("Attaquant immobilisé => dé malus en Attaque");
       }
     }
     return {
-      dice,
-      malusAttaque,
-      nbDe,
+      deMalus,
       crit,
-      plusFort
     };
   }
 
@@ -2826,10 +2800,6 @@ var COFantasy2 = COFantasy2 || function() {
     let attSkillDivTxt = "";
     if (attSkillDiv > 0) attSkillDivTxt = " + " + attSkillDiv;
     else if (attSkillDiv < 0) attSkillDivTxt += attSkillDiv;
-    if (diceOptions.malusAttaque) {
-      if (diceOptions.malusAttaque > 0) attSkillDivTxt = " + " + diceOptions.malusAttaque;
-      else attSkillDivTxt += diceOptions.malusAttaque;
-    }
     let attackSkillExpr = addOrigin(attaquant.name, "[[" + computeArmeAtk(attaquant, weaponStats.attSkill) + attSkillDivTxt + "]]");
     return attackRollExpr + " " + attackSkillExpr;
   }
@@ -8635,13 +8605,13 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer(msg, "La commande !cof2-allier ne prend pas d'argument --commande", playerId);
     }
     options.commande = [];
-    let nom = ''+stateCOF.numeroEquipe;
+    let nom = '' + stateCOF.numeroEquipe;
     if (cmd.length > 1) {
       nom = cmd.slice(1).join(' ');
       if (stateCOF.equipes[nom]) {
-      options.commande.push('ajouter');
+        options.commande.push('ajouter');
       } else {
-      options.commande.push('creer');
+        options.commande.push('creer');
       }
     } else {
       nom = chercherNouveauNomEquipe(nom);
@@ -9406,6 +9376,71 @@ var COFantasy2 = COFantasy2 || function() {
     return ficheAttributeAsInt(perso, 'pc', 0);
   }
 
+  //!cof2-bouton-chance [evt.id] [rollId]
+    function commandeBoutonChance( msg, cmd, playerId, pageId, options) {
+          if (cmd.length < 2) {
+      error("La commande !cof2-bouton-chance n'a pas assez d'arguments", cmd);
+      return;
+    }
+    let evt = findEvent(cmd[1]);
+    if (evt === undefined) {
+      error("L'action est trop ancienne ou éte annulée", cmd);
+      return;
+    }
+    let action = evt.action;
+    if (!action) {
+      error("Type d'évènement pas encore géré pour la chance", evt);
+      return;
+    }
+    let perso = evt.personnage;
+    let rollId;
+    if (cmd.length > 2) {
+      let roll = action.rolls[cmd[2]];
+      if (roll === undefined) {
+        error("Erreur interne du bouton de chance : roll non identifié", cmd);
+        return;
+      }
+      if (roll.token === undefined) {
+        error("Erreur interne du bouton de chance : roll sans token", cmd);
+        return;
+      }
+      perso = persoOfId(roll.token.id, roll.token.name, roll.token.pageId);
+      rollId = cmd[2];
+    }
+    if (perso === undefined) {
+      error("Erreur interne du bouton de chance : l'évenement n'a pas de personnage", evt);
+      return;
+    }
+    if (!peutController(msg, perso)) {
+      sendPlayer(msg, "pas le droit d'utiliser ce bouton");
+      return;
+    }
+    let chance = pointsDeChance(perso);
+    if (chance <= 0) {
+      sendPerso(perso, "n'a plus de point de chance à dépenser...");
+      return;
+    }
+    let evtChance = {
+      type: 'chance',
+      rollId
+    };
+    chance--;
+    undoEvent(evt);
+    setFicheAttr(perso, 'pc', chance, evtChance, {
+      msg: " a dépensé un point de chance. Il lui en reste " + chance
+    });
+    action.options = action.options || {};
+    if (rollId) {
+      action.options.chanceRollId = action.options.chanceRollId || {};
+      action.options.chanceRollId[rollId] = (action.options.chanceRollId[rollId] + 10) || 10;
+    } else {
+      action.options.chance = (action.options.chance + 10) || 10;
+    }
+    if (!redoEvent(evt, action, perso))
+      error("Type d'évènement pas encore géré pour la chance", evt);
+    addEvent(evtChance);
+  }
+
   function diminueMalediction(lanceur, evt, attr) {
     let attrMalediction = attr || tokenAttribute(lanceur, 'malediction');
     if (attrMalediction.length > 0) {
@@ -9500,8 +9535,52 @@ var COFantasy2 = COFantasy2 || function() {
     return bonus;
   }
 
-  function bonusAuxCompetences(personnage, comp, expliquer) {
-    let bonus = predicateAsInt(personnage, 'bonusTests_' + comp, 0);
+  function numeroDeVoie(perso, titre) {
+    for(let i = 1; i < 10; i++) {
+      if (ficheAttribute(perso, 'voie'+i+'nom', '') == titre) return i;
+    }
+  }
+
+  function rangDansLaVoie(perso, voie) {
+    let v = 'v'+voie+'r';
+    for (let rang = 5; rang >=0; rang--) {
+      if (ficheAttributeAsInt(perso, v+rang, 0) == 1) {
+        return rang + ficheAttributeAsInt(perso, 'v'+voie+'br', 1) - 1;
+      }
+    }
+  }
+
+  function bonusEvolutif(perso, competence) {
+    let p = predicatesNamed(perso, 'bonusTestEvolutif_'+competence);
+    let res = 0;
+    p.forEach(function(voie) {
+      if (res >= 7) return;
+      //voie peut être le numéro de voie ou le nom
+      let numeroVoie = parseInt(voie);
+      if (isNaN(numeroVoie)|| numeroVoie > 9) 
+        numeroVoie = numeroDeVoie(perso, voie);
+      if (!numeroVoie) {
+        error("Impossible de trouver la voie "+voie, competence);
+        return;
+      }
+      let r = rangDansLaVoie(perso, numeroVoie);
+      if (r) {
+        r = r + 2;
+        if (r > res) {
+          res = r;
+          if (res > 7) res = 7;
+        }
+      }
+    });
+    return res;
+  }
+
+  function bonusAuxCompetences(perso, comp, expliquer) {
+    let bonus = predicateAsInt(perso, 'bonusTest_' + comp, 0);
+    bonus += bonusEvolutif(perso, comp);
+    bonus += predicateAsInt(perso, 'bonusTestPeuple_' + comp, 0, 3);
+    bonus += predicateAsInt(perso, 'bonusTestPrestige_' + comp, 0, 5);
+    if (bonus > 15) bonus = 15;
     if (bonus)
       expliquer("Bonus de compétence : " + ((bonus < 0) ? "-" : "+") + bonus);
     //TODO: revoir cette liste
@@ -9509,18 +9588,18 @@ var COFantasy2 = COFantasy2 || function() {
       case 'acrobatie':
       case 'acrobaties':
         {
-          if (predicateAsBool(personnage, 'graceFelineVoleur')) {
-            let bonusGraceFeline = modCarac(personnage, 'charisme');
+          if (predicateAsBool(perso, 'graceFelineVoleur')) {
+            let bonusGraceFeline = modCarac(perso, 'charisme');
             if (bonusGraceFeline > 0) {
               expliquer("Grâce féline : +" + bonusGraceFeline + " en acrobaties");
               bonus += bonusGraceFeline;
             }
           }
-          if (predicateAsBool(personnage, 'pirouettes') && malusArmure(personnage) <= 4) {
+          if (predicateAsBool(perso, 'pirouettes') && malusArmure(perso) <= 4) {
             expliquer("Pirouettes : +5 en acrobaties");
             bonus += 5;
           }
-          let a = predicateAsInt(personnage, 'ameFeline', 0);
+          let a = predicateAsInt(perso, 'ameFeline', 0);
           if (a > 0) {
             expliquer("Âme féline : +" + a + " en acrobaties");
             bonus += a;
@@ -9532,40 +9611,30 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'course':
         {
-          if (predicateAsBool(personnage, 'graceFelineVoleur')) {
-            let bonusGraceFeline = modCarac(personnage, 'charisme');
+          if (predicateAsBool(perso, 'graceFelineVoleur')) {
+            let bonusGraceFeline = modCarac(perso, 'charisme');
             if (bonusGraceFeline > 0) {
               expliquer("Grâce féline : +" + bonusGraceFeline + " en course");
               bonus += bonusGraceFeline;
             }
           }
-          let a = predicateAsInt(personnage, 'ameFeline', 0);
-          if (a > 0) {
-            expliquer("Âme féline : +" + a + " en course");
-            bonus += a;
-          }
-          a = predicateAsInt(personnage, 'vitesseDuFelin', 0);
-          if (a > 0) {
-            expliquer("Vitesse du félin : +" + a + " en course");
-            bonus += a;
-          }
           break;
         }
       case 'danse':
-        if (predicateAsBool(personnage, 'pirouettes') && malusArmure(personnage) <= 4) {
+        if (predicateAsBool(perso, 'pirouettes') && malusArmure(perso) <= 4) {
           expliquer("Pirouettes : +5 en danse");
           bonus += 5;
         }
         break;
       case 'discrétion':
       case 'discretion':
-        if (attributeAsBool(personnage, 'foretVivanteEnnemie')) {
+        if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : -5 en discrétion");
           bonus -= 5;
         }
         let perteDeSubstance = 0;
-        if (predicateAsBool(personnage, 'perteDeSubstance'))
-          perteDeSubstance = attributeAsInt(personnage, 'perteDeSubstance', 0);
+        if (predicateAsBool(perso, 'perteDeSubstance'))
+          perteDeSubstance = attributeAsInt(perso, 'perteDeSubstance', 0);
         if (perteDeSubstance >= 5) {
           if (perteDeSubstance < 7) {
             expliquer("Perte de substance : +2 en discrétion");
@@ -9578,60 +9647,60 @@ var COFantasy2 = COFantasy2 || function() {
             bonus += 10;
           }
         }
-        if (predicateAsBool(personnage, 'toutPetit') && !attributeAsBool(personnage, 'grandeTaille')) {
+        if (predicateAsBool(perso, 'toutPetit') && !attributeAsBool(perso, 'grandeTaille')) {
           expliquer("Tout petit : +5 en discrétion");
           bonus += 5;
-        } else if (predicateAsBool(personnage, 'petiteTaille')) {
+        } else if (predicateAsBool(perso, 'petiteTaille')) {
           expliquer("Petite taille : +2 en discrétion");
           bonus += 2;
         }
-        let rapideCommeSonOmbre = predicateAsInt(personnage, 'rapideCommeSonOmbre', 0, 3);
+        let rapideCommeSonOmbre = predicateAsInt(perso, 'rapideCommeSonOmbre', 0, 3);
         if (rapideCommeSonOmbre > 0) {
           expliquer("Rapide comme son ombre : +" + rapideCommeSonOmbre + " en discrétion");
           bonus += rapideCommeSonOmbre;
         }
-        if (predicateAsBool(personnage, 'embuscade')) {
+        if (predicateAsBool(perso, 'embuscade')) {
           expliquer("Prédateur => +5 en discrétion");
           bonus += 5;
         }
         break;
       case 'intimidation':
-        bonus += bonusArgumentDeTaille(personnage, expliquer);
-        if (predicateAsBool(personnage, 'ordreDuChevalierDragon') && attributeAsBool(personnage, 'monteSur')) {
+        bonus += bonusArgumentDeTaille(perso, expliquer);
+        if (predicateAsBool(perso, 'ordreDuChevalierDragon') && attributeAsBool(perso, 'monteSur')) {
           expliquer("Chevalier Dragon monté : +5 en intimidation");
           bonus += 5;
         }
-        if (predicateAsBool(personnage, 'batonDesRunesMortes') &&
-          (attributeAsBool(personnage, 'runeLizura') || attributeAsBool(personnage, 'runeMitrah'))) {
-          expliquer("Recouvert" + eForFemale(personnage) + " de la boue noire du bâton : +5 aux tests d'intimidation");
+        if (predicateAsBool(perso, 'batonDesRunesMortes') &&
+          (attributeAsBool(perso, 'runeLizura') || attributeAsBool(perso, 'runeMitrah'))) {
+          expliquer("Recouvert" + eForFemale(perso) + " de la boue noire du bâton : +5 aux tests d'intimidation");
           bonus += 5;
         }
-        if (predicateAsBool(personnage, 'autoriteNaturelle')) {
+        if (predicateAsBool(perso, 'autoriteNaturelle')) {
           expliquer("Autorité naturelle : +5 en intimidation");
           bonus += 5;
         }
         break;
       case 'commander':
-        if (predicateAsBool(personnage, 'autoriteNaturelle')) {
+        if (predicateAsBool(perso, 'autoriteNaturelle')) {
           expliquer("Autorité naturelle : +5 pour donner des ordres");
           bonus += 5;
         }
         break;
       case 'escalade':
         {
-          if (predicateAsBool(personnage, 'graceFelineVoleur')) {
-            let bonusGraceFeline = modCarac(personnage, 'charisme');
+          if (predicateAsBool(perso, 'graceFelineVoleur')) {
+            let bonusGraceFeline = modCarac(perso, 'charisme');
             if (bonusGraceFeline > 0) {
               expliquer("Grâce féline : +" + bonusGraceFeline + " en escalade");
               bonus += bonusGraceFeline;
             }
           }
-          let a = predicateAsInt(personnage, 'ameFeline', 0);
+          let a = predicateAsInt(perso, 'ameFeline', 0);
           if (a > 0) {
             expliquer("Âme féline : +" + a + " en escalade");
             bonus += a;
           }
-          a = predicateAsInt(personnage, 'vitesseDuFelin', 0);
+          a = predicateAsInt(perso, 'vitesseDuFelin', 0);
           if (a > 0) {
             expliquer("Vitesse du félin : +" + a + " en escalade");
             bonus += a;
@@ -9642,24 +9711,24 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'négociation':
       case 'negociation':
-        bonus += bonusArgumentDeTaille(personnage, expliquer);
+        bonus += bonusArgumentDeTaille(perso, expliquer);
         break;
       case 'orientation':
-        if (attributeAsBool(personnage, 'foretVivanteEnnemie')) {
+        if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : -5 en orientation");
           bonus -= 5;
         }
         break;
       case 'perception':
-        if (attributeAsBool(personnage, 'foretVivanteEnnemie')) {
+        if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : -5 en perception");
           bonus -= 5;
         }
         break;
       case 'persuasion':
       case 'convaincre':
-        bonus += bonusArgumentDeTaille(personnage, expliquer);
-        if (predicateAsBool(personnage, 'ordreDuChevalierDragon') && attributeAsBool(personnage, 'monteSur')) {
+        bonus += bonusArgumentDeTaille(perso, expliquer);
+        if (predicateAsBool(perso, 'ordreDuChevalierDragon') && attributeAsBool(perso, 'monteSur')) {
           expliquer("Chevalier Dragon monté : +5 en persuasion");
           bonus += 5;
         }
@@ -9667,34 +9736,24 @@ var COFantasy2 = COFantasy2 || function() {
       case 'saut':
       case 'sauter':
         {
-          if (predicateAsBool(personnage, 'graceFelineVoleur')) {
-            let bonusGraceFeline = modCarac(personnage, 'charisme');
+          if (predicateAsBool(perso, 'graceFelineVoleur')) {
+            let bonusGraceFeline = modCarac(perso, 'charisme');
             if (bonusGraceFeline > 0) {
               expliquer("Grâce féline : +" + bonusGraceFeline + " en saut");
               bonus += bonusGraceFeline;
             }
           }
-          let a = predicateAsInt(personnage, 'ameFeline', 0);
-          if (a > 0) {
-            expliquer("Âme féline : +" + a + " en saut");
-            bonus += a;
-          }
-          a = predicateAsInt(personnage, 'vitesseDuFelin', 0);
-          if (a > 0) {
-            expliquer("Vitesse du félin : +" + a + " en saut");
-            bonus += a;
-          }
           break;
         }
       case 'survie':
-        if (attributeAsBool(personnage, 'foretVivanteEnnemie')) {
+        if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : -5 en survie");
           bonus -= 5;
         }
         break;
     }
     let expertiseSpecialisee =
-      predicateAsBool(personnage, 'expertiseSpecialisee');
+      predicateAsBool(perso, 'expertiseSpecialisee');
     if (expertiseSpecialisee && typeof expertiseSpecialisee == 'string') {
       expertiseSpecialisee = expertiseSpecialisee.toLowerCase();
       if (expertiseSpecialisee == comp) {
@@ -9805,7 +9864,7 @@ var COFantasy2 = COFantasy2 || function() {
     switch (carac) {
       case 'AGI':
         {
-          let bonusAGI = predicateAsInt(personnage, 'bonusTests_AGI', 0) + Math.max(predicateAsInt(personnage, 'bonusTests_agilite', 0), predicateAsInt(personnage, 'bonusTests_agilité', 0));
+          let bonusAGI = predicateAsInt(personnage, 'bonusTest_AGI', 0) + Math.max(predicateAsInt(personnage, 'bonusTest_agilite', 0), predicateAsInt(personnage, 'bonusTest_agilité', 0));
           if (bonusAGI) {
             expliquer("Bonus aux jets d'AGI : " + ((bonusAGI < 0) ? "-" : "+") + bonusAGI);
             bonus += bonusAGI;
@@ -9823,7 +9882,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'FOR':
         {
-          let bonusFOR = predicateAsInt(personnage, 'bonusTests_FOR', 0) + predicateAsInt(personnage, 'bonusTests_force', 0);
+          let bonusFOR = predicateAsInt(personnage, 'bonusTest_FOR', 0) + predicateAsInt(personnage, 'bonusTest_force', 0);
           if (bonusFOR) {
             expliquer("Bonus aux jets de FOR : " + ((bonusFOR < 0) ? "-" : "+") + bonusFOR);
             bonus += bonusFOR;
@@ -9859,7 +9918,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'INT':
         {
-          let bonusINT = predicateAsInt(personnage, 'bonusTests_INT', 0) + predicateAsInt(personnage, 'bonusTests_intelligence', 0);
+          let bonusINT = predicateAsInt(personnage, 'bonusTest_INT', 0) + predicateAsInt(personnage, 'bonusTest_intelligence', 0);
           if (bonusINT) {
             expliquer("Bonus aux jets d'INT : " + ((bonusINT < 0) ? "-" : "+") + bonusINT);
             bonus += bonusINT;
@@ -9872,7 +9931,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'CHA':
         {
-          let bonusCHA = predicateAsInt(personnage, 'bonusTests_CHA', 0) + predicateAsInt(personnage, 'bonusTests_charisme', 0);
+          let bonusCHA = predicateAsInt(personnage, 'bonusTest_CHA', 0) + predicateAsInt(personnage, 'bonusTest_charisme', 0);
           if (bonusCHA) {
             expliquer("Bonus aux jets de CHA : " + ((bonusCHA < 0) ? "-" : "+") + bonusCHA);
             bonus += bonusCHA;
@@ -9885,7 +9944,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'CON':
         {
-          let bonusCON = predicateAsInt(personnage, 'bonusTests_CON', 0) + predicateAsInt(personnage, 'bonusTests_constitution', 0);
+          let bonusCON = predicateAsInt(personnage, 'bonusTest_CON', 0) + predicateAsInt(personnage, 'bonusTest_constitution', 0);
           if (bonusCON) {
             expliquer("Bonus aux jets de CON : " + ((bonusCON < 0) ? "-" : "+") + bonusCON);
             bonus += bonusCON;
@@ -9903,7 +9962,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'PER':
         {
-          let bonusSAG = predicateAsInt(personnage, 'bonusTests_PER', 0) + predicateAsInt(personnage, 'bonusTests_peception', 0);
+          let bonusSAG = predicateAsInt(personnage, 'bonusTest_PER', 0) + predicateAsInt(personnage, 'bonusTest_peception', 0);
           if (bonusSAG) {
             expliquer("Bonus aux jets de PER : " + ((bonusSAG < 0) ? "-" : "+") + bonusSAG);
             bonus += bonusSAG;
@@ -9912,7 +9971,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'VOL':
         {
-          let bonusSAG = predicateAsInt(personnage, 'bonusTests_VOL', 0) + predicateAsInt(personnage, 'bonusTests_volonte', 0) + predicateAsInt(personnage, 'bonusTests_volonté', 0);
+          let bonusSAG = predicateAsInt(personnage, 'bonusTest_VOL', 0) + predicateAsInt(personnage, 'bonusTest_volonte', 0) + predicateAsInt(personnage, 'bonusTest_volonté', 0);
           if (bonusSAG) {
             expliquer("Bonus aux jets de VOL : " + ((bonusSAG < 0) ? "-" : "+") + bonusSAG);
             bonus += bonusSAG;
@@ -9955,24 +10014,22 @@ var COFantasy2 = COFantasy2 || function() {
     return false;
   }
 
-  function computeDice(lanceur, options) {
-    options = options || {};
-    let nbDe = options.nbDe;
-    if (nbDe === undefined) nbDe = 1;
-    let plusFort = options.plusFort;
-    if (plusFort === undefined) plusFort = true;
-    let dice = options.dice;
-    if (dice === undefined) dice = 20;
-    if (attributeAsBool(lanceur, 'malediction')) {
-      if (plusFort) {
-        if (nbDe > 1) nbDe--;
-        else {
-          nbDe = 2;
-          plusFort = false;
-        }
-      } else nbDe++;
+  //Calcul de l'expression pour un dé de test (donc d20)
+  //options peut préciser
+  // - deBonus
+  // - deMalus
+  function computeDice(lanceur, options = {}) {
+    let nbDe = 1;
+    let deBonus = options.deBonus;
+    let deMalus = options.deMalus || attributeAsBool(lanceur, 'malediction');
+    let plusFort = true;
+    if (deBonus) {
+      if (!deMalus) nbDe = 2;
+    } else if (deMalus) {
+      nbDe = 2;
+      plusFort = false;
     }
-    let de = nbDe + "d" + dice;
+    let de = nbDe + "d20";
     if (nbDe > 1) {
       if (plusFort) de += "kh1";
       else de += "kl1";
@@ -9980,20 +10037,20 @@ var COFantasy2 = COFantasy2 || function() {
     return de;
   }
 
-  function nbreDeTestCarac(carac, perso) {
+  function caracHeroique(carac, perso) {
     let typeJet = ficheAttribute(perso, carac + '_sup', 'N', optTransforme);
     switch (typeJet) {
       case 'N':
       case '0': //Pour les fiches de PNJ
-        return 1;
+        return false;
       case 'S':
       case 'H':
       case '1': //Pour les fiches de PNJ
-        return 2;
+        return true;
       default:
         error("Jet inconnu", typeJet);
     }
-    return 1;
+    return false;
   }
 
   // Test de caractéristique
@@ -10012,13 +10069,9 @@ var COFantasy2 = COFantasy2 || function() {
     let testRes = {};
     let explications = [];
     let bonusCarac = bonusTestCarac(carac, personnage, options, testId, evt, explications);
-    let jetCache = ficheAttributeAsBool(personnage, 'jets_caches', false);
-    let nbDe = nbreDeTestCarac(carac, personnage);
-    let de = computeDice(personnage, {
-      nbDe,
-      carac
-    });
-    if (estAffaibli(personnage) && predicateAsBool(personnage, 'insensibleAffaibli')) bonusCarac -= 2;
+    let jetCache = ficheAttributeAsBool(personnage, 'togm', false);
+    options.deBonus = options.deBonus || caracHeroique(carac, personnage);
+    let de = computeDice(personnage, options);
     let plageEC = 1;
     let plageECText = '1';
     if (options.plageEchecCritique) {
@@ -10038,9 +10091,11 @@ var COFantasy2 = COFantasy2 || function() {
         let d20roll = roll.results.total;
         let bonusText = (bonusCarac > 0) ? "+" + bonusCarac : (bonusCarac === 0) ? "" : bonusCarac;
         testRes.texte = jetCache ? d20roll + bonusCarac : buildinline(roll) + bonusText;
+        let chanceUtilisee;
         if (options.chanceRollId && options.chanceRollId[testId]) {
           bonusCarac += options.chanceRollId[testId];
           testRes.texte += "+" + options.chanceRollId[testId];
+          chanceUtilisee = true;
         }
         if (d20roll == 20) {
           testRes.reussite = true;
@@ -10057,11 +10112,14 @@ var COFantasy2 = COFantasy2 || function() {
         }
         testRes.valeur = d20roll + bonusCarac;
         testRes.rerolls = '';
+        if (!chanceUtilisee) {
         let pc = pointsDeChance(personnage);
-        if (!testRes.echecCritique && pc > 0) {
+        if (pc > 0) {
+          evt.action.echecCritique = testRes.echecCritique;
           testRes.rerolls += '<br/>' +
-            boutonSimple("!cof-bouton-chance " + evt.id + " " + testId, "Chance") +
+            boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
             " (reste " + pc + " PC)";
+        }
         }
         testRes.modifiers = '';
         if (jetCache) sendChat('COF', "/w GM Jet caché : " + buildinline(roll) + bonusText);
@@ -10125,9 +10183,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (carac2 == 'AGI') {
       bonus2 += predicateAsInt(personnage, 'esquive', 0);
     }
-    let nbrDe1 = nbreDeTestCarac(carac1, personnage);
-    let nbrDe2 = nbreDeTestCarac(carac2, personnage);
-    if (estAffaibli(personnage) && predicateAsBool(personnage, 'insensibleAffaibli')) seuil += 2;
+    let nbrDe1 = (caracHeroique(carac1, personnage)?2:1);
+    let nbrDe2 = (caracHeroique(carac2, personnage)?2:1);
     let proba1 = probaSucces(20, seuil - bonus1, nbrDe1);
     let proba2 = probaSucces(20, seuil - bonus2, nbrDe2);
     if (proba2 > proba1) return carac2;
@@ -10385,25 +10442,9 @@ var COFantasy2 = COFantasy2 || function() {
   function jetCaracteristique(personnage, carac, options, testId, evt, callback) {
     let explications = [];
     let bonusCarac = bonusTestCarac(carac, personnage, options, testId, evt, explications);
-    let nbDe = nbreDeTestCarac(carac, personnage);
-    let plusFort;
-    if (options.deBonus) {
-      if (!options.deMalus) nbDe = 2;
-    } else if (options.deMalus) {
-      if (nbDe == 2) nbDe = 1;
-      else {
-        nbDe = 1;
-        plusFort = false;
-      }
-    }
-    let jetCache = ficheAttributeAsBool(personnage, 'jets_caches', false);
-    let de = computeDice(personnage, {
-      nbDe,
-      carac,
-      dice: options.dice,
-      plusFort
-    });
-    if (estAffaibli(personnage) && predicateAsBool(personnage, 'insensibleAffaibli')) bonusCarac -= 2;
+    options.deBonus = options.deBonus || caracHeroique(carac, personnage);
+    let jetCache = ficheAttributeAsBool(personnage, 'togm', false);
+    let de = computeDice(personnage, options);
     let bonusText = '';
     if (bonusCarac > 0) {
       bonusText = ' + ' + bonusCarac;
@@ -10509,26 +10550,18 @@ var COFantasy2 = COFantasy2 || function() {
           explications.forEach(function(m) {
             addLineToFramedDisplay(display, m, 80);
           });
-          // Maintenant, on diminue la malédiction si le test est un échec
+          // Maintenant, on diminue la malédiction
           let attrMalediction = tokenAttribute(perso, 'malediction');
           if (attrMalediction.length > 0) {
-            if (rt.echecCritique)
-              diminueMalediction(perso, evt, attrMalediction);
-            else if (!rt.critique) {
-              let action = "!cof-resultat-jet " + evt.id;
-              let ligne = "L'action est-elle ";
-              ligne += boutonSimple(action + " reussi", "réussie");
-              ligne += " ou " + boutonSimple(action + " rate", "ratée");
-              ligne += " ?";
-              addLineToFramedDisplay(display, ligne);
-              evt.attenteResultat = true;
-            }
+            diminueMalediction(perso, evt, attrMalediction);
           }
           let boutonsReroll = '';
           let pc = pointsDeChance(perso);
-          if (pc > 0 && !rt.echecCritique) {
+          if (pc > 0) {
+            //TODO: tester si la chance est utilisée
+          evt.action.echecCritique = rt.echecCritique;
             boutonsReroll +=
-              '<br/>' + boutonSimple("!cof-bouton-chance " + evt.id + " " + testId, "Chance") +
+              '<br/>' + boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
               " (reste " + pc + " PC)";
           }
           if (stateCOF.combat && attributeAsBool(perso, 'runeForgesort_énergie') &&
@@ -15022,7 +15055,6 @@ var COFantasy2 = COFantasy2 || function() {
         case 'vicieux':
         case 'attaqueMentale':
         case 'auto':
-        case 'avecd12':
         case 'demiAuto':
         case 'energiePositive':
         case 'explodeMax':
@@ -15066,21 +15098,6 @@ var COFantasy2 = COFantasy2 || function() {
             return;
           }
           options.aussiArmeDeJet = cmd[1];
-          return;
-        case 'm2d20':
-        case 'avantage':
-          options.avantage = options.avantage || 1;
-          options.avantage++;
-          return;
-        case 'désavantage':
-        case 'desavantage':
-          options.avantage = options.avantage || 1;
-          options.avantage--;
-          return;
-        case 'avecd12crit':
-          options.avecd12 = {
-            crit: true
-          };
           return;
         case 'tranchant':
         case 'contondant':
@@ -16467,11 +16484,11 @@ var COFantasy2 = COFantasy2 || function() {
     'maxDmg': booleanOption,
     'sortilege': booleanOption,
     'listeCompetences': booleanOption,
-    'deBonus': booleanOption,
-    'deMalus': booleanOption,
-    'forceReset': booleanOption,
-    'nature': booleanOption,
-    'secret': booleanOption,
+    deBonus: booleanOption,
+    deMalus: booleanOption,
+    forceReset: booleanOption,
+    nature: booleanOption,
+    secret: booleanOption,
     difficulte: integerOption,
     bonus: integerOption,
     plageEchecCritique: integerOption,
@@ -17580,6 +17597,7 @@ var COFantasy2 = COFantasy2 || function() {
   const commandes = {
     'allier': commandeAllier,
     'bouger': commandeBouger,
+    'bouton-chance': commandeBoutonChance,
     'centrer-sur-token': commandeCentrerSurToken,
     'escalier': commandeEscalier,
     'eteindre-lumiere': commandeEteindreLumiere,
