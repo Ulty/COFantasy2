@@ -1,4 +1,4 @@
-//Dernière modification : ven. 14 févr. 2025,  06:33
+//Dernière modification : lun. 17 févr. 2025,  04:26
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1462,7 +1462,7 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
-    //Renvoie true si redo possible, false sinon
+  //Renvoie true si redo possible, false sinon
   function redoEvent(evt, action, perso) {
     let options = action.options || {};
     options.rolls = action.rolls;
@@ -9377,8 +9377,8 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //!cof2-bouton-chance [evt.id] [rollId]
-    function commandeBoutonChance( msg, cmd, playerId, pageId, options) {
-          if (cmd.length < 2) {
+  function commandeBoutonChance(msg, cmd, playerId, pageId, options) {
+    if (cmd.length < 2) {
       error("La commande !cof2-bouton-chance n'a pas assez d'arguments", cmd);
       return;
     }
@@ -9536,31 +9536,31 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function numeroDeVoie(perso, titre) {
-    for(let i = 1; i < 10; i++) {
-      if (ficheAttribute(perso, 'voie'+i+'nom', '') == titre) return i;
+    for (let i = 1; i < 10; i++) {
+      if (ficheAttribute(perso, 'voie' + i + 'nom', '') == titre) return i;
     }
   }
 
   function rangDansLaVoie(perso, voie) {
-    let v = 'v'+voie+'r';
-    for (let rang = 5; rang >=0; rang--) {
-      if (ficheAttributeAsInt(perso, v+rang, 0) == 1) {
-        return rang + ficheAttributeAsInt(perso, 'v'+voie+'br', 1) - 1;
+    let v = 'v' + voie + 'r';
+    for (let rang = 5; rang >= 0; rang--) {
+      if (ficheAttributeAsInt(perso, v + rang, 0) == 1) {
+        return rang + ficheAttributeAsInt(perso, 'v' + voie + 'br', 1) - 1;
       }
     }
   }
 
   function bonusEvolutif(perso, competence) {
-    let p = predicatesNamed(perso, 'bonusTestEvolutif_'+competence);
+    let p = predicatesNamed(perso, 'bonusTestEvolutif_' + competence);
     let res = 0;
     p.forEach(function(voie) {
       if (res >= 7) return;
       //voie peut être le numéro de voie ou le nom
       let numeroVoie = parseInt(voie);
-      if (isNaN(numeroVoie)|| numeroVoie > 9) 
+      if (isNaN(numeroVoie) || numeroVoie > 9)
         numeroVoie = numeroDeVoie(perso, voie);
       if (!numeroVoie) {
-        error("Impossible de trouver la voie "+voie, competence);
+        error("Impossible de trouver la voie " + voie, competence);
         return;
       }
       let r = rangDansLaVoie(perso, numeroVoie);
@@ -9764,7 +9764,7 @@ var COFantasy2 = COFantasy2 || function() {
     return bonus;
   }
 
-  function bonusTestToutesCaracs(personnage, options, testId, evt, expliquer) {
+  function bonusTestToutesCaracs(personnage, options, evt, expliquer) {
     if (options && options.cacheBonusToutesCaracs) {
       if (options.cacheBonusToutesCaracs.val !== undefined) {
         return options.cacheBonusToutesCaracs.val;
@@ -9807,8 +9807,6 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options) {
       if (options.bonus) bonus += options.bonus;
-      if (options.chanceRollId && options.chanceRollId[testId])
-        bonus += options.chanceRollId[testId];
       if (options.bonusAttrs) {
         options.bonusAttrs.forEach(function(attr) {
           let bonusAttribut = charAttributeAsInt(personnage, attr, 0);
@@ -9843,7 +9841,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //retourne un entier
   // evt n'est défini que si la caractéristique est effectivement utilisée
-  function bonusTestCarac(carac, personnage, options, testId, evt, explications) {
+  function bonusTestCarac(carac, personnage, options, evt, explications) {
     const expliquer = function(msg) {
       if (explications) explications.push(msg);
     };
@@ -9990,7 +9988,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     // Puis la partie commune
     options = options || {};
-    bonus += bonusTestToutesCaracs(personnage, options, testId, evt, expliquer);
+    bonus += bonusTestToutesCaracs(personnage, options, evt, expliquer);
     //Pas besoin de mettre la valeur de caractéristique si c'est le seul bonus
     if (explications && explications.length == 1) explications.pop();
     return bonus;
@@ -10058,6 +10056,7 @@ var COFantasy2 = COFantasy2 || function() {
   // Après le test, lance callback(testRes, explications
   // testRes.texte est l'affichage du jet de dé
   // testRes.reussite indique si le jet est réussi
+  // testRes.reussiteAvecComplications indique que le jet est réussi mais le MJ peut rajouter une complication
   // testRes.echecCritique, testRes.critique pour le type
   // testRes.valeur pour la valeur totale du jet
   // testRes.rerolls pour le texte avec les boutons de rerolls adaptés.
@@ -10068,7 +10067,7 @@ var COFantasy2 = COFantasy2 || function() {
     options = options || {};
     let testRes = {};
     let explications = [];
-    let bonusCarac = bonusTestCarac(carac, personnage, options, testId, evt, explications);
+    let bonusCarac = bonusTestCarac(carac, personnage, options, evt, explications);
     let jetCache = ficheAttributeAsBool(personnage, 'togm', false);
     options.deBonus = options.deBonus || caracHeroique(carac, personnage);
     let de = computeDice(personnage, options);
@@ -10100,26 +10099,26 @@ var COFantasy2 = COFantasy2 || function() {
         if (d20roll == 20) {
           testRes.reussite = true;
           testRes.critique = true;
-        } else if (d20roll <= plageEC) {
+        } else if (d20roll <= plageEC && (!chanceUtilisee || d20roll + bonusCarac < seuil)) {
           testRes.reussite = false;
           testRes.echecCritique = true;
           diminueMalediction(personnage, evt);
         } else if (d20roll + bonusCarac >= seuil) {
           testRes.reussite = true;
+          testRes.reussiteAvecComplications = chanceUtilisee && d20roll <= plageEC;
         } else {
           diminueMalediction(personnage, evt);
           testRes.reussite = false;
         }
         testRes.valeur = d20roll + bonusCarac;
         testRes.rerolls = '';
-        if (!chanceUtilisee) {
-        let pc = pointsDeChance(personnage);
-        if (pc > 0) {
-          evt.action.echecCritique = testRes.echecCritique;
-          testRes.rerolls += '<br/>' +
-            boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
-            " (reste " + pc + " PC)";
-        }
+        if (!chanceUtilisee && d20roll + bonusCarac + 10 >= seuil) {
+          let pc = pointsDeChance(personnage);
+          if (pc > 0) {
+            testRes.rerolls += '<br/>' +
+              boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
+              " (reste " + pc + " PC)";
+          }
         }
         testRes.modifiers = '';
         if (jetCache) sendChat('COF', "/w GM Jet caché : " + buildinline(roll) + bonusText);
@@ -10183,8 +10182,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (carac2 == 'AGI') {
       bonus2 += predicateAsInt(personnage, 'esquive', 0);
     }
-    let nbrDe1 = (caracHeroique(carac1, personnage)?2:1);
-    let nbrDe2 = (caracHeroique(carac2, personnage)?2:1);
+    let nbrDe1 = (caracHeroique(carac1, personnage) ? 2 : 1);
+    let nbrDe2 = (caracHeroique(carac2, personnage) ? 2 : 1);
     let proba1 = probaSucces(20, seuil - bonus1, nbrDe1);
     let proba2 = probaSucces(20, seuil - bonus2, nbrDe2);
     if (proba2 > proba1) return carac2;
@@ -10347,6 +10346,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (tr.reussite) {
           smsg += " => réussite";
+          if (tr.reussiteAvecComplications) smsg += " partielle";
           if (options.msgReussite) smsg += options.msgReussite;
           smsg += tr.modifiers;
         } else {
@@ -10441,7 +10441,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - roll: le inlineroll
   function jetCaracteristique(personnage, carac, options, testId, evt, callback) {
     let explications = [];
-    let bonusCarac = bonusTestCarac(carac, personnage, options, testId, evt, explications);
+    let bonusCarac = bonusTestCarac(carac, personnage, options, evt, explications);
     options.deBonus = options.deBonus || caracHeroique(carac, personnage);
     let jetCache = ficheAttributeAsBool(personnage, 'togm', false);
     let de = computeDice(personnage, options);
@@ -10467,8 +10467,15 @@ var COFantasy2 = COFantasy2 || function() {
       roll.token = personnage.token;
       let d20roll = roll.results.total;
       let rtext = jetCache ? d20roll + bonusCarac : buildinline(roll) + bonusText;
+      let chanceUtilisee;
+      if (options.chanceRollId && options.chanceRollId[testId]) {
+        bonusCarac += options.chanceRollId[testId];
+        rtext += "+" + options.chanceRollId[testId];
+        chanceUtilisee = true;
+      }
       let rt = {
         total: d20roll + bonusCarac,
+        chanceUtilisee
       };
       if (d20roll <= plageEC) {
         rtext += " -> échec critique";
@@ -10556,13 +10563,14 @@ var COFantasy2 = COFantasy2 || function() {
             diminueMalediction(perso, evt, attrMalediction);
           }
           let boutonsReroll = '';
-          let pc = pointsDeChance(perso);
-          if (pc > 0) {
-            //TODO: tester si la chance est utilisée
-          evt.action.echecCritique = rt.echecCritique;
-            boutonsReroll +=
-              '<br/>' + boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
-              " (reste " + pc + " PC)";
+          if (!rt.chanceUtilisee) {
+            let pc = pointsDeChance(perso);
+            if (pc > 0) {
+              //TODO: tester si la chance est utilisée
+              boutonsReroll +=
+                '<br/>' + boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
+                " (reste " + pc + " PC)";
+            }
           }
           if (stateCOF.combat && attributeAsBool(perso, 'runeForgesort_énergie') &&
             attributeAsInt(perso, 'limiteParCombat_runeForgesort_énergie', 1) > 0 &&
@@ -10599,6 +10607,7 @@ var COFantasy2 = COFantasy2 || function() {
           });
           if (tr.reussite) {
             let msgReussite = options.messageSiSucces || "C'est réussi.";
+          if (tr.reussiteAvecComplications) msgReussite += " Mais...";
             addLineToFramedDisplay(display, msgReussite + tr.modifiers);
           } else {
             let msgRate = "C'est raté." + tr.rerolls + tr.modifiers;
