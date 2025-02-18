@@ -1,4 +1,4 @@
-//Dernière modification : lun. 17 févr. 2025,  04:26
+//Dernière modification : mar. 18 févr. 2025,  09:46
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -362,7 +362,7 @@ var COFantasy2 = COFantasy2 || function() {
     let titre = "Options de COFantasy";
     if (prefix !== '') {
       titre += "<br>" + prefix + ' (';
-      titre += boutonSimple('!cof-options' + up, 'retour') + ')';
+      titre += boutonSimple('!cof2-options' + up, 'retour') + ')';
     }
     let display = startFramedDisplay(playerId, titre, undefined, {
       chuchote: true
@@ -371,7 +371,7 @@ var COFantasy2 = COFantasy2 || function() {
       let optVu = opt.replace(/_/g, ' ');
       let line = '<span title="' + cofOptions[opt].explications + '">' +
         optVu + '</span> : ';
-      let action = '!cof-options' + prefix + ' ' + opt;
+      let action = '!cof2-options' + prefix + ' ' + opt;
       let displayedVal = cofOptions[opt].val;
       let after = '';
       switch (cofOptions[opt].type) {
@@ -400,7 +400,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (displayedVal === '') {
             displayedVal = '<span title="pas de son" style="font-family: \'Pictos Custom\'">u</span>';
           } else {
-            after = boutonSimple('!cof-jouer-son ' + displayedVal,
+            after = boutonSimple('!cof2-jouer-son ' + displayedVal,
               '<span style="font-family: \'Pictos\'">&gt;</span> ');
             displayedVal = '<span title="' + displayedVal + '" style="font-family: \'Pictos\'">m</span>';
           }
@@ -411,7 +411,7 @@ var COFantasy2 = COFantasy2 || function() {
       line += boutonSimple(action, displayedVal) + after;
       addLineToFramedDisplay(display, line);
     }
-    addLineToFramedDisplay(display, boutonSimple('!cof-options' + prefix + ' reset', 'Valeurs par défaut'), 70);
+    addLineToFramedDisplay(display, boutonSimple('!cof2-options' + prefix + ' reset', 'Valeurs par défaut'), 70);
     sendFramedDisplay(display);
   }
 
@@ -482,6 +482,12 @@ var COFantasy2 = COFantasy2 || function() {
       visibleto: '',
       istokenaction: false,
       inBar: true
+    }, {
+      name: 'Jet-chance',
+      action: "!cof2-jet-chance",
+      visibleto: '',
+      istokenaction: false,
+      inBar: false
     },
     /*{
                  name: 'Nuit',
@@ -6033,6 +6039,36 @@ var COFantasy2 = COFantasy2 || function() {
       combat.activeTokenId = tidNew;
   }
 
+ //Le son ---------------------------------------------------------------
+
+  function commandeJouerSon(msg, cmd, playerId, pageId, options) {
+    let sonIndex = msg.content.indexOf(' ');
+    if (sonIndex > 0) {
+      //On joue un son
+      let son = msg.content.substring(sonIndex + 1);
+      playSound(son);
+    } else { //On arrête tous les sons
+      let AMdeclared;
+      try {
+        AMdeclared = Roll20AM;
+      } catch (e) {
+        if (e.name != "ReferenceError") throw (e);
+      }
+      if (AMdeclared) {
+        //Avec Roll20 Audio Master
+        sendChat("GM", "!roll20AM --audio,stop|");
+      } else {
+        let jukebox = findObjs({
+          type: 'jukeboxtrack',
+          playing: true
+        });
+        jukebox.forEach(function(track) {
+          track.set('playing', false);
+        });
+      }
+    }
+
+  }
 
   //La lumière -----------------------------------------------------------
 
@@ -10607,7 +10643,7 @@ var COFantasy2 = COFantasy2 || function() {
           });
           if (tr.reussite) {
             let msgReussite = options.messageSiSucces || "C'est réussi.";
-          if (tr.reussiteAvecComplications) msgReussite += " Mais...";
+            if (tr.reussiteAvecComplications) msgReussite += " Mais...";
             addLineToFramedDisplay(display, msgReussite + tr.modifiers);
           } else {
             let msgRate = "C'est raté." + tr.rerolls + tr.modifiers;
@@ -10731,6 +10767,56 @@ var COFantasy2 = COFantasy2 || function() {
     iterSelected(selected, function(perso) {
       jetPerso(perso, caracteristique, difficulte, titre, playerId, options);
     });
+  }
+
+  function commandeJetChance(msg, cmd, playerId, pageId, options) {
+    let {
+      selected
+    } = getSelected(msg, pageId, options);
+    if (selected.length === 0) {
+      sendPlayer(msg, "Utilisation de !cof2-jet-chance sans sélection de token", playerId);
+      return;
+    }
+    let display;
+    let opt = {
+      deExplosif: true
+    };
+    let tousLesJets = [];
+    iterSelected(selected, function(perso) {
+      opt.bonus = ficheAttributeAsInt(perso, 'pc', 0);
+      let jet = rollDePlus(6, opt);
+      if (!display) {
+        if (selected.length < 2) {
+          display = startFramedDisplay(playerId, "Jet de chance", perso, options);
+          addLineToFramedDisplay(display, jet.roll);
+        } else {
+          display = startFramedDisplay(playerId, "Jet de chance");
+          startTableInFramedDisplay(display);
+          tousLesJets = [{
+            jet,
+            nom: nomPerso(perso)
+          }];
+        }
+      } else {
+        tousLesJets.push({
+          jet,
+          nom: nomPerso(perso)
+        });
+      }
+    });
+    if (selected.length > 1) {
+      tousLesJets.sort(function(j1, j2) {
+        return j1.jet.val - j2.jet.val;
+      });
+      let fond = false;
+      tousLesJets.forEach(function(j) {
+        addCellInFramedDisplay(display, j.nom, 100, true, fond);
+        addCellInFramedDisplay(display, j.jet.roll, 100, false, fond);
+        fond = !fond;
+      });
+      endTableInFramedDisplay(display);
+    }
+    sendFramedDisplay(display);
   }
 
   // Le son -------------------------------------------------------------
@@ -17613,6 +17699,8 @@ var COFantasy2 = COFantasy2 || function() {
     'fin-combat': commandeFinCombat,
     'gerer-equipe': commandeGererEquipe,
     'jet': commandeJet,
+    'jet-chance': commandeJetChance,
+    'jouer-son': commandeJouerSon,
     'init': commandeInit,
     'lister-equipes': commandeListerEquipes,
     'open-door': commandeOpenDoor,

@@ -190,7 +190,7 @@ tr {line-height: 25px;}
           <h2 class="text-primary" id="action_principales">2. Actions principales</h2>
           <p>Pour la plupart des actions ci-dessous, il est généralement utile de créer des macros facilitant leur utilisation. Pour mettre en place un jeu de macros par défaut, vous pouvez taper <code>!cof2-set-macros</code> dans le chat. Si vous souhaitez redéfinir des macros existantes, vous pouvez taper <code>!cof2-set-macros --force</code>.</p>
           <div class="decalage">
-              <h3 class="text-info" id="jet_caracteristiques">2.1 Les jet de caractéristiques</h3>
+              <h3 class="text-info" id="jet_caracteristiques">2.1 Les jets de caractéristiques</h3>
               <div class="decalage">
                 <p><code>!cof2-jet <i>carac</i></code> : fait un simple jet pour la caractérisique sélectionnée.</p>
                 <p>Si on ne donne aucun argument (en dehors des options), la commande demande de préciser la caractéristique à tester. Pour chaque caractéristique, le script va proposer d'utiliser une des compétences définies sur la fiche (liste sous les capacités). Si il existe un handout nommé <code>Compétences</code>, celui-ci sera aussi utilisé pour proposer pour chaque caractéristique un choix de compétences à tester. Le handout doit contenir dans ses notes des lignes commençant par une caractéristique (FOR, AGI, ...), suivi de <code>:</code>, puis des noms de compétences, séparés par des blancs, des retours à la ligne, des virgules ou des <code>/</code>.</p>
@@ -210,6 +210,7 @@ tr {line-height: 25px;}
                 </ul>
                 <p>Si le personnage possède un attribut numérique <code>modificateurTests</code>, ce modificateur sera pris en compte pour tous les tests.</p>
                 <p>Dans les options de jeu (affichés en utilisant <code>!cof2-options</code>, dans le menu des options d'affichage, il est possible de choisir de ne faire afficher les résultats qu'au MJ, qui peut alors en cliquant sur un bouton le montrer aux joueurs (ou pas).</p>
+                <p>Enfin, il est possible de faire lancer des jets de chance avec <code>!cof2-jet-chance</code>. Si plusieurs tokens sont selectionnés, le scrit triera les jets de chance par ordre croissant.</p>
               </div>
 <!--
             <h3 class="text-info" id="le_combat">2.1 Le combat</h3>
