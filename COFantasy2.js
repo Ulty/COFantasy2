@@ -1,4 +1,4 @@
-//Dernière modification : mar. 18 févr. 2025,  09:46
+//Dernière modification : mar. 18 févr. 2025,  06:39
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12117,6 +12117,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function turnOrderChanged(cmp, old_cmp) {
+    nextTurn(cmp);
+  }
+
   // Les armes ---------------------------------------------------------
 
   //attaquant peut ne pas avoir de token
@@ -17799,7 +17803,7 @@ var COFantasy2 = COFantasy2 || function() {
     statusMarkersChanged,
     doorChanged,
     playerPageChanged,
-    nextTurn,
+    turnOrderChanged,
   };
 }();
 
@@ -17819,7 +17823,7 @@ on('ready', function() {
   on('change:graphic:statusmarkers', COFantasy2.statusMarkersChanged);
   on('change:door:isOpen', COFantasy2.doorChanged);
   on('change:campaign:playerpageid', COFantasy2.playerPageChanged);
-  on('change:campaign:turnorder', COFantasy2.nextTurn);
+  on('change:campaign:turnorder', COFantasy2.turnOrderChanged);
   //Initialisation terminée, message dans la console
   let load_msg = "COFantasy2 version " + state.COFantasy.version;
   if (COF2_BETA) load_msg += ' beta';
