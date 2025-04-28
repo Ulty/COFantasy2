@@ -2056,7 +2056,7 @@ var COFantasy2 = COFantasy2 || function() {
   function defenseDeBase(attaquant, target, explications, opt) {
     let defense = 10;
     if (persoEstPNJ(target, opt)) {
-      defense = ficheAttributeAsInt(target, 'pnj_def', 10, opt);
+      defense = ficheAttributeAsInt(target, 'def', 10, opt);
     } else {
       if (target.defautCuirasse === undefined && (!attaquant || !predicateAsBool(attaquant, 'creatureIntangible'))) {
         if (!attaquant || !predicateAsBool(attaquant, 'creatureIntangible')) {
@@ -22831,7 +22831,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (!defenseMontree) {
         let defenseAffichee = 10;
         if (estPNJ) {
-          defenseAffichee = ficheAttributeAsInt(perso, 'pnj_def', 10);
+          defenseAffichee = ficheAttributeAsInt(perso, 'def', 10);
         } else {
           defenseAffichee += ficheAttributeAsInt(perso, 'armure', 0) * ficheAttributeAsInt(perso, 'armure_eqp', 0);
           defenseAffichee += ficheAttributeAsInt(perso, 'bouclier', 0) * ficheAttributeAsInt(perso, 'bouclier_eqp', 0);
