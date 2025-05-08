@@ -1,4 +1,4 @@
-//Dernière modification : mer. 07 mai 2025,  06:00
+//Dernière modification : jeu. 08 mai 2025,  05:00
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -8361,10 +8361,15 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Le jeu est en pause", playerId);
       return;
     }
-    let target = persoOfId(cmd[2], cmd[2], pageId);
-    if (target === undefined) {
-      error("Le deuxième argument de !cof2-attaque n'est pas un token valide", cmd[1]);
-      return;
+    let target;
+    if (options.explosion) {
+      target = attaquant; //Par convention, TODO changer ?
+    } else {
+      target = persoOfId(cmd[2], cmd[2], pageId);
+      if (target === undefined) {
+        error("Le deuxième argument de !cof2-attaque n'est pas un token valide", cmd[1]);
+        return;
+      }
     }
     let attackLabel = -1;
     if (cmd.length > 3) {
@@ -8906,6 +8911,27 @@ var COFantasy2 = COFantasy2 || function() {
     attaque(attaquant, cibles, portee, weaponStats, playerId, pageId, options);
   }
 
+  function commandeExplosion(cmdOrg, playerId, pageId, options) {
+    //On veut ignorer les options d'alliés de getSelected (?)
+    options.ignoreAllies = true;
+    options.ignoreDisque = true;
+    let {
+      selected
+    } = getSelected(pageId, options);
+    if (selected.length === 0) {
+      sendPlayer("Pas de source pour !cof2-explosion", playerId);
+    }
+    options.explosion = true;
+    cmdOrg.shift(); //On enlève le !cof2-explosion
+    iterSelected(selected, function(attaquant) {
+      let cmd = {...cmdOrg
+      };
+      cmd.unshift(attaquant.token.id);
+      cmd.unshift(attaquant.token.id);
+      cmd.unshift('!cof2-explosion');
+      commandeAttaque(cmd, playerId, pageId, options, attaquant);
+    });
+  }
   // Interface dans le chat ---------------------------------------------
 
   function rollNumber(s) {
@@ -10116,7 +10142,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     // vérifie le type d'actions. Le compteur d'actions sera fait plus bas
     let combat = stateCOF.combat;
-    if (perso && !combat && options.typeAction && !options.testeRessource) {
+    if (perso && !combat && options.typeAction && !options.testeRessources) {
       combat = initPerso(perso, evt);
     }
     if (perso && options.typeAction && (!combat || combat.activeTokenId == perso.token.id)) {
@@ -11102,7 +11128,7 @@ var COFantasy2 = COFantasy2 || function() {
       let toReturn = boutonSimple(action, text, buttonStyle + overlay);
       return toReturn;
     } else {
-      action = "!cof-multi-command " + actions.join(' --cof-multi-command ');
+      action = "!cof2-multi-command " + actions.join(' --multi-command ');
       return boutonSimple(action, text, buttonStyle + overlay);
     }
   }
@@ -11331,7 +11357,7 @@ var COFantasy2 = COFantasy2 || function() {
     };
   }
 
-  function proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArme, cote) {
+  function proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArme, cote, gratuit) {
     let degainer = "!cof2-degainer ?{Arme?|";
     let armeADegainer;
     //Prise en compte des prédicats pour ce qu'on veut voir en premier
@@ -11437,19 +11463,20 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         degainer = degainer.substr(0, degainer.length - 1) + '}';
       }
-      degainer += ' --onlySelection ' + perso.token.id + ' --montreActions --typeAction A';
+      degainer += ' --onlySelection ' + perso.token.id;
+      if (!gratuit) degainer += ' --montreActions --typeAction M';
       if (ligneArme)
         ligneArme += boutonSimple(degainer, '<span style="font-family:Pictos">;</span>');
       else {
         let b = 'Dégainer';
         if (cote) b += ' à' + cote;
-        ligneArme = boutonSimple(degainer, b);
+        ligneArme = boutonSimple(degainer, b, BS_BUTTON);
       }
       if (armeADegainer.unique && !labelArmePrincipale && !labelArmeGauche)
         ligneArme += armeADegainer.nom;
     } else {
       if (ligneArme)
-        ligneArme += boutonSimple('!cof2-degainer --montreActions --onlySelection ' + perso.token.id + " --typeAction A", '<span style="font-family:Pictos">}</span>');
+        ligneArme += boutonSimple('!cof2-degainer --montreActions --onlySelection ' + perso.token.id + " --typeAction M", '<span style="font-family:Pictos">}</span>');
     }
     return ligneArme;
   }
@@ -11794,7 +11821,7 @@ var COFantasy2 = COFantasy2 || function() {
       ligne += listeAttaquesVisibles(perso, pageId, attackOptions);
     }
     //L'arme en main et dégainer, si besoin
-    if (typeActionPossible(perso, 'A') && montrerArmeEnMain) {
+    if (typeActionPossible(perso, 'M') && montrerArmeEnMain) {
       let {
         armes,
         armeVisible,
@@ -11847,7 +11874,7 @@ var COFantasy2 = COFantasy2 || function() {
           ligneArmePrincipale = boutonAttaque(perso, "Mains nues", bopt);
         }
       }
-      if (perso.armeGauche) {
+      if (perso.armeGauche && typeActionPossible(perso, 'A')) {
         let nomCommande = perso.armeGauche.name;
         if (armeDechargee(perso, perso.armeGauche)) nomCommande += ' (vide)';
         else if (armeChargeeDeGrenaille(perso, perso.armeGauche)) nomCommande += ' (grenaille)';
@@ -11975,6 +12002,23 @@ var COFantasy2 = COFantasy2 || function() {
         sendPerso(perso, "n'a pas de liste d'actions " + l + " définie");
       }
     });
+  }
+
+  function sendCommands(from, commands) {
+    if (commands.length === 0) return;
+    let c = commands.shift().trim();
+    if (!c.startsWith('!')) c = "!cof2-action " + c;
+    _.delay(function() {
+      sendChat(from, c);
+      sendCommands(from, commands);
+    }, 10);
+  }
+
+  //!cof2-multi-command !cmd1 ... --multi-command !cmd2 .. --multi-command !cmd3..
+  function commandeMultiCommand(cmd, playerId, pageId, options) {
+    let args = cmd.substring(20).trim();
+    let commands = args.split(' --multi-command ');
+    sendCommands(apiMsg.who, commands);
   }
 
   //Le mouvement des tokens -------------------------------------------------
@@ -12302,13 +12346,31 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Distance de déplacement nulle", playerId);
       return;
     }
-    sendPlayer("Vous pouvez déplacer " + nomPerso(perso) + " de " + vitesse + " m.", playerId);
     let evt = {
       type: 'mouvement'
     };
     addEvent(evt);
     if (limiteRessources(perso, options, 'mouvement', 'se déplacer', evt)) return;
     unlockToken(perso, evt);
+    sendPlayer("Vous pouvez déplacer " + nomPerso(perso) + " de " + vitesse + " m.", playerId);
+    //On propose de dégainer pendant le déplacement
+    let arme = armesEnMain(perso);
+    let labelArme;
+    if (arme) {
+      labelArme = arme.label;
+    }
+    let labelArmeGauche;
+    if (perso.armeGauche) labelArmeGauche = perso.armeGauche.label;
+    let {
+      armes,
+    } = listeDesArmes(perso);
+    let degainer = proposerDeDegainer(perso, armes, labelArme, arme, labelArmeGauche, '', '', true);
+    if (degainer) {
+      whisperChar(perso.chrId, degainer + " pendant le mouvement");
+    } else if (arme) { //faudrait-il proposer de rengainer aussi ?
+      let ligne = boutonSimple('!cof2-degainer --onlySelection ' + perso.token.id, '<span style="font-family:Pictos">}</span>', BS_BUTTON) + " Rengainer pendant le mouvement";
+      whisperChar(perso.charId, ligne);
+    }
     let combat = stateCOF.combat;
     if (combat) {
       evt.combat = evt.combat || deepCopy(combat);
@@ -20319,13 +20381,13 @@ var COFantasy2 = COFantasy2 || function() {
       let pageId = perso.token.get('pageid');
       combat.pageId = pageId;
       if (!isActive(perso)) return;
+      if (predicateAsBool(perso, 'aucuneActionCombat')) return;
       if (estControlleParJoueur(perso.charId, {
           saufMJ: true,
           online: true
         })) {
         lockToken(perso, evt);
       }
-      if (predicateAsBool(perso, 'aucuneActionCombat')) return;
       let init = persoInit(perso, evt);
       // On place le token à sa place dans la liste du tour
       let dejaIndex =
@@ -21477,7 +21539,6 @@ var COFantasy2 = COFantasy2 || function() {
     let weaponStats = {
       label,
       name: fieldAsString(att, 'arme-nom', ''),
-      attDiceExpr: fieldAsString(att, 'arme-dm', ''),
       crit: fieldAsInt(att, 'arme-crit', 20),
       divers: fieldAsString(att, 'arme-special', ''),
       portee: fieldAsInt(att, 'arme-portee', 0),
@@ -21488,7 +21549,14 @@ var COFantasy2 = COFantasy2 || function() {
       //predicats: fieldAsString(att, 'armepredicats', ''),
       predicats: '', //TODO, à chercher dans l'équipement
     };
-    let dm = parseDice(weaponStats.attDiceExpr, perso, "DM de " + weaponStats.name);
+    let expr = fieldAsString(att, 'arme-dm', '');
+    let exprBatarde;
+    let indexSlash = expr.indexOf('/');
+    if (indexSlash) {
+      exprBatarde = expr.substring(indexSlash + 1);
+      expr = expr.substring(0, indexSlash);
+    }
+    let dm = parseDice(expr, perso, "DM de " + weaponStats.name);
     if (dm) {
       weaponStats.attNbDices = dm.nbDe;
       weaponStats.attDice = dm.dice;
@@ -21554,10 +21622,10 @@ var COFantasy2 = COFantasy2 || function() {
       weaponStats.armeLegere = true;
     weaponStats.eclaire = toInt(pred.eclaire);
     weaponStats.eclaireFaible = toInt(pred.eclaireFaible);
-    weaponStats.batarde = pred.batarde;
+    if (exprBatarde !== undefined) weaponStats.batarde = exprBatarde;
     if (weaponStats.batarde && weaponStats.deuxMains) {
       error("L'arme " + weaponStats.name + " est déclarée comme batârde, il faudrait en faire une arme à une main par défaut", weaponStats);
-      weaponStats.deuxMains = undefined;
+      delete weaponStats.deuxMains;
     }
     //Identification des catégories d'armes utilisées en jeu
     identifierArme(weaponStats, pred, 'arc', /\barc\b/i);
@@ -25464,7 +25532,9 @@ var COFantasy2 = COFantasy2 || function() {
       fn: stringOption,
       array: true,
     },
+    mortsVivants: boolDefaultOption,
     metal: boolDefaultOption,
+    'multi-command': boolDefaultOption,
     nature: boolDefaultOption,
     naturel: {
       fn: booleanOption,
@@ -25521,6 +25591,7 @@ var COFantasy2 = COFantasy2 || function() {
     self: {
       fn: selectionOption
     },
+    sortilege: boolDefaultOption,
     soundAttack: stringDefaultOption,
     soundAttackEchec: stringDefaultOption,
     soundAttackEchecCritique: stringDefaultOption,
@@ -25549,8 +25620,6 @@ var COFantasy2 = COFantasy2 || function() {
       fn: selectionOption
     },
     tranchant: boolDefaultOption,
-    mortsVivants: boolDefaultOption,
-    sortilege: boolDefaultOption,
     listeCompetences: boolDefaultOption,
     onlySelection: wordDefaultOption,
     typeAction: wordDefaultOption,
@@ -27033,6 +27102,10 @@ var COFantasy2 = COFantasy2 || function() {
     'eteindre-lumiere': {
       fn: commandeEteindreLumiere
     },
+    'explosion': {
+      fn: commandeExplosion,
+      minArgs: 1
+    },
     'fin-combat': {
       fn: commandeFinCombat
     },
@@ -27062,6 +27135,10 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'lister-equipes': {
       fn: commandeListerEquipes
+    },
+    'multi-command': {
+      fn: commandeMultiCommand,
+      minArgs: 1
     },
     'mvt': {
       fn: commandeMvt,

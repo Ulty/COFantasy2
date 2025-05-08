@@ -57,7 +57,7 @@ tr {line-height: 25px;}
               <ul id="how_to_use" class="collapse">
                 <li><a class="text-info" href="#token_personnages">Tokens et personnages</a></li>
                 <li><a class="text-info" href="#commandes">Les commandes</a></li>
-                <li><a class="text-info" href="#macros_abilities">Macros et Abilities</a></li>
+                <li><a class="text-info" href="#macros_abilities">Macros, abilities et listes d'actions</a></li>
                 <li><a class="text-info" href="#predicats">Prédicats</a></li>
                 <li><a class="text-info" href="#methode_selection_groupes">Méthodes de sélection de groupes</a></li>
                 <li><a class="text-info" href="#gestion_temps">Gestion du temps (rounds, repos, ...)</a></li>
@@ -65,9 +65,8 @@ tr {line-height: 25px;}
               <li data-toggle="collapse" data-target="#main_action"><a href="#action_principales">Actions principales</a></li>
               <ul id="main_action" class="collapse">
                 <li><a class="text-info" href="#jet_caracteristiques">Jet de caractéristiques</a></li>
-                <li><a class="text-info" href="#le_combat">Le combat</a></li>
+                <li><a class="text-info" href="#attaques">Les attaques</a></li>
                 <li><a class="text-info" href="#soins">Soins</a></li>
-                <li><a class="text-info" href="#repos">Repos</a></li>
                 <li><a class="text-info" href="#statut_etats">Statut et états</a></li>
                 <li><a class="text-info" href="#sorts">Sorts</a></li>
                 <li><a class="text-info" href="#consommables">Consommables</a></li>
@@ -154,12 +153,24 @@ tr {line-height: 25px;}
               <p>La façon la plus simple d'interragir avec le script est de taper des commandes dans le <i>chat</i> de Roll20. Les commandes pour ce script commencent toujours par <code>!cof2-</code> et contiennent tout ce qui est écrit jusqu'à ce qu'on presse sur entrée. Si on utilise une commande du script dans une macro, cela signifie qu'il de faut pas de retour à la ligne. Le premier mot de la ligne est l'action. Il est ensuite suivi d'un ou plusieurs blancs qui sont les arguments de l'action, par exemple, pour <code>!cof2-centrer-sur-token</code>, il n'y aura qu'un argument, le nom du token. Les arguments sont séparés entre eux de 1 ou plusieurs blancs.<p>
               <p>La plupart des actions acceptent aussi des options, qui ont toutes la même forme : elles commencent par <code> --</code> directement suivi (sans blanc) du nom de l'option, puis de ses paramètres séparés par des blancs.</p>
             </div>
-            <h3 class="text-info" id="macros_abilities">1.3 Macros et Abilities</h3>
+            <h3 class="text-info" id="macros_abilities">1.3 Macros, abilities et listes d'actions</h3>
             <div class="decalage">
               <p>Comme tous les scripts, ce script est utilisable tel quel dans le chat, mais il est pensé pour être utilisés par des macros qui permettent un autre niveau d'automatisation parfois difficile d'accès au sein des scripts. le script génère d'ailleurs la plupart des macros utiles à la première utilisation, et il met automatiquement les macros à jour à chaque changement de version. Il est possible de demander des les re-créer en tapant la commande <code>!cof2-set-macros</code> dans le chat.</p>
               <p>
               Le script ne peut pas mettre les macros dans la barre de raccourci. Je recommande que chaque joueur se crée sa macro <code>Centrer</code>, contenant le code <code>!cof2-centrer-sur-token <i>nom_de_leur_token_principal</i></code>, qui leur permettra en un click de centrer la vue de la carte sur leur token. Pour le MJ, le script suggère de mettre un certain nombre des macros qu'il crée, au moment de la première utilisation.</p>
-            </div>
+              <h4 class="text-secondary" id="listes_action" >Listes d'actions</h4>
+              <div class="decalage">
+                <p>Les listes d'action, présentes dans l'onglet <code>SCRIPT</code> de la fiche, sont une façon de regrouper et d'afficher des commandes pour COF2. Elles peuvent donc se substituer aux macros ou aux abilities, mais avec des restrictions. L'architecture des listes dans les fiches Roll20 ne permet pas vraiment d'avoir un nombre quelconque de liste : pour l'instant, la fiche en propose 5. La première liste d'action est particulière, car elle est utilisée pour les actions à proposer à chaque fois que c'est le tour du personnage quand <a href="#round_par_round">le temps est découpé en rounds</a>. Chaque liste d'action possède un titre, et vous pouvez modifier les titres de listes 2 à 5. Pour faire afficher une liste d'actions, on peut utiliser la commande <code>!cof2-liste-actions <i>titre</i></code> en sélectionnant un personnage. Sans argument, cela va afficher la première liste, sinon cela affiche la liste de titre <i>titre</i>. On ne peut utiliser les action d'une liste d'action qu'en affichant celles-ci dans le chat.
+                </p>
+                <p>Chaque action de la liste se compose d'un nom d'action, d'un type d'action (pour les actions limitées, d'attaque ou de mouvement) et d'une commande. Enfin, une case peut être décochée pour déactiver temporairement l'affichage de l'action. Le nom de l'action peut soit être directement une commande (commençant par <code>%</code>, <code>#</code> ou <code>!</code>), et dans ce cas l'action affichée sera déterminée par le script, soit du texte qui sera affiché tel quel. Dans ce cas, il sera souvent nécessaire de préciser le code de l'action dans le champ <i>Commande de script</i>. La commande peut être un text contenant des macros et des abilities. Si après expansion des macros et abilities, elle commence par un <code>!</code>, elle sera exécutée telle quelle quand on cliquera sur le bouton dans le chat. Sinon, le script exécutera la commande <code>!cof2-action </code> suivi du texte du code. Si la commande comporte des retours à la ligne, chaque ligne est interprétée, puis passée en argument à <code>!cof2-multi-command</code>. N'oubliez pas que vous pouvez faire afficher une autre liste en utilisant la commande <code>!cof2-liste-actions</code>, ça peut être utile pour afficher une liste moins longue et regrouper certaines actions de manière logique (par exemple mettre tous les sorts dans une liste dédiée).
+                <p>Il existe un certain nombre de commandes spéciales, qui peuvent être rentrée dans le titre ou le code : 
+                <ul>
+                  <li><code>!attaques</code> fera afficher toutes les attaques cochées de la fiche</li>
+                  <li><code>!arme-en-main</code> affichera l'attaque correspondant à l'arme en main, ou si aucune arme n'est en main, une attaque naturelle non cochée, et si il n'y en a pas non plus, une attaque à mains nues. Vous pouvez faire suivre cette commandes d'options d'attaque, comme <code>--deBonus</code>.</li>
+                  <li><code>!options</code> passera en option à toutes les actions suivantes tout ce que vous écrirez dans la même ligne.</li>
+                </ul>
+                </p>
+              </div>
             <h3 class="text-info" id="predicats">1.4 Prédicats</h3>
             <div class="decalage">
               <p>Une façon courante d'informer le script qu'un personnage dispose d'une capacité particulière (que ce soit dû à son entraînement, à un objet porté, ou l'utilisation de règles particulières par le MJ) consiste à utiliser des prédicats. Il s'agit de mots clés à rentrer dans des zones de texte dédiées de la fiche, comme par exemple la zone <code>Prédicats</code>, visible depuis l'onglet <code>Script</code>. Ces mots clés peuvent être séparés de blancs ou de retours à la ligne.</p>
@@ -192,7 +203,7 @@ tr {line-height: 25px;}
             <h3 class="text-info" id="gestion_temps">1.6 Gestion du temps </h3>
             <div class="decalage">
               <p>COF2 formalise principalement deux échelles de temps : soit le temps compté round par round de 6 secondes (principalement pour le combat), soit le temps compté en fonction des repos courts et des repos longs. Le reste n'a pas d'impact sur les mécaniques de jeu. Le script ne garde donc que ces deux aspects, et vous devrez gérer le reste tout seuls.</p>
-              <h4 class="text-secondary">Le temps au round par round</h4>
+              <h4 class="text-secondary" id="round_par_round">Le temps au round par round</h4>
               <div class="decalage">
                 <p>Dans le temps au round par round, les personnages agissent par ordre d'initiative. La façon la plus courante de passer dans ce mode, est donc d'utiliser la commande <code>!cof2-init</code> en sélectionnant les tokens qui vont participer à l'action. Cela fera apparaître le turn tracker de Roll20, avec les personnages triés. Le script affiche une liste d'actions possibles dans le tour pour le joueur qui contrôle le personnage dont c'est le tour de jouer. Il suffit de cliquer sur le bouton tour suivant du turn tracker pour passer au personnage suivant. Les tokens ayant un <a href=#predicats>prédicat</a> <code>aucuneActionCombat</code> ne sont jamais ajoutés au turn tracker.</p>
                 <p>À chaque instant, le token dont c'est le tour d'agir est signalé par une aura qui bouge lentement. L'image de cette aura peut être modifiée dans les options (<code>!cof2-options images</code>), et il est possible de spécifier une aura pour chaque token, en ajoutant une ligne dans le champ <code>GM Notes</code> du token (en bas de la partie basique de l'édition du token). Cette ligne doit commencer par <code>init_aura:</code>, et contenir une <a href=https://wiki.roll20.net/API:Objects#imgsrc_and_avatar_property_restrictions>url valide pour un token</a>. N'oubliez pas de sauvegarder le token comme token par défaut pour un personnage si vous voulez que ce personnage ait toujours cette aura. Le token dont c'est le tour est mis au premier plan, sauf si son personnage a un prédicat <code>tokenEnDessous</code>, ce qui peut parfois être plus pratique pour les très gros tokens.</p>
@@ -204,6 +215,9 @@ tr {line-height: 25px;}
                   <li><strong>G</strong>: action gratuite (qui nécessite d'être conscient).</li>
                 </ul>
                 Si un personnage essaie de faire une action qui n'est plus possible (une deuxième action limitée, par exemple), le script va afficher un bouton pour le MJ pour autoriser l'action. Si une action ne demande pas d'utiliser le script, mais que vous voulez quand même la signaler script, utilisez la commande <code>!cof2-action</code>, avec un petit texte explicatif. Par exemple <code>!cof2-action ouvre la porte --typeAction M</code>.
+                </p>
+                <p>Par défaut, les tokens dont ce n'est pas le tour ne peuvent pas être déplacés par les joueurs. La liste des actions qui apparaissent au tour d'un personnage contient une action permettant de bouger ce personnage d'une distance maximale de 10 m (valeur qui peut être changée avec un prédicat <code>vitesse</code>). Les autres actions affichées dépendent des attaques de la fiche, des capacités cochées sur la fiche, et de la liste d'actions de l'onglet <code>SCRIPT</code>. Cette <a href="#listes_action">liste d'actions personnalisable</a> permet de proposer des actions qui diffèrent des règles normales, ou qui ne sont pas encore gérées par le script.</p>
+                <p>Normalement, le script affiche au joueur une liste d'actions actualisée après chaque action limitée, d'attaque ou de mouvement, mais si le joueur a besoin de réafficher cette liste, il peut selectionner son token, et cliquer sur le bouton <code>A&#x2A67;</code>. Le MJ peut à tout moment faire passer au personnage suivant dans le turn tracker, et le script proposera au joueur de finir son tour quand il n'aura plus d'action à faire. Si vous en avez besoin, vous pouvez aussi lui faire utiliser la commande <code>!cof2-tour-suivant</code>.
                 </p>
               </div>
               <h4 class="text-secondary">Les repos</h4>
@@ -237,84 +251,29 @@ tr {line-height: 25px;}
                 <p>Dans les options de jeu (affichés en utilisant <code>!cof2-options</code>, dans le menu des options d'affichage, il est possible de choisir de ne faire afficher les résultats qu'au MJ, qui peut alors en cliquant sur un bouton le montrer aux joueurs (ou pas).</p>
                 <p>Enfin, il est possible de faire lancer des jets de chance avec <code>!cof2-jet-chance</code>. Si plusieurs tokens sont selectionnés, le scrit triera les jets de chance par ordre croissant.</p>
               </div>
-<!--
-            <h3 class="text-info" id="le_combat">2.2 Le combat</h3>
+            <h3 class="text-info" id="attaques">2.2 Les attaques</h3>
             <div class="decalage">
-              <h4 class="text-secondary">Initiative : <code>!cof-init</code></h4>
-              <div class="decalage">
-                <p>Les tokens sélectionnés sont ajouté au tracker de tour. Si celui-ci n'existe pas, un nouveau est créé, avec compteur de tour à 1, et on rentre en combat. Les tokens ayant un <a href=#predicats>prédicat</a> <code>aucuneActionCombat</code> ne sont jamais ajoutés au turn tracker.</p>
-                <p>Une option du script (ajustable en utilisant <code>!cof-options</code>) permet d'utiliser la règle de l'initiative variable (ajout d'un d6 explosif à l'initiative). Il est alors possible de faire lancer les dés d'initiative par les joueurs.</p>
-                <p>Les règles de tri suivent ce qui est donné p 70 : priorité aux PJs. Pour l'instant, on distingue un PJ d'un PNJ au dé de vie : si le personnage d'a pas de dé de vie, c'est un PNJ. Ensuite, entre PJs, priorité à la plus haute sagesse. Pour les PNJ, c'est aléatoire.</p>
-                <p>À chaque instant, le token dont c'est le tour d'agir est signalé par une aura qui bouge lentement. L'image de cette aura peut être modifiée dans les options (<code>!cof-options images</code>), et il est possible de spécifier une aura pour chaque token, en ajoutant une ligne dans le champ <code>GM Notes</code> du token (en bas de la partie basique de l'édition du token). Cette ligne doit commencer par <code>init_aura:</code>, et contenir une <a href=https://wiki.roll20.net/API:Objects#imgsrc_and_avatar_property_restrictions>url valide pour un token</a>. N'oubliez pas de sauvegarder le token comme token par défaut our un personnage si vous voulez que ce personnage ait toujours cette aura.</p>
-                <p>Il est possible de laisser les joueurs passer leur tour, en utilisant la commande <code>!cof-tour-suivant</code>. Une utilisation possible est de le mettre en macro dans les actions du tour (voir <a href="#actions_du_tour">Actions du tour</a> ci-dessous).</p>
-                <div class="alert alert-primary">
-                  <h5>Astuces :</h5>
-                  <ul>
-                    <li><p><code>!cof-attendre ?{Nouvelle initiative}</code> : Permet d'attendre avant d'agir en réduisant temporairement son initiative.</p></li>
-                    <li> Il est possible de se passer de l'aura qui bouge, et d'utiliser à la place une icône de drapeau ou avec la syntaxe
-                      <code>!cof-init --aura</code> une aura autour du Token de couleur verte (ou rouge si le personnage n'est pas contrôlé par un joueur ou dans une <a href="#exemple_equipe">équipe</a> contenant un personnage contrôlé par un joueur). Pour cela, désactiver l'initiative dynamique dans les options d'affichage (<code>!cof-options affichage</code>).
-                    </li>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <h4 class="text-secondary" id="actions_du_tour" >Liste d'actions pour le personnage dont c'est le tour</h4>
-              <div class="decalage">
-                <p>Le script affiche, pour le personnage dont c'est le tour, une liste d'actions. Cette liste est chuchotée au joueur qui contrôle le personnage, ou si aucun joueur le contrôlant n'est connecté, au MJ. Elle se compose par défaut des attaques du personnage et des actions d'attendre, se défendre et faire une manoeuvre. 
-                Pour voir ce message en dehors du changement d'initiative, ou pour le MJ, on peut utiliser <code>!cof-liste-actions</code> en sélectionnant le token (un bon candidat pour une macro de type token action, d'ailleurs généré par la commande <code>!cof-set-macros</code>).
-                Pour contrôler ce qui est affiché dans cette liste, vous pouvez principalement utiliser la liste des attaques du personnage et surtout la partie <code>script</code> de la fiche.</p>
-                <h5> Les attaques affichées </h5>
-                <p>Il est possible de ne pas afficher une attaque en décochant la case sous le dé dans les options d'attaque. Les attaques sont affichées dans l'ordre des labels d'attaques. les attaques avec des conditions impossibles (du genre limite par jour épuisée, etc.) ne sont pas affichées.</p>
-                <p>À cela se rajoute éventuellement l'attaque avec l'arme en main. À côté de cette attaque, le script propose un bouton pour rengainer l'arme ou en dégainer une autre (parmis les armes de la fiche cochées). Si le personnage a un prédicat <code>combatADeuxArmes</code>, le script propose un bouton pour l'arme en main principale et un bouton pour l'arme en main gauche. On peut modifier cette liste des armes à dégainer en utilisant des prédicats <code>actionDegainer<i>n</i></code>, de valeur le label de l'arme à afficher en position <i>n</i> dans la liste (seulement pour les premières armes, il n'est pas possible de ne spécifier que la 2<sup>nde</sup> arme ou la 1<sup>ère</sup> et le 3<sup>ème</sup>). On peut ainsi faire afficher 2 armes à dégainer en même temps en séparant les labels d'un <code>-</code> (par exemple pour faire dégainer l'arme 1 en main droite et l'arme 4 en main gauche, en première position dans la liste, on écrira <code>actionDegainer1:1-4</code>). À noter que si aucune arme n'est en main, et qu'aucune attaque naturelle n'est cochée, le script va tout de même afficher une des attaques naturelles non cochées à la place de l'arme en main. Cela permet d'avoir une attaque que l'on n'affiche que quand on n'a pas d'arme en main.</p>
-                <p>Notez qu'il est possible d'avoir une arme par défaut en main, en ajoutant un prédicat <code>armeParDefaut</code>, de valeur le label de l'attaque correspondante. C'est parfois bien pratique pour ne pas avoir à dégainer les armes de chacun des orques en embuscade, par exemple. À noter que si un PNJ n'a qu'une seule arme cochée, celle-ci sera automatiquement dégainée, sans qu'il soit besoin du prédicat <code>armeParDefaut</code>.</p>
-                <h5>Choisir les actions à afficher</h5>
-                <p>Pour changer les attaques affichées par défaut, rajouter des actions à la liste d'actions du tour, ou utiliser de nouvelles listes, il faut aller dans l'onglet <code>Script</code> de la fiche de personnage.</p>
-                <p><img class="img-fluid" src="images/liste_actions_magicien.jpg"></p>
-                <figcaption>Exemple d'une liste d'actions pour un magicien</figcaption>
-                <p>Pour rajouter des actions à montrer, il faut ajouter des lignes en-dessous de <code>Montrer l'arme en main et dégainer</code>. La case cochée devant chaque action peut être décochée pour ne pas afficher l'action.  Les actions seront affichée dans l'ordre des numéros d'action. Attention, si deux actions ont le même numéro, une des deux ne sera pas affichée. Le titre de l'action peut soit être directement une commande (commençant par <code>%</code>, <code>#</code> ou <code>!</code>), et dans ce cas l'action affichée sera déterminée par le script, soit du texte qui sera affiché tel quel. Dans ce cas, il sera souvent nécessaire de préciser le code de l'action : cliquer sur la roue au bout à droite de la ligne de l'action pour faire apparaître les lignes de condition et de code. La ligne de conditions n'est pas encore utilisée par le script.</p>
-                <p>Il existe un certain nombre de commandes spéciales, qui peuvent être rentrée dans le titre ou le code : 
-                <ul>
-                  <li><code>!attaques</code> fera afficher toutes les attaques cochées de la fiche</li>
-                  <li><code>!arme-en-main</code> affichera l'attaque correspondant à l'arme en main, ou si aucune arme n'est en main, une attaque naturelle non cochée, et si il n'y en a pas non plus, une attaque à mains nues. Vous pouvez faire suivre cette commandes d'options d'attaque, comme <code>--m2d20</code>.</li>
-                  <li><code>!options</code> passera en option à toutes les actions suivantes tout ce que vous écrirez dans la même ligne (par exemple <code>!options --traquenard</code> passe l'option <code>--traquenard</code> à toutes les actions suivantes).</li>
-                </ul>
-                </p>
-
-                <h5>Autres listes d'action</h5>
-                <p>Il est possible d'ouvrir d'autre listes d'actions, à partir des commandes ou même d'une liste d'actions. La fiche propose 4 emplacements pour ces listes d'action, mais si cela ne suffit pas, vous pouvez utiliser des abilities dont le nom commence et termine par <code>#</code>. Pour faire référence à une liste dans une action, inscrivez simplement le nom de la liste dans le titre de l'action et sélectionnez <code>Liste d'actions</code> dans le menu déroulant à côté. Les listes d'action sur la fiche fonctionnent de la même façon que la liste des actions du tour, sauf qu'il n'y a pas d'affichage par défaut des attaques ou de l'arme en main (pour cela, une simple ligne avec en titre <code>#Attaque -1</code> permet d'y remédier), et que la liste peut avoir une liste d'options globales (cliquer sur la roue à droite du nom de la liste).</p>
-                <p>Pour les listes d'actions supplémentaires, dans les abilities, il faut respecter la syntaxe suivante :
-                <ul>
-                  <li>une action par ligne</li>
-                  <li>chaque ligne est donc soit un commentaire, soit une macro (qui commence par <code>#</code>), soit une ability (qui commence par <code>%</code>), soit une commande qui commence par <code>!</code></li>
-                  <li>l'action affichée sera le nom de la macro ou de l'ability (sauf pour les attaques, pour lesquelles le nom de l'arme sera affichée)</li>
-                  <li>les commandes disponibles sont <code>!options</code> et <code>!attaques</code>.</li>
-                  <li>pour les listes d'actions, il suffit de mettre <code>%#</code> suivi du nom de la liste et terminé par <code>#</code>.</li>
-                </ul>
-                <p>Il est aussi possible de faire afficher une liste quelconque avec une commande, avec <code>!cof-liste-actions <i>nom</i></code> (où le nom est celui de la liste, ou bien de l'ability sans les <code>#</code>). Par exemple, si on ne souhaite pas afficher la liste complète des sorts d'un personnage à son tour, on peut faire une liste <code>Sorts</code>, puis faire une macro qui lance <code>!cof-liste-actions Sorts</code> pour que le joueur puisse afficher la liste quand il le souhaite.</p>
-              </div>
-              <h4 class="text-secondary">Attaquer une (ou plusieurs) cible : <code>!cof-attack @{selected|token_id} @{target|token_id} <i>n</i></code></h4>
-              <div class="decalage">
-                <p>où <i>n</i> est un argument optionnel qui peut soit correspondre au label de l'attaque sur la fiche du personnage (ce label est automatiquement généré par la fiche et affiché juste devant le nom), soit être le nom de l'attaque. Si cet argument est <code>-1</code>, le script cherchera si le personnage a une arme en main et utilisera cette arme. Si c'est <code>-2</code>, il va chercher l'arme en main gauche. Si cet argument est absent ou qu'il ne correspond pas à un label de la fiche du personnage, l'attaque aura les valeurs par défaut d'une attaque au contact infligeant 1d4 DM. Pour plus de facilité, vous pouvez utiliser la macro <code>Attaque</code> qui fait <code>!cof-attack @{selected|token_id} @{target|token_id}</code></p>
+              <code>!cof2-attaque @{selected|token_id} @{target|token_id} <i>n</i></code></h4>
+                <p>où <i>n</i> est un argument optionnel qui peut soit correspondre au label de l'attaque sur la fiche du personnage (ce label est automatiquement généré par la fiche et affiché juste devant le nom), soit être le nom de l'attaque. Si cet argument est <code>-1</code>, le script cherchera si le personnage a une arme en main et utilisera cette arme. Si c'est <code>-2</code>, il va chercher l'arme en main gauche. Si cet argument est absent ou qu'il ne correspond pas à un label de la fiche du personnage, l'attaque aura les valeurs par défaut d'une attaque au contact infligeant 1d4 DM. Pour plus de facilité, vous pouvez utiliser la macro <code>Attaque</code> qui fait <code>!cof2-attaque @{selected|token_id} @{target|token_id}</code></p>
                 <div class="alert alert-success" role="alert">
                   <p>Exemple avec label :</p>
                   <div class="decalage">
-                    <code>!cof-attack @{selected|token_id} @{target|token_id} 1</code>
+                    <code>!cof2-attaque @{selected|token_id} @{target|token_id} 1</code>
                   </div>
                 </div>
-                <p>L'attaque tient alors compte de toutes les informations de l'attaque, y compris chances de critique, portée, type d'attaque, type de dégâs et autres options spécifiées sur la fiche. Par défaut, l'attaque montre le label, le nom de l'attaque, le calcul du bonus d'attaque, le calcul des dégâts, la portée et un champ <code>SPÉCIAL</code> (ou encore appelé <code>divers</code>). En cliquant sur la roue au bout à droite de cette ligne, on affiche une deuxième ligne, avec un case à décocher pour ne pas faire apparaître l'attaque à chaque tour, un choix de type d'attaque, des modificateurs, un choix de type de degâts et un champ d'options. Les modificateurs sont constitués d'options sans argument, séparée par une espace. Les options sont reprises telles quels comme un argument à l'attaque (voir plus bas pour le liste de ces options). Attention, pour l'instant ne traite correctment les jets (parties entre crochets) et les demandes au joueur (de type <code>?{question?}</code>) que si on passe par une liste d'actions (donc pas directement en faisant <code>#Attaque 1</code> dans le chat). Une troisième ligne peut aussi s'afficher, pour gérer le nombre d'armes de jet, ou pour les armes portées, pour indiquer des <a href=#predicats>prédicats</a> actifs seulement quand on porte l'arme. Il est possible de spécifier une arme batarde (pouvant se porter à une ou deux mains) en renseignant un prédicat <code>batarde</code> de valeur le dé de DM à utiliser quand on porte l'arme à deux mains.</p>
-                <img class="img-fluid" src="images/armes.jpg">
+                <p>L'attaque tient alors compte de toutes les informations sur la fiche. La plupart d'entres elles sont expliquées dans la <a href="https://stephaned68.github.io/COF2e/">documentation de la fiche</a>, mais celles apparaissant sur la seconde ligne ont une utilité particulière pour le script. Les modificateurs sont constitués d'options sans argument, séparées par une espace et/ou une virgule. Les options sont reprises telles quels comme un argument à l'attaque (voir plus bas pour le liste de ces options). Attention, pour l'instant ne traite correctment les jets (parties entre crochets) et les demandes au joueur (de type <code>?{question?}</code>) que si on passe par une liste d'actions (donc pas directement en faisant <code>#Attaque 1</code> dans le chat). Une troisième ligne peut aussi s'afficher, pour gérer le nombre d'armes de jet, ou pour les armes portées, pour indiquer des <a href=#predicats>prédicats</a> actifs seulement quand on porte l'arme. Il est possible de spécifier une arme batarde (pouvant se porter à une ou deux mains) en renseignant un prédicat <code>batarde</code> de valeur le dé de DM à utiliser quand on porte l'arme à deux mains.</p>
+                <img class="img-fluid" src="images/armes.png">
                 <figcaption>Exemple d'attaques.</figcaption>
                 <p> En l'absence de label, on peut spécifier ces informations sous forme d'options d'attaque</p>
                 <div class="alert alert-success" role="alert">
                   <p>Exemple pour le sort "<i>Flèche enflammée</i>" :</p>
-                  <div class="decalage"><code>!cof-attack @{selected|token_id} @{target|token_id} Flèche Enflammée --toucher [[@{selected|ATKMAG}]] --dm 1d6 + [[@{selected|INT}]] --portee 30 --fx beam-fire --feu --sortilege --enflamme</code></div>
+                  <div class="decalage"><code>!cof2-attaque @{selected|token_id} @{target|token_id} Flèche de feu --toucher [[@{selected|atkmag}]] --dm 3d4e + [[@{selected|INT}]] --portee 30 --fx beam-fire --feu --sortilege --enflamme</code></div>
                 </div>
                 <p>Malus ou bonus temporaire à une attaque : utiliser la barre 3.</p>
                 <p>Toutes les attaques ayant une portée non nulles sont considérées par le script comme des attaques à distance.</p>
                 <p>Le test d'attaque à distance tient compte de la portée (malus de -1 à -5 si distance entre portée et deux fois cette valeur), ainsi que des tokens sur le trajet de l'attaque. Une attaque de trop loin ne porte jamais.</p>
                 <p>Utiliser une attaque fait rentrer l'attaquant en combat (et le rajoute au turn tracker).</p>
-                <p>Il existe une version spécialisée permettant de faire des dégâts dans un disque centré sur un token, <code>!cof-explosion</code>, dont le premier argument doit être le label d'une attaque.</p>
-              </div>
+                <p>Il existe une version spécialisée permettant de faire des dégâts dans un disque centré sur un token, <code>!cof2-explosion</code>, dont le premier argument doit être le label d'une attaque.</p>
               <h4 class="text-secondary">Options pour l'attaque&nbsp;:</h4>
               <div class="decalage">
                 Toutes les options sans arguments peuvent être directement utilisées comme modificateurs dans le liste des modifcateurs d'une attaque.
@@ -341,13 +300,11 @@ tr {line-height: 25px;}
                   <li><code>--psave <i>carac seuil</i></code> : jet de <i>carac</i>, si le jet est supérieur à <i>seuil</i>, les dégâts sont divisés par 2. <i>carac</i> est l'abbréviation de caractéristiques de 3 lettres standard (FOR, DEX, ...). Il est possible de prendre la meilleure de 2 caractéristiques pour le save&nbsp;: pour cela indiquer les 2 caractéristiques collées (donc 6 caractères, par exemple FORDEX, pour le meilleur de FOR et de DEX). Le script choisira automatiquement la caractéristique qui donne les meilleures chances de réussite (en tenant compte de la difficulté et des caractéristiques supérieures).</li> Enfin on peut encore ajouter un ou des arguments optionnels. Si vous avez besoin de plus d'un argument optionnel, séparez-les par <code> +</code>:
                   <ul>
                     <li> Si on souhaite que le jet ne permette de réduire qu'une partie des dommages (la dernière ajoutée avec <code>--plus</code>), on peut ajouter <code>local</code>. La syntaxe complète est alors <code>--psave <i>carac seuil</i> local</code>.</li>
-                    <li> Si on souhaite que la difficulté soit augmentée en cas de tempête de mana, on peut utiliser le mot clé <code>tempete</code> suivi si besoin de l'incrément en fonction de la mana (par defaut 1 mana augmente de 1 la difficulté). </li>
                     <li> Si on souhaite indiquer une difficulté alternative pour les cibles au contact, ajouter <code>contact <i>n</i></code>, où <i>n</i> est la difficulté en question.</li>
                     <li> Si on souhaite augmenter la difficulté du save en fonction de la marge de réussite du jet d'attaque, ajouter <code>augmenteAvecMargeDeToucher</code>.</li>
                   </ul>
                   </li>
 
-                  <li><code>--demiAuto</code> : si l'attaque rate, on considère juste que les saves partiels sont automatiquemet réussi. Ça signifie en général que la cible prend au moins la moitié des dégâts.</li>
                   <li><code>--dmSiRate <i>dmg</i></code> : si l'attaque rate, la cible est quand même touchée et se voit infliger <i>dmg</i> dégâts.</li>
                   <li><code>--toucheDoubleDmg</code> : si l'attaque rate, elle inflige les dégâts normaux, et si elle touche, elle double les dégâts de base. Pas cumulable avec <code>dmSiRate</code> ou <code>demiAuto</code>.</li>
                   <li><code>--draineMana <i>d</i></code> : si l'attaque touche, elle enlève <i>d</i> points de mana. <i>d</i> peut être un nombre une expression de dés simple, comme <code>1d4+1</code>.</li>
@@ -359,7 +316,7 @@ tr {line-height: 25px;}
                   <li><code>--fx <i>effet</i></code> : ajoute un <a href="https://wiki.roll20.net/Custom_FX">effet</a> qui part de l'attaquant à la cible. Si l'attaque rate, l'effet rate aussi, d'autant plus que le jet d'attaque est loin de la défense. Il est possible d'utiliser un effet que vous avez défini vous-même en utilisant l'option <code>--fx custom <i>nom</i></code>, où <i>nom</i> est le nom de votre effet.</li>
                   <li><code>--targetFx <i>effet</i></code> : ajoute un <a href="https://wiki.roll20.net/Custom_FX">effet</a> au niveau de la cible (l'effet ne doit pas être directionnel). Comme avec <code>--fx</code>, on peut utiliser un effet qu'on a créé.</li>
                   <li>
-                    <code>--si <i>condition</i></code> : l'attaque n'est possible que si <i>condition</i> est validée. Une condition peut être
+                    <code>--conditionAttaquant <i>condition</i></code> : l'attaque n'est possible que si <i>condition</i> est validée. Une condition peut être
                     <ul id="conditions">
                       <li><code>moins</code> <i>attribut</i> : vrai si l'attribut <i>attribut</i> de la cible est strictement moins haut que celui de l'attaquant</li>
                       <li><code>moitieMoins</code> <i>attribut</i> : vrai si l'attribut <i>attribut</i> de la cible est au plus la moitié de celui de l'attaquant</li>
@@ -376,7 +333,7 @@ tr {line-height: 25px;}
                       <li><code>premiereAttaque</code> : vrai si c'est la première attaque du combat.</li>
                     </ul>
                   </li>
-                  <li><code>--if <i>condition</i></code> <i>options</i> <code>--endif</code>: permet de ne prendre en compte des options que si certaines conditions sont réalisées. Il est possible d'utiliser un <code>--else</code> pour activer des options quand les conditions ne sont pas réalisées. Attention, les options qui modifient une option précédente (comme <code>--valeur</code>) doivent apparaître au même niveau que l'option qu'elles modifient. Comme les conditions peuvent dépendre du dé d'attaque, un certain nombre d'options ne sont pas affectées par cette conditionnelle : tempeteDeMana, les options d'aoe (ligne, cone, disque, target), avecd12, avantage, auto, demiAuto, test, pointsVitaux, tempsRecharge, sortilege, bonusCritique, disparition, affute, munition, tirDouble, semonce, tirDeBarrage, poudre, traquenard, feinte, magique, tranchant, percant, contondant, pasDeDmg. Ne pas hésiter à me demander si vous aviez besoin que l'une de ces options puissent être conditionnelle.</li>
+                  <li><code>--if <i>condition</i></code> <i>options</i> <code>--endif</code>: permet de ne prendre en compte des options que si certaines conditions sont réalisées. Il est possible d'utiliser un <code>--else</code> pour activer des options quand les conditions ne sont pas réalisées. Attention, les options qui modifient une option précédente (comme <code>--valeur</code>) doivent apparaître au même niveau que l'option qu'elles modifient. Comme les conditions peuvent dépendre du dé d'attaque, un certain nombre d'options ne sont pas affectées par cette conditionnelle : les options d'aoe (ligne, cone, disque, target), auto, test, tempsRecharge, sortilege, bonusCritique, affute, poudre, feinte, magique, tranchant, percant, contondant, pasDeDmg. Ne pas hésiter à me demander si vous aviez besoin que l'une de ces options puissent être conditionnelle.</li>
                   <li><code>--ifSaveFails <i>carac seuil</i></code> <i>options</i> <code> --endif</code> : comme <code>--if</code>, mais fait réaliser une jet de sauvegarde à la cible (comme avec <code>--save</code>), et si le test est raté, applique les options qui suivent. Un <code>--else</code> permet de choisir des options à appliquer quand le test est réussi. À utiliser seulement si on ne peut pas se contenter d'un <code>--save</code>, car ça marche moins bien.</li>
                   <li><code>--decrAttribute <i>nom</i></code> : l'attaque n'est possible que si l'attribut existe et si sa valeur est strictement positive. L'attaque diminue cette valeur de 1. On peut preciser une valeur plus grande après le nom de l'attribut (<code>--decrAttribute <i>nom</i> <i>d</i></code> teste si la valeur est supérieure à <i>d</i> et la diminue de <i>d</i>). Si cette option est utilisée à l'intérieur d'un <code>--if</code>, alors l'option se contente de diminuer l'attribut (on peut savoir si la valeur est positive grâce à <code>--if etat <i>nom</i></code>).</li>
                   <li><code>--decrLimitePredicatParTour <i>nom</i></code> : l'attaque n'est possible que si un prédicat <i>nom</i> existe et si elle n'a pas été utilisée plus de fois dans le tour que la valeur de ce prédicat. L'attaque augmente ce nombre de 1.</li>
@@ -387,8 +344,6 @@ tr {line-height: 25px;}
                   <li><code>--finEffet <i>e </i></code> : enlève à la cible l'effet temporaire <i>e</i>.</li>
                   <li><code>--valeur <i>v</i></code> : spécifie une valeur au dernier effet mentionné.</li>
                   <li><code>--optionEffet <i>opt arg1 arg2 ...</i></code> : spécifie une option au dernier effet mentionné. L'option <i>opt</i> doit être donnée sans le <code>--</code> et sera passée telle quelle à l'effet, par exemple pour les dégâts périodiques, si on ne veut pas que la RD s'applique, on pourra ajouter <code>--optionEffet ignoreRD</code>.</li>
-                  <li><code>--peur <i>seuil duree</i></code> : fait un effet de peur si l'attaque touche. Le <i>seuil</i> sert pour le test de sagesse de résistance à la peur (tient compte de la capacité <b>sans peur</b> du chevalier).</li>
-                  <li><code>--affaiblirCarac <i>carac n</i></code> : l'attaque diminue la caractéristique <i>carac</i> de <i>n</i>. Si <i>carac</i> est <code>random</code>, le script tire une caractéristique au hasard.</li>
                   <li><code>--plus <i>dmg</i></code> : ajoute <i>dmg</i> dégâts. Attention, si <i>dmg</i> est un simple nombre, ces dégâts sont multipliés par les critiques (sauf si de type différent de l'attaque principale). Ainsi, <code>--plus [[1d6]]</code> donnera des dégâts multipliés par les critiques (car la fonction ne voit que le résultat du jet), alors que <code>--plus 1d6</code> ne le sera pas. </li>
                   <li><code>--plusCrit <i>dmg</i></code> : ajoute <i>dmg</i> dégâts en cas de réussite critique</li>
                   <li><code>--test</code> pour voir le résultat du jet d'attaque. On n'applique pas les résultats d'un touché.</li>
@@ -405,61 +360,29 @@ tr {line-height: 25px;}
                   <li><code>--reroll1</code> : relance les 1 aux dés de dégats. À noter que cela ne concerne que les dés de base de l'attaque, pas les DM supplémentaire. </li>
                   <li><code>--explodeMax</code> : relance les valeurs maximum aux dés de DM de base, et rajoute le nouveau résultat (qui lui-même explose).</li>
                   <li><code>--mana <i>n</i></code> : l'attaque coûte <i>n</i> points de mana. Si l'attaque provoque un effet temporaire, le script essaiera de le supprimer à la mort du lanceur (même avec un coût nul).</li>
-                  <li><code>--magieRapide</code> : augmente le coût en mana (1 avec la mana normale, 3 avec la mana totale) et affiche un petit message indiquant que le lancement est rapide. Il est possible de préciser un coût en mana différent.</li>
-                  <li><code>--rang <i>n</i></code> : indique le rang de la capacité utilisée, si besoin. Utilisé par l'option <code>--tempeteDeMana</code>.</li>
-                  <li><code>--tempeteDeMana <i>liste</i></code> : indique des effets de tempête de mana. La liste peut contenir un nombre (pour l'effet intense), <code>duree</code>, <code>rapide</code>, <code>portee</code> et <code>altruiste <i>id</i></code>. Si le rang du sort est spécifié (par l'option <code>--rang</code>, un message est affichée si le coût en mana est supérieur au rang. Si la liste d'options est vide ou ne contient que <code>altruiste</code>, le script affiche un menu dans le chat pour spécifier les options de tempête de mana. Il est possible d'utiliser les règles de mana totale pour les coûts de tempête de mana (à activer avec <code>!cof-options</code>).</li>
-                  <li><code>--magieEnArmure</code> : applique un malus à l'attaque égale au rang du sort + le malus d'armure de l'attaquant. On peut ajouter un argument optionnel : soit un nombre qui va remplacer le rang dans cette formule, soit <code>mana</code> qui va augmenter le coût en mana de l'attaque en fonction de l'armure portée.</li>
-                  <li><code>--frappeDesArcanes <i>n</i></code> : ajoute +5 à l'attaque et +<i>n</i>d6 aux DM, mais empêche de lancer des sorts pendant 1d6 tours si l'attaque touche. Si le nombre <i>n</i> n'est pas présent, le bonus est de 2d6.</li>
                   <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette attaque à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof-effet-temp</code>). Par défaut, le nom de cette ressource est le label de l'attaque. On peut remplacer le nombre <i>n</i> par le nom d'un prédicat dont la valeur sera utilisée.</li>
                   <li><code>--limiteParCombat</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par combat.</li>
                   <li><code>--limiteParTour</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par tour.</li>
-                  <li><code>--munition <i>label</i></code> : l'attaque utilise les munitions de label <code>label</code> (notées dans l'onglet équipement de la fiche). À chaque attaque portée, une munition est utilisée, et le script teste si elle sera récupérable (en fonction du taux de pertes notée sur la fiche). En fin de combat, on considère que le personnage récupère toutes les munitions récupérables. Si une arme est reconnue comme étant un arc,une arbalète ou une arme à poudre, et que les options de l'attaque <strong>ne contiennent pas l'option <code>--munition</code></strong>, alors le script propose automatiquement de choisir parmis les munitions normales (supposées illimitées) et celles encores présentes du bon type. À noter que cette option devrait être inutile pour les armes de jet qui ont déjà leur propre case associée à l'attaque.</li>
-                  <li><code>--aussiArmeDeJet <i>L</i></code> : permet d'indiquer que l'arme peut aussi être employée comme arme de jet. <i>L</i> doit être le label de l'attaque avec cette arme en tant qu'arme de jet. Cela permet de tenir compte des cas où l'arme a été lancée et ne peut donc plus être utilisée au corps à corps. Si l'arme est utilisée à distance, le script va automatiquement utiliser l'attaque <i>L</i>.</li>
-                  <li><code>--arcComposite <i>n</i></code> : augmente les DM du modificateur de force, (qui peut être négatif), mais sans dépasser <i>n</i>. Si le modificateur est strictement inférieur à <i>n</i>, l'attaque se fait avec un malus de -2.</li>
                   <li><code>--seulementDistance</code> : l'attaque ne peut être réalisée que contre un adversaire à distance.</li>
-                  <li><code>--vampirise</code> : soigne de tous les DM infligés, quel que soit leur type. Il est possible de soigner un pourcentage des dégâts : pour cela, préciser le pourcentage entier après l'option. Par exemple, pour une attaque qui soigne de la moitié des dégâts infligés, on pourra mettre <code>--vampirise 50</code>. À noter que les soins se cumulent avec les dégâts de type drain.</li>
                   <li><code>--seulementVivant</code> : n'affecte que les cibles vivantes</li>
                   <li><code>--forceMinimum <i>n</i></code> : l'attaque n'est possible que si l'attaquant a au moins <i>n</i> en force.</li>
-                  <li><code>--necromancie</code> : l'attaque est de la nécromancie</li>
                   <li><code>--ferFroid</code> : multiplie par 2 les dégâts contre les fées et les démons (le script reconnaît certaines races et les prédicats <code>démon</code> et <code>fée</code>).</li>
                   <li><code>--adamantium</code> : l'arme utilisée est en adamantium. Reconnu pour la RD.</li>
                   <li><code>--tueurDe <i>categorie</i></code> : bonus de +2 en attaque et +2d6 DM contre les espèces appartenant à la catégorie (voir la condition <code>typeCible</code>.</li>
                   <li><code>--tueurDeGrands</code> : bonus de +1d6 DM contre les créatures de taille grande et +2d6 DM contre les créatures de taille énorme ou plus.</li>
                   <li><code>--ignoreObstacles</code> : ignore les tokens sur le trajet. Ça semble nécessaire pour les attaques magiques d'après Kegron.</li>
                   <li><code>--retourneEnMain</code> : L'arme de jet revient en main après l'attaque.</li>
-                  <li><code>--puissant</code> : augmente la valeur max des dés de dégâts de 2. Si <code>--puissant</code> est suivi d'un argument <i>effet</i>, on teste la présence d'un attribut <i>effet</i><code>Puissant</code> pour décider si l'attaque est puissante ou non. Il est aussi possible de donner <code>oui</code> ou <code>non</code> en argument (ce n'est alors pas considéré comme un effet). <code>--puissant portee</code> permet de doubler la portée de l'attaque (utile pour l'option de Magie Puissante)</li>
-                  <li><code>--attaqueAssuree</code> : implémente une attaque assurée (+5 à l'attaque, dégâts divisés par 2, critique impossible).</li>
-                  <li><code>--attaqueRisquee</code> : implémente une attaque risquée (+2 à l'attaque au contact, -4 en DEF pendant un tour).</li>
-                  <li><code>--attaqueDeGroupe <i>n</i></code> : <i>n</i> est le nombre de créatures qui attaquent ; implémente une attaque de groupe (+2 à l'attaque par attaquant au-delà du premier, x2 DMG si l'attaque dépasse la DEF de 5 ou plus, x3 DMG si critique).</li>
-                  <li><code>--attaqueAcrobatique</code> : l'attaquant effectue un test d'acrobatie difficulté 15, et s'il réussit, l'attaque bénéficie des effets d'une sournoise. On peut en option préciser le nombre de dés de cette attaque sournoise.</li>
-                  <li><code>--strigeSuce</code> : option spécifique aux striges. Donne le malus de -3 en DEF et compte la quantite sucée. Quand cette quantité arrive à 6, enlève le malus de DEF et rend la cible affaiblie.</li>
-                  <li><code>--mainsDEnergie</code> : +2 à +5 à l'attaque, selon l'armure de la cible</li>
-                  <li><code>--semonce</code> : +5 au touché et +1d6 aux DM (ne change pas les charges de l'arme).</li>
-                  <li><code>--avantage</code> : lance un dé de plus en attaque et garde le meilleur. plusieurs arguments avantage se cumulent et sont annulés par les désavantages (syntaxe alertnative: (<code>--m2d20</code>)</li>
-                  <li><code>--desavantage</code> : lance un dé de plus en attaque et garde le moins bon. plusieurs arguments désavantage se cumulent et sont annulés par les avantages.</li>
-                  <li><code>--avecd12</code> : lance un d12 au lieu du d20 pour le jet d'attaque. L'attaque est impossible si l'attaquant est déjà affaibli.</li>
-                  <li><code>--avecd12crit</code> : comme <code>--avecd12</code>, mais le jet peut faire un critique. La plage de critique est divisée par 2, arrondie à l'inférieur. Ainsi si le d20 sevait critiquer sur un 20 seulement, le d12 ne fait pas de critique. Il fait un critique sur un 12 si le d20 devait faire un critique sur un 19 ou un 18, et ainsi de suite.</li>
+                  <li><code>--deBonus</code> : lance un dé de plus en attaque et garde le meilleur. plusieurs arguments avantage se cumulent et sont annulés par les désavantages (syntaxe alertnative: (<code>--m2d20</code>)</li>
+                  <li><code>--deMalus</code> : lance un dé de plus en attaque et garde le moins bon. plusieurs arguments désavantage se cumulent et sont annulés par les avantages.</li>
                   <li><code>--incrDmgCoef <i>n</i></code> : augmente le coefficient des dégâts de base de 1. Les dégâts de base comprennent les dés de dommage de l'arme (ou du sort), plus tous les bonus constants. Le coefficient par défaut est de 1, et une réussite critique augmente ce coefficient de 1.</li>
                   <li><code>--incrCritCoef <i>n</i></code> : augmente le coefficient des dégâts critiques de <i>n</i> (1 si on ne donne pas d'argument).</li>
                   <li><code>--diviseDmg <i>n</i></code> : divise les dégâts de base par <i>n</i>.</li>
                   <li><code>--maxDmg</code> : l'attaque inflige le maximum de DM permis par les dés de base.</li>
-                  <li><code>--runeDePuissance</code> : l'arme est enchantée avec une rune de puissance permanente.</li>
                   <li><code>--difficultePVmax</code> : la difficulté du jet d'attaque est le maximum de PVs au lieu de la défense.</li>
                   <li><code>--difficultePV</code> : la difficulté du jet d'attaque est la valeur courante des PVs au lieu de la défense.</li>
                   <li><code>--difficulteCarac <i>carac</i></code> : la difficulté du jet d'attaque est une des caractéristiques de la cible (sous forme de code à 3 lettres, <code>FOR</code>, <code>DEX</code>, etc). Il est possible de prendre le meilleur de 2 caractéristiques en écrivant les 2 noms collés. Par exemple, pour viser le meilleur de l'intelligence et du charisme, on écrira <code>--difficuletCarac INTCHA</code>.</li>
                   <li><code>--affute</code> : augmente de 1 les chances de crit et +1d6 aux DM des crit.</li>
-                  <li><code>--tirDeBarrage</code> : ignore la charge, multiplie les DM par 2 et message pour undo si la cible bouge.</li>
-                  <li><code>--tirAveugle</code> : ignore le malus de tir sur une cible invisible.</li>
-                  <li><code>--vicieux</code> : ajoute 2d6 DM mais inflige 1d6 DM à l'attaquant.</li>
                   <li><code>--enflamme</code> : enflamme la cible, lui infligeant 1d6 DM par tour. Les flammes s'éteindent sur un 1 ou 2. Si l'option <code>--puissant</code> est donnée en conjonction, les DM augmentent de 1.</li>
-                  <li><code>--malediction</code> : maudit la cible pour 3 jets.</li>
-                  <li><code>--armeDArgent</code> : bonus de +2 en attaque et 1d6 aux DM si la cible est un mort-vivant ou un démon (utilise le champ <code>Race</code> de la fiche ou si présent un prédicat <code>mortVivant</code>).</li>
-                  <li><code>--pietine</code> : si l'attaquant est de taille au moins égale à celle de la cible (ou si la taille de l'un des deux n'est pas connue), fait un test opposé de FOR. En cas d'échec de la cible, elle est renversée et les DM sont doublés.</li>
-                  <li><code>--percute</code> : comme <code>--pietine</code>, mais la cible est en plus projetée à 1d6+1 mètres et étourdie si elle rate un test de CON difficulté 15, renouvelable chaque tour.</li>
-                  <li><code>--feinte</code> : L'attaque ne fait pas de dégât, mais un bonus de +5 en attaque est donné sur les attaques du tour suivant sur cette cible (par celui qui a fait la feinte), et +2d6 DM si l'attaque fictive était un succès. Si l'attaquant possède un <a href=#predicats>prédicat</a> <code>bonusFeinte</code>, c'est la valeur de ce prédicat qui est donné en bonus aux attaques, à la place de +5.</li>
-                  <li><code>--enveloppe <i>difficulte type expr</i></code> : si l'attaque touche, elle a une chance d'envelopper la cible. Dans ce cas, un bouton apparaît qui lance un test en opposition. Si celui-ci est remporté par l'attaquant, <i>difficulte</i> est la difficulté du test pour se sortir de l'enveloppement, <i>type</i> est soit <code>label</code>, et dans ce cas, <i>expr</i> doit être le label d'une attaque de l'attaquant, soit <code>ability</code>, et dans ce cas, <i>expr</i> est le nom d'une ability de l'attaquant. Cette attaque ou ability est appelée pour les dégâts périodiques. Si les deux derniers arguments sont ommis, le script prend <code>label</code> et le label de l'attaque courante, et si le premier argument est ommis, la difficulté est de 15.</li>
-                  <li><code>--etreinte <i>difficulte</i></code> : si l'attaque touche, il y a une chance que l'attaquant puisse s'enrouler autour de la cible. Dans ce cas, un bouton apparaît qui lance un test en opposition. Si celui-ci est remporté par l'attaquant, <i>difficulte</i> est la difficulté du test pour se sortir de l'enveloppement. Cela fera apparaître un bouton pour les dégâts de l'étreinte, par défaut <code>1d6</code>, mais on peut spécifier une autre expression pour les dégâts (optionelle, juste après la difficulté).</li>
-                  <li><code>--ouvertureMortelle</code> : touche automatiquement, fait des dégât comme en cas de critique et multiplie par 2 les dégâts d'attaque sournoise (si il y en a).</li>
                   <li><code>--rate</code>, <code>--touche</code>, <code>--critique</code>, <code>--echecCritique</code>, <code>--pasDEchecCritique</code> : options pour tricher : le résultat des dés donne toujours le résultat voulu.</li>
                   <li><code>--ligne</code> : l'attaque porte sur toutes les cibles à portée, entre l'attaquant et le token ciblé. Si le token ciblé est plus proche que la portée de l'attaque, les tokens derrière le token ciblé sont aussi visés. Pour permettre de viser un point quelconque, on peut utiliser un personnage dédié avec un maximum de 0 pv. À chaque fois qu'un token représentant ce personnage est utilisé comme cible de <code>--ligne</code>, le token est enlevé de la carte.</li>
                   <li><code>--disque <i>r</i></code> : l'attaque porte sur toutes les cibles dans le disque de centre le token ciblé et de rayon <i>r</i>. Comme pour <code>--ligne</code>, on peut utiliser un token cible qui sera supprimé après l'attaque. À noter que l'attaquant lui-même peut prendre des dégâts, sauf si l'attaque a une portée nulle et que l'attaquant se cible lui-même (attaque centrée sur le lanceur). On peut donner en argument optionel le mot <code>souffleDeMort</code> pour ne valider l'attaque que si le centre du disque est un personnage mort depuis moins d'un tour et ne garder que les alliés de ce personnage de niveau inférieur ou égal.</li>
@@ -469,30 +392,24 @@ tr {line-height: 25px;}
                   <li><code>--saufAllies</code> : ne cible pas les allies dans la zone ou les cibles spécifiées.</li>
                   <li><code>--target <i>id</i></code> : ajoute une cible à l'attaque (s'ajoute à la cible principale et aux options d'aoe).</li>
                   <li><code>--ciblesDansDisque <i>n</i></code> : impose que les différentes cibles soient dans un disque de rayon <i>n</i>.</li>
-                  <li><code>--ricochets <i>n</i></code> : l'arme de jet peut faire <i>n</i> ricochets. Une cible ne peut être touchée qu'une fois par attaque.</li>
                   <li><code>--message <i>texte</i></code> : ajoute une ligne avec le message dans la fenêtre de l'attaque. Attention, <i>texte</i> ne doit pas contenir la séquence <code> --</code>.</li>
                   <li><code>--secret</code> : affiche les jets et résultats de l'attaque seulement aux joueurs qui contrôlent l'attaquant ou ses cibles, ainsi qu'au MJ.</li>
                   <li><code>--allonge <i>n</i></code> : ajoute <i>n</i> mètres à la portée d'une attaque au contact. L'allonge peut être un nombre à virgule et même négative.</li>
-                  <li><code>--canaliseParFamilier</code> : le point de départ de l'attaque est le familier s'il est actif sur la carte.</li>
-                  <li><code>--peutAgripper</code> : l'attaque peut agripper comme si l'attaquant avait le prédicat <code>agripper</code>.</li>
                   <li><code>--soundAttack <i>son</i></code> : joue le son <i>son</i>, à moins qu'une version plus longue de l'option (voir ci-dessous) n'existe et qu'elle soit active.</li>
                   <li><code>--soundAttackEchec <i>son</i></code> : joue le son <i>son</i> lorque l'arme fait un echec, sauf si c'est un échec particulier et une version plus longue existe.</li>
                   <li><code>--soundAttackEchecCritique <i>son</i></code> : joue le son <i>n</i> lorque l'arme fait un echec critique</li>
-                  <li><code>--soundAttackEchecClignotement <i>son</i></code> : joue le son <i>son</i> lorque l'arme fait un echec par clignotement</li>
                   <li><code>--soundAttackSucces <i>son</i></code> : joue le son <i>son</i> lorque l'arme fait un succès</li>
                   <li><code>--soundAttackSuccesCritique <i>son</i></code> : joue le son <i>n</i> lorque l'arme fait un succès critique</li>
-                  <li><code>--soundAttackSuccesChampion <i>son</i></code> : joue le son <i>son</i> lorque l'arme fait un succès champion</li>
                   <li><code>--imgAttack <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i>, à moins qu'une version plus longue de l'option (voir ci-dessous) n'existe et qu'elle soit active.</li>
                   <li><code>--imgAttackEchecCritique <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i> lorque l'arme fait un echec critique</li>
                   <li><code>--imgAttackEchec <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i> lorque l'arme fait un echec</li>
-                  <li><code>--imgAttackEchecClignotement <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i> lorque l'arme fait un echec par clignotement</li>
                   <li><code>--imgAttackSuccesCritique <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i> lorque l'arme fait un succès critique</li>
                   <li><code>--imgAttackSucces <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i> lorque l'arme fait un succès</li>
-                  <li><code>--imgAttackSuccesChampion <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i> lorque l'arme fait un succès champion</li>
                   <li><code>--terrainDifficile <i>duree</i></code> : si l'attaque affecte une zone en forme de disque, cette zone sera considérée comme du terrain difficile pendant <i>duree</i> tours. En deuxième argument, on peut mettre le nom de la zone, et en troisième argument une image à afficher sur la carte.</li>
                   <li><code>--deplaceDe <i>dmax</i></code> : l'attaquant se déplacer de <i>dmax</i> mètres maximum pour arriver à portée de sa cible. Le déplacement (et l'attaque) n'a lieu que si il existe une position libre, sans aucun token sur le trajet. On peut spécifier une distance minimum avec <code>--deplaceDe <i>min</i> <i>max</i></code>. On peut aussi ajouter le mot-clé <code>saut</code> pour ignorer les tokens sur le trajet.</li>
                 </ul>
               </div>
+<!--
               <h4 class="text-secondary">Réduction des dégâts</h4>
               <div class="decalage">
                 <h5>Fonctionnement de base</h5>
@@ -519,12 +436,6 @@ tr {line-height: 25px;}
                 <h5>Armures/Boucliers de Protection (COF p. 203)</h5>
                 <p>ajoutez un <a href=#predicats>prédicat</a> <code>armureProtection</code> ou <code>bouclierProtection</code>. Le script détecte si l'équipement est porté ou pas via la fiche, et fonctionne spécifiquement contre les attaques qui utilisent <code>--sournoise</code>. Il est aussi possible de spécifier le port d'un anneau de protection ayant le même effet (prédicat <code>anneauProtection</code>.</p>
               </div>
-              <h4 class="text-secondary">Manoeuvres</h4>
-              <div class="decalage">
-                <p><code>!cof-action-defensive</code> avec comme argument soit <code>simple</code>, soit <code>totale</code> donne le bonus en défense de l'action défensive (p 71). Cette action est disponible par défaut dans la liste des <a href="#actions_du_tour">actions du tour</a>. Alternativement, si vous n'utilisez pas cette méthode, vous pouvez créer une macro accessible à tous les tokens, <code>!cof-action-defensive ?{Action défensive|simple|totale}</code>.</p>
-                <p>Les manoeuvres risquées peuvent être lancées avec la commande <code>!cof-manoeuvre @{selected|token_id} @{target|token_id} <i>effet</i></code>. Liste des manoeuvres : <code>aveugler</code>, <code>bloquer</code>, <code>desarmer</code>, <code>faireDiversion</code>, <code>menacer</code>, <code>renverser</code>, <code>repousser</code>, <code>tenirADistance</code>.</p>
-                <p>Il est aussi possible de faire un test d'attaque opposée avec la commande <code>!cof-test-attaque-opposee @{selected|token_id} @{target|token_id}</code>.</p>
-              </div>
               <h4 class="text-secondary">Recharger des armes : <code>!cof-recharger <i>N</i></code></h4>
               <div class="decalage">
                 <p>Il faut un <a href=#predicats>prédicat</a> <code>charge</code> dans le champ de prédicat des armes qui ont besoin d'être chargées pour fonctionner. On peut associer un nombre au prédicat, pour indiquer un maximum de charges supérieur à 1. Noter que si on a 2 armes à une charge, il faut utiliser un maximum de 2.<br />
@@ -549,9 +460,6 @@ tr {line-height: 25px;}
               <div class="decalage">
                 Pour donner un bonus en DEF contre toutes les attaques à distance, on peut utiliser <code>!cof-bonus-couvert ?{Bonus du couvert?}</code> en sélectionnant les tokens bénéficiant du couvert. La commande accepte un argument <code>--secret</code> permettant de ne pas faire connaître l'action du personnage à tous les joueurs. Pour ne plus être à couvert, il suffit de lancer la commande sans argument.
               </div>
-              <h4 class="text-secondary">Échecs critiques&nbsp;:</h4>
-              <p>En cas d'échec critique à une attaque, le script va suggérer des effets d'échec critique inspirés de <a href="">cette table suggérée par l'auteur du jeu</a>. Le script proposera même dans la plupart des cas un bouton qui automatisera les lancers de dés et l'application de l'effet, si relevant.</p>
-              <p>Il est aussi possible d'utiliser une table personnelle, non-automatisée (voir les options d'affichage, !cof-options affichage). La table utilisée (Echec-Critique-Contact) peut être modifiée par le MJ.</p>
               <h4 class="text-secondary">Dégâts directs (sans attaquant, ou aire d'effet trop complexe pour !cof-attack) : <code>!cof-dmg <i>dm</i></code></h4>
               <div class="decalage">
                 <p>Applique des dégâts à tous les tokens sélectionnés. L'argument <i>dm</i> peut être un inline roll. Utile par exemple pour les chutes, ou bien les dégâts d'environnement, voire de pièges.<br />
@@ -595,7 +503,9 @@ tr {line-height: 25px;}
                 </div>
                 <p>Par exemple : <code>[sound-attack-echec-critique]bang[sound-attack-echec-critique]</code></p>
                 <p>Dans cette exemple le son nomé "bang" dans votre jutbox serra joué a chaque echec critique de cette arme</p>
+-->
               </div>
+              <!--
               <h3 class="text-info" id="soins">2.2 Soins :</h3>
               <div class="decalage">
                 <h4 class="text-secondary"><code>!cof-soin @{selected|token_id} @{target|token_id} <i>x</i></code></h4>
