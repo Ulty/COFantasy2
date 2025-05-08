@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 08 mai 2025,  05:00
+//Dernière modification : jeu. 08 mai 2025,  06:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -598,7 +598,10 @@ var COFantasy2 = COFantasy2 || function() {
   //     - path          : liste de positions (x, y) et line
   // - personnageCibleCree : pour savoir si on a créé un personnage cible (avec 0 PV pour centrer les aoe)
   // - gameMacros : la liste des macros créées par le script
-  // - murs: map de pageId vers listes de murs (sous forme liste de points). Ne tient pas compte des portes.
+  // - murs: map de pageId vers 
+  //   - total: listes d'obstacles (sous forme de liste de points).
+  //   - mursSeuls
+  //   - portesSeules
   // - eventId : compteur d'events pour avoir une id unique
   // - equipes: liste des équipes de personnages. C'est un map du nom vers:
   //   - alliance (booléen), pour savoir si les membres de l'équipe sont alliés
@@ -8145,7 +8148,7 @@ var COFantasy2 = COFantasy2 || function() {
             boutonSimple("!cof-bouton-rune-puissance " + al + ' ' + evt.id + permanent,
               "Rune de puissance"));
         }
-        addLineToFramedDisplay(display, boutonSimple("!cof-confirmer-attaque " + evt.id, "Continuer"));
+        addLineToFramedDisplay(display, boutonSimple("!cof2-confirmer-attaque " + evt.id, "Continuer"));
       } else {
         if (evt.succes === false) {
           let pc = pointsDeChance(perso);
@@ -8909,6 +8912,47 @@ var COFantasy2 = COFantasy2 || function() {
       return true;
     });
     attaque(attaquant, cibles, portee, weaponStats, playerId, pageId, options);
+  }
+
+  function commandeConfirmerAttaque(cmd, playerId, pageId) {
+    if (!stateCOF.combat) {
+      sendPlayer("Trop tard pour continuer l'attaque, on est hors combat", playerId);
+      return;
+    }
+    let evt = findEvent(cmd[1]);
+    if (evt === undefined) {
+      error("L'action est trop ancienne ou a été annulée", cmd);
+      return;
+    }
+    let action = evt.action;
+    if (action === undefined) {
+      error("Erreur interne du bouton de confirmation: l'évènement n'a pas d'action", cmd);
+      return;
+    }
+    let options = action.currentOptions || {};
+    let ctrl = playerIsGM(playerId);
+    if (!ctrl && options.preDmg) {
+      let tokens = _.allKeys(options.preDmg);
+      ctrl = tokens.every(function(tid) {
+        let perso = persoOfId(tid);
+        if (perso === undefined) return true;
+        let character = getObj('character', perso.charId);
+        if (character === undefined) return true;
+        let cb = character.get('controlledby');
+        let res = cb.split(',').find(function(pid) {
+          return (pid == 'all' || pid == playerId);
+        });
+        return (res !== undefined);
+      });
+    }
+    if (!ctrl) {
+      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+      return;
+    }
+    options.rolls = action.rolls;
+    options.choices = action.choices || {};
+    options.choices.Continuer = true;
+    resolvePreDmgOptions(action.attaquant, action.ciblesTouchees, action.echecCritique, action.attackLabel, action.weaponStats, action.attackd20roll, action.display, options, evt, action.explications, action.playerId, action.pageId, action.cibles);
   }
 
   function commandeExplosion(cmdOrg, playerId, pageId, options) {
@@ -10994,9 +11038,6 @@ var COFantasy2 = COFantasy2 || function() {
     let pageId = perso.token.get('pageid');
     actions = actions.map(function(act) {
       act = act.trim();
-      if (act.startsWith("/as ")) {
-        act = "!cof-as" + act.substring(3);
-      }
       let typeAction = '';
       if (act.charAt(0) == '!') {
         if (act.startsWith('!cof2-')) {
@@ -12398,7 +12439,16 @@ var COFantasy2 = COFantasy2 || function() {
     enleveDecoince(perso, evt);
   }
 
+  function removeDoorFromCache(door) {
+    let pageId = door.get('pageid');
+    let m = stateCOF.murs[pageId];
+    if (!m) return;
+    delete m.total;
+    delete m.portesSeules;
+  }
+
   function doorChanged(door, prev) {
+    removeDoorFromCache(door);
     if (!stateCOF.pause) return;
     if (prev.isOpen) return;
     if (door.get('isOpen')) {
@@ -16758,8 +16808,16 @@ var COFantasy2 = COFantasy2 || function() {
   function getWalls(page, pageId, murs) {
     if (murs) return murs;
     if (!page.get('lightrestrictmove')) return;
-    murs = stateCOF.murs[pageId];
-    if (!murs) {
+    let mursTotal = stateCOF.murs[pageId];
+    if (!mursTotal) {
+      mursTotal = {};
+      stateCOF.murs[pageId] = mursTotal;
+    }
+    if (mursTotal.total) return mursTotal.total;
+    if (mursTotal.mursSeuls) {
+      murs = {...mursTotal.mursSeuls
+      };
+    } else {
       if (jumpgate) {
         murs = findObjs({
           _type: 'pathv2',
@@ -16919,33 +16977,45 @@ var COFantasy2 = COFantasy2 || function() {
           }
         });
       }
-      stateCOF.murs[pageId] = murs;
+      mursTotal.mursSeuls = {...murs
+      };
     }
-    //On rajoute les portes fermées.
-    let doors = findObjs({
-      _type: 'door',
-      _pageid: pageId,
-    });
-    doors.forEach(function(door) {
-      if (door.get('isOpen')) return;
-      let path = door.get('path');
-      let x = door.get('x');
-      let y = door.get('y');
-      let chemin = [{
-        x: x + path.handle0.x,
-        y: path.handle0.y - y,
-      }, {
-        x: x + path.handle1.x,
-        y: path.handle1.y - y,
-      }];
-      murs.push(chemin);
-    });
+    if (mursTotal.portesSeules) {
+      murs = murs.concat(mursTotal.portesSeules);
+    } else {
+      let portes = [];
+      //On rajoute les portes fermées.
+      let doors = findObjs({
+        _type: 'door',
+        _pageid: pageId,
+      });
+      doors.forEach(function(door) {
+        if (door.get('isOpen')) return;
+        let path = door.get('path');
+        let x = door.get('x');
+        let y = door.get('y');
+        let chemin = [{
+          x: x + path.handle0.x,
+          y: path.handle0.y - y,
+        }, {
+          x: x + path.handle1.x,
+          y: path.handle1.y - y,
+        }];
+        murs.push(chemin);
+        portes.push(chemin);
+      });
+      mursTotal.portesSeules = portes;
+    }
+    mursTotal.total = murs;
     return murs;
   }
 
   function pathChanged(path) {
     let pageId = path.get('pageid');
-    delete stateCOF.murs[pageId];
+    let m = stateCOF.murs[pageId];
+    if (!m) return;
+    delete m.total;
+    delete m.mursSeuls;
   }
 
   //vérifie si un mur est entre (nsx, msy) et pt
@@ -27078,6 +27148,10 @@ var COFantasy2 = COFantasy2 || function() {
     'clean-global-state': {
       fn: commandeCleanGlobalState
     },
+    'confirmer-attaque': {
+      fn: commandeConfirmerAttaque,
+      minArgs: 1
+    },
     'degainer': {
       fn: commandeDegainer
     },
@@ -27322,6 +27396,7 @@ var COFantasy2 = COFantasy2 || function() {
     handoutChanged,
     characterChanged,
     doorChanged,
+    removeDoorFromCache,
     pathChanged,
     playerPageChanged,
     turnOrderChanged,
@@ -27340,7 +27415,9 @@ on('ready', function() {
   on('change:attribute', COFantasy2.attributeChanged);
   on('change:handout', COFantasy2.handoutChanged);
   on('change:character', COFantasy2.characterChanged);
-  on('change:door:isOpen', COFantasy2.doorChanged);
+  on('change:door', COFantasy2.doorChanged);
+  on('add:door', COFantasy2.removeDoorFromCache);
+  on('destroy:door', COFantasy2.removeDoorFromCache);
   on('change:path', COFantasy2.pathChanged);
   on('change:pathv2', COFantasy2.pathChanged);
   on('add:path', COFantasy2.pathChanged);
