@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 08 mai 2025,  06:12
+//Dernière modification : ven. 09 mai 2025,  04:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -25602,6 +25602,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: stringOption,
       array: true,
     },
+    montreActions: boolDefaultOption,
     mortsVivants: boolDefaultOption,
     metal: boolDefaultOption,
     'multi-command': boolDefaultOption,
