@@ -61,6 +61,7 @@ tr {line-height: 25px;}
                 <li><a class="text-info" href="#predicats">Prédicats</a></li>
                 <li><a class="text-info" href="#methode_selection_groupes">Méthodes de sélection de groupes</a></li>
                 <li><a class="text-info" href="#gestion_temps">Gestion du temps (rounds, repos, ...)</a></li>
+                <li><a class="text-info" href="#equipement">Équipement</a></li>
               </ul>
               <li data-toggle="collapse" data-target="#main_action"><a href="#action_principales">Actions principales</a></li>
               <ul id="main_action" class="collapse">
@@ -224,6 +225,19 @@ tr {line-height: 25px;}
               <div class="decalage">
                 <p>Pour faire passer un récupération rapide à un personnage, utilisez <code>!cof2-recuperation rapide</code>. Si le personnage a encore des DR, cela lui affichera un bouton pour en depenser un.</p>
                 <p>Pour une récupération complète, utilisez <code>!cof2-recuperation complet </code>, auquel vous pouvez ajouter un nombre positif pour faire jeter des jets de CON avec cette difficulté. Les personnages qui ont des DR pourront choisir d'en dépenser un.</p>
+              </div>
+            </div>
+            <h3 class="text-info" id="equipement">1.7 Équipement </h3>
+            <div class="decalage">
+              <h4 class="text-secondary" id="degainer">Dégainer une arme : <code>!cof2-degainer <i>N</i></code></h4>
+              <div class="decalage">
+                <p>Ce que le personnage porte en main est visible sur la fiche, dans l'onglet <code>ATTRIBUTS</code>, sous-onglet <code>EN MAIN</code>. Le script utilise cette information, par exemple pour les <a href="#attaques">attaques</a> utilisant l'arme en main, ou pour des capacités comme <strong>Plus vite que son ombre</strong>. Pour faciliter la gestion des armes en main, le script propose plusieurs mécanismes&nbsp;:
+                <ul>
+                  <li><code>!cof2-degainer <i>L</i></code> où <i>L</i> est le label d'une des attaques sur la fiche de personnage : cela fait rengainer l'arme en main et dégainer l'arme correspondant à cette attaque. Si le label ne correspond à aucune attaque (ou qu'on ne donne pas de label), l'action fait rengainer l'arme en main. On peut donner en argument 2 labels d'armes, pour faire dégainer à la fois une arme dans la main dominante (le premier label) et une arme dans l'autre main. <code>!cof-degainer <i>l</i> gauche</code> permet de dégainer (ou rengainer) uniquement une arme dans l'autre main. L'ordre de rengainer sans argument <code>gauche</code> ou <code>droite</code> fait rengainer les deux armes (si le personnage en porte deux). À noter que le script utilise les notions de main droite et de main gauche dans un soucis de simplification. Un personnage gaucher pourra utiliser les termes <code>dominant</code> ou <code>faible</code> s'il préfère. L'intérêt principal de cette commande, c'est qu'on peut lui donner en argument un <code>--typeAction</code> pour utiliser une action de mouvement ou d'attaque.</li>
+                  <li>Si on attaque avec <code>!cof2-attaque <i>tok1 tok2 L</i></code>, et que l'attaque est de type <code>Arme en main</code>, alors on considère qu'on doit dégainer cette arme pour pouvoir l'utiliser. Le script envoie le message et considère ensuite l'arme comme étant en main, au MJ de vérifier que le joueur dispose bien d'une action de mouvement pour le faire.</li>
+                  <li>Enfin, en fin de combat, si le personnage possède un prédicat <code>armeParDefaut</code>, le script va lui faire dégainer l'arme dont le label est la valeur du prédicat. Donc si le prédicat n'a pas de label associé, le personnage va rengainer son arme.</li>
+                </ul>
+                <p>Dans tous les cas, si le personnage dégaine une arme à 2 mains, le script fait enlever le bouclier.</p>
               </div>
             </div>
           <h2 class="text-primary" id="action_principales">2. Actions principales</h2>
@@ -441,19 +455,6 @@ tr {line-height: 25px;}
                 <p>Il faut un <a href=#predicats>prédicat</a> <code>charge</code> dans le champ de prédicat des armes qui ont besoin d'être chargées pour fonctionner. On peut associer un nombre au prédicat, pour indiquer un maximum de charges supérieur à 1. Noter que si on a 2 armes à une charge, il faut utiliser un maximum de 2.<br />
                 Recharge l'arme <i>N</i> (augmente les charges d'un). Les armes sont toutes rechargées à la fin d'un combat.<br />
                 La commande admet un argment optionel <code>--grenaille</code> pour charger (une arme à poudre) avec de la grenaille.
-                </p>
-              </div>
-              <h4 class="text-secondary" id="degainer">Dégainer une arme : <code>!cof-degainer <i>N</i></code></h4>
-              <div class="decalage">
-                <p>Pour certaines capacités, (commme <strong>Plus vite que son ombre</strong> ou <strong>Désarmer</strong>), il peut être utile de savoir quelle arme est en main. Pour cela, le script peut utiliser deux méthodes&nbsp;:
-                <ul>
-                  <li><code>!cof-degainer <i>L</i></code> où <i>L</i> est le label d'une des attaques sur la fiche de personnage : cela fait rengainer l'arme en main et dégainer l'arme correspondant à cette attaque. Si le label ne correspond à aucune attaque (ou qu'on ne donne pas de label), l'action fait rengainer l'arme en main. On peut donner en argument 2 labels d'armes, pour faire dégainer à la fois une arme dans la main dominante (le premier label) et une arme dans l'autre main. <code>!cof-degainer <i>l</i> gauche</code> permet de dégainer (ou rengainer) uniquement une arme dans l'autre main. À noter que si une arme est notée comme arme gauche dans l'attaque, alors elle est toujours portée par défaut en main faible. On peut la porter en main dominante avec <code>!cof-degainer <i>l</i> droite</code>. L'ordre de rengainer sans argument <code>gauche</code> ou <code>droite</code> fait rengainer les deux armes (si le personnage en porte deux). À noter que le script utilise les notions de main droite et de main gauche dans un soucis de simplification. Un personnage gaucher pourra utiliser les termes <code>dominant</code> ou <code>faible</code> s'il préfère.</li>
-                  <li>Si on attaque avec <code>!cof-attack <i>tok1 tok2 L</i></code>, et que l'attaque est de type <code>Arme 1 main</code>, <code>Arme 2 mains</code> ou <code>Arme gauche</code>, alors on considère qu'on doit dégainer cette arme pour pouvoir l'utiliser. Le script envoie le message et considère ensuite l'arme comme étant en main, au MJ de vérifier que le joueur dispose bien d'une action de mouvement pour le faire.</li>
-                  <li>En fin de combat, si le personnage a la capacité frappe du vide, le script va automatiquement lui faire rengainer son arme.</li>
-                  <li>Enfin, en fin de combat, si le personnage possède un prédicat <code>armeParDefaut</code>, le script va lui faire dégainer l'arme dont le label est la valeur du prédicat. Donc si le prédicat n'a pas de label associé, le personnage va rengainer son arme.</li>
-                </ul>
-                <p>Dans tous les cas, si le personnage dégaine une arme à 2 mains, le script fait enlever le bouclier, et il le fait remettre si on passe d'une arme à 2 mains à une arme à 1 main.</p>
-                <p>Il existe un prédicat <code>bonus_DEF</code> qui permet d'ajouter sa valeur à la défense d'un personnage. C'est particulièrement utile pour coder une arme de parade. Par exemple avec<code>bonus_DEF:2</code> dans les prédicats de l'arme, elle augmentera la défense de <i>2</i> quand elle sera portée. <p>
                 </p>
               </div>
               <h4 class="text-secondary" id="degainer">Couvert :<code>!cof-bonus-couvert <i>b</i></code></h4>
