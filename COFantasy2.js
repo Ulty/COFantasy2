@@ -1,4 +1,4 @@
-//Dernière modification : lun. 12 mai 2025,  05:18
+//Dernière modification : mer. 14 mai 2025,  06:09
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -21622,6 +21622,7 @@ var COFantasy2 = COFantasy2 || function() {
       modificateurs: fieldAsString(att, 'arme-atkmods', ''),
       typeDegats: fieldAsString(att, 'arme-dmtype', 'tranchants'),
       options: fieldAsString(att, 'arme-options', ''),
+      prefixe: att.prefixe,
       //predicats: fieldAsString(att, 'armepredicats', ''),
       predicats: '', //TODO, à chercher dans l'équipement
     };
@@ -21767,24 +21768,76 @@ var COFantasy2 = COFantasy2 || function() {
     return weaponStatsOfAttack(perso, attackLabel, att);
   }
 
-  function getLabelArme(perso, cote) {
+  function parseArmeEnMain(s) {
+    let i = s.indexOf('~');
+    if (i < 1) return;
+    let label = toInt(s.substring(0, i), 0);
+    s = s.substring(i+1);
+    i = s.indexOf('~');
+    if (i < 1) return;
+    let res = { arme:true, label, lineId:s.substring(0,i)};
+    if(toInt(s.substring(i+1), 0)) res.deuxMains = true;
+    return res;
+  }
+
+  function buildArmeEnMain(weaponStats, options={}) {
+    let res = weaponStats.label + '~';
+    //Pour le lineId, on enlève d'abord le '_' final du préfixe.
+    let lineId = weaponStats.prefixe.substring(0, weaponStats.prefixe.length-1);
+    //Puis on prend tout se qui suit le dernier '_'
+    let i = lineId.lastIndexOf('_');
+    if (i < 0) {
+      error("Prefixe d'attaque mal formé : "+lineId, weaponStats);
+      return res;
+    }
+    lineId = lineId.substring(i+1);
+    res += lineId.toLowerCase() + '~';
+    if (weaponStats.deuxMains || options.deuxMains) res += '1';
+    else res += '0';
+    return res;
+  }
+ 
+  //Renvoie soit undefined si rien en main, sinon une structure, avec
+  // un parmis arme, torche, bouclier, deuxiemeMain, autre
+  // label: entier, seulement pour les armes
+  // lineId: id de la ligne d'attaque, pour les armes
+  // deuxMains: vrai si l'arme est à 2 mains
+  function getEnMain(perso, cote) {
     persoTransforme(perso);
     if (perso.transforme.charId) {
       //On suppose que les transformations ne permettent pas de porter d'arme
       return 0;
     }
-    if (cote == 'gauche') return attributeAsInt(perso, 'main_autre_btn', 0);
-    else return attributeAsInt(perso, 'main_princ_btn', 0);
+    if (cote == 'gauche') {
+      let s = ficheAttribute(perso, 'main_autre', '0');
+      switch (s) {
+        case '0': return;
+        case '2m': return {deuxiemeMain:true};
+        case 'torche': return {torche:true};
+        case 'bouclier': return {bouclier:true};
+        case 'autre': return {autre:true};
+        default: return parseArmeEnMain(s);
+      }
+    } else {
+      let s = ficheAttribute(perso, 'main_princ', '0');
+      switch (s) {
+        case '0': return;
+        case 'torche': return {torche:true};
+        case 'autre': return {autre:true};
+        default: return parseArmeEnMain(s);
+      }
+    }
   }
 
-  function setLabelArme(perso, cote, val, estMook, evt) {
+  function setEnMain(perso, cote, val, evt) {
     let a;
-    if (cote == 'gauche') a = 'main_autre_btn';
-    else a = 'main_princ_btn';
-    if (estMook) {
+    if (cote == 'gauche') a = 'main_autre';
+    else a = 'main_princ';
+    if (estMook(perso)) {
       setTokenAttr(perso, a, val, evt);
     } else {
-      setFicheAttr(perso, a, val, evt);
+      let optDef = {default:0};
+      setFicheAttr(perso, a, val, evt, optDef);
     }
   }
 
@@ -21837,26 +21890,40 @@ var COFantasy2 = COFantasy2 || function() {
   //sinon renvoie l'arme principale
   function armesEnMain(perso) {
     if (perso.armesEnMain) return perso.arme;
-    let labelArmePrincipale = getLabelArme(perso, 'droite');
-    if (labelArmePrincipale)
-      perso.arme = getWeaponStats(perso, labelArmePrincipale);
-    let labelGauche = getLabelArme(perso, 'gauche');
-    let typeMainGauche = attributeAsString(perso, 'main_autre');
-    if (typeMainGauche == 'bouclier') {
+    let mainPrincipale = getEnMain(perso, 'droite');
+    if (mainPrincipale && mainPrincipale.arme) {
+      perso.arme = getWeaponStats(perso, mainPrincipale.label);
+      if (mainPrincipale.deuxMains) {
+        perso.armesEnMain = 'calculee';
+        return perso.arme;
+      }
+    }
+    let mainGauche = getEnMain(perso, 'gauche');
+    if (mainGauche) {
+    if (mainGauche.bouclier) {
       if (perso.arme) perso.arme.deuxMains = undefined;
       let attaqueBouclier = predicateAsBool(perso, 'attaqueAuBouclier');
       if (attaqueBouclier)
         perso.armeGauche = getWeaponStats(perso, attaqueBouclier);
-    } else if (typeMainGauche == '2m') {
+    } else if (mainGauche.deuxiemeMain) {
       if (perso.arme) perso.arme.deuxMains = true;
-    } else {
-      let labelArmeGauche = toInt(labelGauche, 0);
-      if (labelArmeGauche) {
-        perso.armeGauche = getWeaponStats(perso, labelArmeGauche);
-      }
+    } else if (mainGauche.arme) {
+        perso.armeGauche = getWeaponStats(perso, mainGauche.label);
+    }
     }
     perso.armesEnMain = 'calculee';
     return perso.arme;
+  }
+
+  //Normalement, on a déjà enlevé l'arme de la main
+  function lacherArme(perso, weaponStats, evt){
+    //Pour l'instant on ne regarde pas trop ça pour les mooks
+    if (estMook(perso)) return;
+    //On rend l'arme inaccessible
+    setFicheAttr(perso, weaponStats.prefixe + 'arme-active', 0, evt);
+    //On met l'arme dans la liste des armes lachées durant le combat
+    let opt = {copy:true, maxVal: weaponStats.name};
+    setTokenAttr(perso, 'armeLachee', weaponStats.label, evt, opt);
   }
 
   //renvoie le nom de l'arme si l'arme est déjà tenue en main
@@ -21924,21 +21991,23 @@ var COFantasy2 = COFantasy2 || function() {
       else sendPerso(perso, m, options.secret);
     };
     let changementDePrise; //si vrai, alors rengainerArmePrincipale == false
-    const persoEstMook = estMook(perso);
-    labelArmeActuelle = getLabelArme(perso, 'droite');
-    let labelGauche = getLabelArme(perso, 'gauche');
+    let mainDroite = getEnMain(perso, 'droite');
+    if (mainDroite && mainDroite.arme) labelArmeActuelle = mainDroite.label;
+    let mainGauche;
+    if (!mainDroite || !mainDroite.deuxMains) 
+      mainGauche = getEnMain(perso, 'gauche');
     let armeActuelleTenueADeuxMains;
     let tientBouclier;
-    let typeMainGauche = attributeAsString(perso, 'main_autre');
-    if (typeMainGauche == '2m') {
+    if (mainGauche) {
+    if (mainGauche.deuxiemeMain) {
       //On tient l'arme actuelle à 2 mains.
       rengainerArmePrincipale = rengainerArmePrincipale || rengainerArmeGauche;
       armeActuelleTenueADeuxMains = true;
-    } else if (typeMainGauche == 'bouclier') {
+    } else if (mainGauche.bouclier) {
       tientBouclier = true;
-    } else {
-      labelArmeActuelleGauche = parseInt(labelGauche);
-      if (isNaN(labelArmeActuelleGauche)) labelArmeActuelleGauche = 0;
+    } else if (mainGauche.arme) {
+      labelArmeActuelleGauche = mainGauche.label;
+    }
     }
     let rienAFaire;
     if (options.deuxMains) {
@@ -21986,6 +22055,11 @@ var COFantasy2 = COFantasy2 || function() {
           return;
         }
         let m = "rengaine " + ancienneArme.name;
+        if (nouvelleArme && stateCOF.combat) {
+          //Alors on lache l'ancienne arme, plutôt que de la rengainer.
+          m = "lache " + ancienneArme.nom;
+          lacherArme(perso, ancienneArme, evt);
+        }
         if (nouvelleArme || (labelArmeActuelleGauche && labelArmeActuelleGauche != labelArmeActuelle)) {
           m += ' et ';
         }
@@ -22024,13 +22098,15 @@ var COFantasy2 = COFantasy2 || function() {
     if (nouvelleArme === undefined) {
       if (labelArmeActuelle) {
         purgeCacheArme(perso);
-        if (!options.gauche) setLabelArme(perso, 'droite', 0, persoEstMook, evt);
+        if (!options.gauche) setEnMain(perso, 'droite', 0, evt);
         if (!options.seulementDroite) {
-          setLabelArme(perso, 'gauche', 0, persoEstMook, evt);
+          setEnMain(perso, 'gauche', 0, evt);
         }
       }
       return;
     }
+    //À partir d'ici, nouvelleArme est défini
+    let codeMain = buildArmeEnMain(nouvelleArme, options);
     if (nouvelleArme.deuxMains || options.deuxMains || nouvelleArmeGauche) {
       if (tientBouclier) {
         sendPerso(perso, "enlève son bouclier", options.secret);
@@ -22038,28 +22114,27 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (labelArmeActuelle) { //On avait une arme en main
       if (options.gauche) {
-        if (nouvelleArme) setLabelArme(perso, 'gauche', labelArme, persoEstMook, evt);
-        else setLabelArme(perso, 'gauche', 0, persoEstMook, evt);
-        if (rengainerArmePrincipale) setLabelArme(perso, 'droite', 0, persoEstMook, evt);
+        setEnMain(perso, 'gauche', codeMain, evt);
+        if (rengainerArmePrincipale) setEnMain(perso, 'droite', 0, evt);
       } else {
-        if (nouvelleArme) setLabelArme(perso, 'droite', labelArme, persoEstMook, evt);
-        else setLabelArme(perso, 'droite', 0, persoEstMook, evt);
-        if (labelArmeGauche) setLabelArme(perso, 'gauche', labelArmeGauche, persoEstMook, evt);
-        else if (nouvelleArme && (nouvelleArme.deuxMains || options.deuxMains))
-          setLabelArme(perso, 'gauche', '2m', persoEstMook, evt);
+         setEnMain(perso, 'droite', codeMain, evt);
+        if (nouvelleArmeGauche) 
+          setEnMain(perso, 'gauche', buildArmeEnMain(nouvelleArmeGauche), evt);
+        else if (nouvelleArme.deuxMains || options.deuxMains)
+          setEnMain(perso, 'gauche', '2m', evt);
         else if (changementDePrise || (ancienneArme && ancienneArme.deuxMains))
-          setLabelArme(perso, 'gauche', '0', persoEstMook, evt);
+          setEnMain(perso, 'gauche', '0', evt);
       }
       purgeCacheArme(perso);
     } else { //On n'avait pas d'arme en main
       if (options.gauche) {
-        setLabelArme(perso, 'gauche', labelArme, persoEstMook, evt);
+        setEnMain(perso, 'gauche', codeMain, evt);
       } else {
-        if (labelArmeGauche)
-          setLabelArme(perso, 'gauche', labelArmeGauche, persoEstMook, evt);
+        setEnMain(perso, 'droite', codeMain, evt);
+        if (nouvelleArmeGauche)
+          setEnMain(perso, 'gauche', buildArmeEnMain(nouvelleArmeGauche), evt);
         else if (options.deuxMains || nouvelleArme.deuxMains)
-          setLabelArme(perso, 'gauche', '2m', persoEstMook, evt);
-        setLabelArme(perso, 'droite', labelArme, persoEstMook, evt);
+          setEnMain(perso, 'gauche', '2m', evt);
       }
       purgeCacheArme(perso);
     }
@@ -22233,10 +22308,30 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (limiteRessources(perso, options, "bouclier", "équiper un bouclier", evt)) return;
       setFicheAttr(perso, 'bouclier_eqp', 1, evt);
+      setEnMain(perso, 'gauche', 'bouclier', evt);
       sendPerso(perso, "équipe son bouclier");
       options.acteur = perso;
       montrerActions(playerId, pageId, options);
     });
+  }
+
+  function commandeRamasserArme(cmd, playerId, pageId, options) {
+    let label = cmd[1];
+    let charId = cmd[2];
+    let perso = {charId};
+    if (cmd.length > 3) {
+      perso.token = getObj('graphic', cmd[3]);
+    }
+    let arme = getWeaponStats(perso, label);
+    if (!arme) {
+      error("Impossible de trouver l'arme de label "+label+" pour "+nomPerso(perso), cmd);
+    }
+    let evt = {type:"Ramasser arme"};
+    addEvent(evt);
+    if (!estMook(perso)) {
+    setFicheAttr(perso, arme.prefixe + 'arme-active', 1, evt);
+    }
+    sendPerso(perso, "Ramasse "+arme.name);
   }
 
   function sortirDuCombat() {
@@ -22274,12 +22369,35 @@ var COFantasy2 = COFantasy2 || function() {
     // Autres attributs
     //recupererMunitions(attrs, evt); //TODO quand ce sera réglé sur la fiche
     recupererArmesDeJet(attrs, evt);
-    //Utilisation automatique de second souffle, si pas utilisé
     let tokens = findObjs({ // Les tokens sur la page du combat
       _type: 'graphic',
       _subtype: 'token',
       _pageid: combat.pageId,
     });
+    //On propose de récupérer les armes lachées durant le combat
+    allAttributesNamed(attrs, 'armeLachee').forEach(function(a) {
+      let nomComplet = a.get('name');
+      let label = a.get('current');
+      let nomArme = a.get('max');
+      let charId = a.get('characterid');
+      let commande = '!cof2-ramasser-arme '+label+' '+charId;
+      if (nomComplet == 'armeLachee') {
+        whisperChar(charId, boutonSimple(commande, "Ramasser "+nomArme, BS_BUTTON) + ' ?');
+      } else {
+      let tokenName = nomComplet.substring(nomComplet.indexOf('_MOOK_') + 6);
+        let token = tokens.find(function(t) {
+          return t.get('represents') == charId && t.get('name') == tokenName;
+        });
+        if (token) {
+          let perso = {charId, token};
+          if (isActive(perso)) {
+          sendPerso(perso, boutonSimple(commande + ' ' + token.id, "Ramasser "+nomArme, BS_BUTTON) + ' ?', true);
+          }
+        }
+      }
+      deleteAttribute(a, evt);
+    });
+    //Utilisation automatique de second souffle, si pas utilisé
     let persosDuCombat = []; //peuplé la première fois qu'on regarde les tokens
     let persoParCharId = {}; //Pour ne garder qu'un jeu de prédicat par charId
     tokens.forEach(function(token) {
@@ -22396,7 +22514,7 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       } else { // ignorer la douleur d'un token
-        let tokName = ildName.substring(ildName.indexOf('_') + 1);
+        let tokName = ildName.substring(ildName.indexOf('_MOOK_') + 1);
         let tokensIld = findObjs({
           _type: 'graphic',
           _subtype: 'token',
@@ -24277,7 +24395,7 @@ var COFantasy2 = COFantasy2 || function() {
       let aBouclier = ficheAttributeAsInt(perso, 'bouclier', 0) > 0;
       if (ficheAttributeAsInt(perso, 'bouclier_eqp', 0) === 0 &&
         (aBouclier || ficheAttributeAsBool(perso, 'bouclier', false)))
-        addLineToFramedDisplay(display, "Ne porte pas son bouclier");
+        addLineToFramedDisplay(display, "ne porte pas son bouclier");
       if (attributeAsBool(perso, 'etatExsangue')) {
         addLineToFramedDisplay(display, "est exsangue");
       }
@@ -27249,6 +27367,10 @@ var COFantasy2 = COFantasy2 || function() {
     'recuperation': {
       fn: commandeRecuperation,
       minArgs: 1
+    },
+    'ramasser-arme': {
+      fn: commandeRamasserArme,
+      minArgs: 2
     },
     'save-state': {
       fn: commandeSaveState,
