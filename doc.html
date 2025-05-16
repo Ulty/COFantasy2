@@ -220,6 +220,7 @@ tr {line-height: 25px;}
                 <p>Par défaut, les tokens dont ce n'est pas le tour ne peuvent pas être déplacés par les joueurs. La liste des actions qui apparaissent au tour d'un personnage contient une action permettant de bouger ce personnage d'une distance maximale de 10 m (valeur qui peut être changée avec un prédicat <code>vitesse</code>). Les autres actions affichées dépendent des attaques de la fiche, des capacités cochées sur la fiche, et de la liste d'actions de l'onglet <code>SCRIPT</code>. Cette <a href="#listes_action">liste d'actions personnalisable</a> permet de proposer des actions qui diffèrent des règles normales, ou qui ne sont pas encore gérées par le script.</p>
                 <p>Normalement, le script affiche au joueur une liste d'actions actualisée après chaque action limitée, d'attaque ou de mouvement, mais si le joueur a besoin de réafficher cette liste, il peut selectionner son token, et cliquer sur le bouton <code>A&#x2A67;</code>. Le MJ peut à tout moment faire passer au personnage suivant dans le turn tracker, et le script proposera au joueur de finir son tour quand il n'aura plus d'action à faire. Si vous en avez besoin, vous pouvez aussi lui faire utiliser la commande <code>!cof2-tour-suivant</code>.
                 </p>
+                <p>Pour mettre fin à la gestion du temps au tour par tour, le script fournit une macro <code>Fin-combat</code>. Cette macro appelle en interne la commande <code>!cof2-fin-combat</code>.</p>
               </div>
               <h4 class="text-secondary">Les repos</h4>
               <div class="decalage">
@@ -290,7 +291,7 @@ tr {line-height: 25px;}
                 <p>Il existe une version spécialisée permettant de faire des dégâts dans un disque centré sur un token, <code>!cof2-explosion</code>, dont le premier argument doit être le label d'une attaque.</p>
               <h4 class="text-secondary">Options pour l'attaque&nbsp;:</h4>
               <div class="decalage">
-                Toutes les options sans arguments peuvent être directement utilisées comme modificateurs dans le liste des modifcateurs d'une attaque.
+                Toutes les options sans arguments peuvent être directement utilisées comme modificateurs dans le liste des modifcateurs d'une attaque. À noter que cette commande n'utilise pas les options de sélection ordinaires des autres commandes.
                 <ul>
                   <li><code>--nom <i>txt</i></code> : nom de l'attaque à afficher. Remplace le nom dans la ligne d'attaque si on a donné un label en argument. Le nom ne doit pas comporte de blanc usivi de 2 tirets (<code> --</code>).</li>
                   <li><code>--toucher <i>n</i></code> : bonus de base de l'attaque. Remplace les valeurs dans la ligne d'attaque si on a donné un label en argument. Pour référence, sur les fiches de PJ, l'attaque au contact est <code>[[@{selected|ATKCAC}]]</code>, l'attaque à distance <code>[[@{selected|ATKTIR}]]</code>, et l'attaque magique <code>[[@{selected|ATKMAG}]]</code>.</li>
@@ -424,6 +425,17 @@ tr {line-height: 25px;}
                 </ul>
               </div>
 <!--
+              <h4 class="text-secondary">Recharger des armes : <code>!cof-recharger <i>N</i></code></h4>
+              <div class="decalage">
+                <p>Il faut un <a href=#predicats>prédicat</a> <code>charge</code> dans le champ de prédicat des armes qui ont besoin d'être chargées pour fonctionner. On peut associer un nombre au prédicat, pour indiquer un maximum de charges supérieur à 1.<br />
+                Recharge l'arme <i>N</i> (augmente les charges d'un). Les armes sont toutes rechargées à la fin d'un combat.<br />
+                La commande admet un argment optionel <code>--grenaille</code> pour charger (une arme à poudre) avec de la grenaille.
+                </p>
+              </div>
+              <h4 class="text-secondary" id="degainer">Couvert :<code>!cof-bonus-couvert <i>b</i></code></h4>
+              <div class="decalage">
+                Pour donner un bonus en DEF contre toutes les attaques à distance, on peut utiliser <code>!cof-bonus-couvert ?{Bonus du couvert?}</code> en sélectionnant les tokens bénéficiant du couvert. La commande accepte un argument <code>--secret</code> permettant de ne pas faire connaître l'action du personnage à tous les joueurs. Pour ne plus être à couvert, il suffit de lancer la commande sans argument.
+              </div>
               <h4 class="text-secondary">Réduction des dégâts</h4>
               <div class="decalage">
                 <h5>Fonctionnement de base</h5>
@@ -450,17 +462,6 @@ tr {line-height: 25px;}
                 <h5>Armures/Boucliers de Protection (COF p. 203)</h5>
                 <p>ajoutez un <a href=#predicats>prédicat</a> <code>armureProtection</code> ou <code>bouclierProtection</code>. Le script détecte si l'équipement est porté ou pas via la fiche, et fonctionne spécifiquement contre les attaques qui utilisent <code>--sournoise</code>. Il est aussi possible de spécifier le port d'un anneau de protection ayant le même effet (prédicat <code>anneauProtection</code>.</p>
               </div>
-              <h4 class="text-secondary">Recharger des armes : <code>!cof-recharger <i>N</i></code></h4>
-              <div class="decalage">
-                <p>Il faut un <a href=#predicats>prédicat</a> <code>charge</code> dans le champ de prédicat des armes qui ont besoin d'être chargées pour fonctionner. On peut associer un nombre au prédicat, pour indiquer un maximum de charges supérieur à 1. Noter que si on a 2 armes à une charge, il faut utiliser un maximum de 2.<br />
-                Recharge l'arme <i>N</i> (augmente les charges d'un). Les armes sont toutes rechargées à la fin d'un combat.<br />
-                La commande admet un argment optionel <code>--grenaille</code> pour charger (une arme à poudre) avec de la grenaille.
-                </p>
-              </div>
-              <h4 class="text-secondary" id="degainer">Couvert :<code>!cof-bonus-couvert <i>b</i></code></h4>
-              <div class="decalage">
-                Pour donner un bonus en DEF contre toutes les attaques à distance, on peut utiliser <code>!cof-bonus-couvert ?{Bonus du couvert?}</code> en sélectionnant les tokens bénéficiant du couvert. La commande accepte un argument <code>--secret</code> permettant de ne pas faire connaître l'action du personnage à tous les joueurs. Pour ne plus être à couvert, il suffit de lancer la commande sans argument.
-              </div>
               <h4 class="text-secondary">Dégâts directs (sans attaquant, ou aire d'effet trop complexe pour !cof-attack) : <code>!cof-dmg <i>dm</i></code></h4>
               <div class="decalage">
                 <p>Applique des dégâts à tous les tokens sélectionnés. L'argument <i>dm</i> peut être un inline roll. Utile par exemple pour les chutes, ou bien les dégâts d'environnement, voire de pièges.<br />
@@ -468,10 +469,6 @@ tr {line-height: 25px;}
                 </p>
                 <p> Il est possible d'infliger des dégâts sur la durée en utilisant la commande <code>!cof-effet-temp dotGen(<i>nom</i>) <i>duree</i> --valeur <i>expr</i> <i>type</i></code>. Les arguments de <code>--valeur</code> donnent l'expression à évaluer, de type lancé de dé, et le type de dégâts. Par défaut, si rien n'est précisé, c'est <code>1d6</code> et <code>normal</code>. On peut utiliser les options habituelles de <code>!cof-effet-temp</code>. Ainsi, si on souhaite infliger des dégâts de poison de 1d4+1 par tour, pendant 10 tours, avec un jet de CON difficulté 12 pour arrêter l'effet, on pourra écrire <code>!cof-effet-temp dotGen(monPoison) 10 --saveParTour CON 12 --valeur 1d4+1 poison</code>.
                 </p>
-              </div>
-              <h4 class="text-secondary">Sortir du combat : <code>!cof-fin-combat</code></h4>
-              <div class="decalage">
-                <p>Ferme aussi le tracker de tour. Encore à mettre en macro dans la barre du MJ (macro automatiquement générée par <code>!cof-set-macros</code>). Permet de tenir compte de pleins de capacités qui durent un combat, ou utilisables une seule fois par combat,...</p>
               </div>
               <h4 class="text-secondary">Utilisation spéciale des images et son des armes</h4>
               <div class="decalage">
