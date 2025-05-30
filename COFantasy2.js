@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 29 mai 2025,  12:20
+//Dernière modification : ven. 30 mai 2025,  04:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3779,7 +3779,7 @@ var COFantasy2 = COFantasy2 || function() {
     let crit = critEnAttaque(attaquant, weaponStats, options);
     let deMalus;
     if (!options.auto) {
-      if (estAffaibli(attaquant)) {
+      if (deMalusPerso(attaquant)) {
         deMalus = true;
         expliquer("Attaquant affaibli => dé malus en Attaque");
       } else if (getState(attaquant, 'immobilise')) {
@@ -8404,7 +8404,7 @@ var COFantasy2 = COFantasy2 || function() {
       options.contact = true;
     }
     //Ce qui peut empêcher l'attaque quelles que soient les cibles
-    if (options.deMalus && (estAffaibli(attaquant) || getState(attaquant, 'immobilise'))) {
+    if (options.deMalus && (deMalusPerso(attaquant) || getState(attaquant, 'immobilise'))) {
       sendPerso(attaquant, "ne peut pas utiliser cette capacité quand il est affaibli.");
       attackCallback(options);
       return;
@@ -8476,17 +8476,18 @@ var COFantasy2 = COFantasy2 || function() {
       if ((options.demiAuto || options.toucheDoubleDmg) &&
         (!options.triche || options.triche == 'echecCritique') &&
         targetToken.get('bar1_max') == 0) { // jshint ignore:line
-        let dice = 20;
-        if (options.avecd12 ||
+        let echecCritique = options.triche == 'echecCritique';
+        if (!echecCritique) {
+          echecCritique = randomInteger(20) == 1;
+        if (options.deMalus ||
           (estAffaibli(attaquant) && !predicateAsBool(attaquant, 'insensibleAffaibli')) ||
           getState(attaquant, 'immobilise') ||
-          attributeAsBool(attaquant, 'mortMaisNAbandonnePas') ||
-          attributeAsInt(attaquant, 'niveauEbriete', 0) > 0
+          attributeAsBool(attaquant, 'mortMaisNAbandonnePas')
         ) {
-          dice = 12;
+          echecCritique = echecCritique || randomInteger(20) == 1;
         }
-        if (randomInteger(dice) == 1 ||
-          (options.triche && options.triche == 'echecCritique')) {
+        }
+        if (echecCritique) {
           options.triche = 'echecCritique';
           let left = targetToken.get('left');
           let top = targetToken.get('top');
@@ -11541,10 +11542,17 @@ var COFantasy2 = COFantasy2 || function() {
           } else if (combat.actionsAttaque + combat.actionsMouvement > 1) {
             perso.actionMax = 'G';
           } else if (combat.actionsAttaque > 0) {
-            perso.actionMax = 'M';
+            if (getState(perso, 'ralenti'))
+              perso.actionMax = 'G';
+              else perso.actionMax = 'M';
           } else if (combat.actionsMouvement == 1) {
-            perso.actionMax = 'A';
+            if (getState(perso, 'ralenti'))
+              perso.actionMax = 'G';
+            else perso.actionMax = 'A';
           } else {
+            if (getState(perso, 'ralenti'))
+              perso.actionMax = 'A';
+            else
             perso.actionMax = 'L';
           }
         } else {
@@ -12393,6 +12401,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function demarreMouvement(perso, vitesse, degainerPossible, evt, playerId, pageId) {
+    //TODO: mettre une aura pour visualiser le mouvement restant.
     unlockToken(perso, evt);
     sendPlayer("Vous pouvez déplacer " + nomPerso(perso) + " de " + vitesse + " m.", playerId);
     if (degainerPossible) {
@@ -19202,22 +19211,27 @@ var COFantasy2 = COFantasy2 || function() {
     return bonus;
   }
 
-  //TODO: enlever perso.affaibli quand on change les PV
   function estAffaibli(perso) {
-    if (perso.affaibli !== undefined) return perso.affaibli;
     if (getState(perso, 'affaibli') || getState(perso, 'blesse') ||
       attributeAsBool(perso, 'poisonAffaiblissant') ||
       attributeAsBool(perso, 'poisonAffaiblissantLong')) {
-      perso.affaibli = true;
       return true;
     }
     let pv = toInt(perso.token.get('bar1_value'), 1);
     if (pv == 1) {
-      perso.affaibli = true;
       return true;
     }
-    perso.affaibli = false;
     return false;
+  }
+
+  //calcul du total de dés malus
+  function deMalusPerso(perso, options) {
+    let deMalus = 0;
+    if (perso) {
+    if (estAffaibli(perso)) deMalus++;
+    if (attributeAsBool(perso, 'malediction')) deMalus++;
+    }
+    return deMalus;
   }
 
   //Calcul de l'expression pour un dé de test (donc d20)
@@ -19227,7 +19241,7 @@ var COFantasy2 = COFantasy2 || function() {
   function computeDice(lanceur, options = {}) {
     let nbDe = 1;
     let deBonus = options.deBonus;
-    let deMalus = options.deMalus || attributeAsBool(lanceur, 'malediction');
+    let deMalus = options.deMalus || deMalusPerso(lanceur, options);
     let plusFort = true;
     if (deBonus) {
       if (!deMalus) nbDe = 2;
@@ -20762,6 +20776,7 @@ var COFantasy2 = COFantasy2 || function() {
   function persoInit(perso, evt, already) {
     let init;
     init = ficheAttributeAsInt(perso, 'init', 10, optTransforme);
+    if (getState(perso, 'aveugle')) init -= 5;
     return init;
   }
 
@@ -23525,23 +23540,26 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (predicateAsBool(target, 'immuniteAuxCritiques')) {
         expliquer("Le succès critique est sans effet");
+      } else  if (predicateAsBool(target, 'armureProtection') && ficheAttributeAsBool(target, 'armure_eqp', false)) {
+          expliquer("L'armure de protection de " + nomPerso(target) + " le protège du critique");
+      } else if (predicateAsBool(target, 'bouclierProtection') && ficheAttributeAsInt(target, 'bouclier_eqp', 0)) {
+          expliquer("Le bouclier de protection de " + nomPerso(target) + " le protège du critique");
+        } else if (predicateAsBool(target, 'anneauProtection')) {
+          expliquer("L'anneau de protection de " + nomPerso(target) + " le protège du critique");
       } else {
+        if (options.sortilege && options.attaquant) {
+          let rollDmgCrit = rollDePlus(deEvolutif(options.attaquant));
+          let dmgCrit = {
+            type: dmg.type,
+            total: rollDmgCrit.val,
+            display: rollDmgCrit.roll,
+          };
+          otherDmg = otherDmg || [];
+          otherDmg.push(dmgCrit);
+        } else {
         if (options.critCoef) critCoef = options.critCoef;
         if (target.critCoef) critCoef += target.critCoef;
         dmgCoef += critCoef;
-        if (predicateAsBool(target, 'armureProtection') && ficheAttributeAsBool(target, 'armure_eqp', false)) {
-          expliquer("L'armure de protection de " + nomPerso(target) + " le protège du critique");
-          diviseDmg++;
-        } else if (predicateAsBool(target, 'bouclierProtection') && ficheAttributeAsInt(target, 'bouclier_eqp', 0)) {
-          expliquer("Le bouclier de protection de " + nomPerso(target) + " le protège du critique");
-          diviseDmg++;
-        } else if (predicateAsBool(target, 'anneauProtection')) {
-          expliquer("L'anneau de protection de " + nomPerso(target) + " le protège du critique");
-          diviseDmg++;
-        }
-        if (predicateAsBool(target, 'bouclierProtection') && ficheAttributeAsBool(target, 'bouclier_eqp', false)) {
-          expliquer("Le bouclier de protection de " + nomPerso(target) + " le protège du critique");
-          diviseDmg++;
         }
       }
     }
@@ -23580,10 +23598,6 @@ var COFantasy2 = COFantasy2 || function() {
         dmgTotal
       };
       if (options.affute) {
-        ajouteDe6Crit(x, firstBonusCritique);
-        firstBonusCritique = false;
-      }
-      if (options.sortilege && options.attaquant && predicateAsBool(options.attaquant, 'critiqueEpiqueSorts')) {
         ajouteDe6Crit(x, firstBonusCritique);
         firstBonusCritique = false;
       }
