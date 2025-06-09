@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 05 juin 2025,  05:24
+//Dernière modification : lun. 09 juin 2025,  10:25
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -8477,13 +8477,13 @@ var COFantasy2 = COFantasy2 || function() {
         let echecCritique = options.triche == 'echecCritique';
         if (!echecCritique) {
           echecCritique = randomInteger(20) == 1;
-        if (options.deMalus ||
-          (estAffaibli(attaquant) && !predicateAsBool(attaquant, 'insensibleAffaibli')) ||
-          getState(attaquant, 'immobilise') ||
-          attributeAsBool(attaquant, 'mortMaisNAbandonnePas')
-        ) {
-          echecCritique = echecCritique || randomInteger(20) == 1;
-        }
+          if (options.deMalus ||
+            (estAffaibli(attaquant) && !predicateAsBool(attaquant, 'insensibleAffaibli')) ||
+            getState(attaquant, 'immobilise') ||
+            attributeAsBool(attaquant, 'mortMaisNAbandonnePas')
+          ) {
+            echecCritique = echecCritique || randomInteger(20) == 1;
+          }
         }
         if (echecCritique) {
           options.triche = 'echecCritique';
@@ -11548,7 +11548,7 @@ var COFantasy2 = COFantasy2 || function() {
           } else if (combat.actionsAttaque > 0) {
             if (getState(perso, 'ralenti'))
               perso.actionMax = 'G';
-              else perso.actionMax = 'M';
+            else perso.actionMax = 'M';
           } else if (combat.actionsMouvement == 1) {
             if (getState(perso, 'ralenti'))
               perso.actionMax = 'G';
@@ -11557,7 +11557,7 @@ var COFantasy2 = COFantasy2 || function() {
             if (getState(perso, 'ralenti'))
               perso.actionMax = 'A';
             else
-            perso.actionMax = 'L';
+              perso.actionMax = 'L';
           }
         } else {
           perso.actionMax = 'L'; //en dehors des combats, pas de limite
@@ -11871,7 +11871,7 @@ var COFantasy2 = COFantasy2 || function() {
             let commande = "!cof2-sprinter " + perso.token.id + " --typeAction L";
             let picto = '<span style="font-family: \'Pictos\'">7</span> ';
             let style = 'style="background-color:#272751" title="Sprinter"';
-            ligne += "(" + boutonSimple(commande, picto, style) + " L) ";
+            ligne += " (" + boutonSimple(commande, picto, style) + " L) ";
           }
           ligne += "<br/>";
         }
@@ -12934,26 +12934,46 @@ var COFantasy2 = COFantasy2 || function() {
         error("token " + token.get('name') + " avec une barre 1 liée mais ne représente pas de personnage", token);
         return true;
       }
-      let attrEtat =
-        findObjs({
-          _type: 'attribute',
-          _characterid: charId,
-          name: etat
-        });
-      if (value) {
-        if (attrEtat.length === 0) {
-          attrEtat =
-            createObj('attribute', {
-              characterid: charId,
-              name: etat,
-              current: value
-            });
-          addCreatedAttributeToEvt(attrEtat, evt);
-        }
-      } else {
-        if (attrEtat.length > 0) {
-          deleteAttribute(attrEtat[0], evt);
-        }
+      switch (etat) {
+        case 'affaibli':
+        case 'aveugle':
+        case 'essoufle':
+        case 'etourdi':
+        case 'immobilise':
+        case 'invalide':
+        case 'paralyse':
+        case 'ralenti':
+        case 'renverse':
+        case 'surpris':
+          // État géré par la fiche
+          if (value)
+            setFicheAttr(perso, 'condition_' + etat, 1, evt);
+          else removeFicheAttr(perso, 'condition_' + etat, evt);
+          break;
+        default:
+          {
+            let attrEtat =
+              findObjs({
+                _type: 'attribute',
+                _characterid: charId,
+                name: etat
+              });
+            if (value) {
+              if (attrEtat.length === 0) {
+                attrEtat =
+                  createObj('attribute', {
+                    characterid: charId,
+                    name: etat,
+                    current: value
+                  });
+                addCreatedAttributeToEvt(attrEtat, evt);
+              }
+            } else {
+              if (attrEtat.length > 0) {
+                deleteAttribute(attrEtat[0], evt);
+              }
+            }
+          }
       }
     }
     if (!value) { //On enlève le save si il y en a un
@@ -19306,8 +19326,8 @@ var COFantasy2 = COFantasy2 || function() {
   function deMalusPerso(perso, options) {
     let deMalus = 0;
     if (perso) {
-    if (estAffaibli(perso)) deMalus++;
-    if (attributeAsBool(perso, 'malediction')) deMalus++;
+      if (estAffaibli(perso)) deMalus++;
+      if (attributeAsBool(perso, 'malediction')) deMalus++;
     }
     return deMalus;
   }
@@ -22341,9 +22361,9 @@ var COFantasy2 = COFantasy2 || function() {
       weaponStats.portee += 10;
       weaponStats.attDMBonusCommun += 2;
     }
-    weaponStats.legere = 
-      weaponStats.dague || weaponStats.rapiere || 
-      (weaponStats.epee && (weaponStats.name.search(/\bl[eé]g[eè]re\b/) > -1)) || 
+    weaponStats.legere =
+      weaponStats.dague || weaponStats.rapiere ||
+      (weaponStats.epee && (weaponStats.name.search(/\bl[eé]g[eè]re\b/) > -1)) ||
       weaponStats.modificateurs.search(/\blegere\b/) > -1;
     return weaponStats;
   }
@@ -23623,12 +23643,12 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (predicateAsBool(target, 'immuniteAuxCritiques')) {
         expliquer("Le succès critique est sans effet");
-      } else  if (predicateAsBool(target, 'armureProtection') && ficheAttributeAsBool(target, 'armure_eqp', false)) {
-          expliquer("L'armure de protection de " + nomPerso(target) + " le protège du critique");
+      } else if (predicateAsBool(target, 'armureProtection') && ficheAttributeAsBool(target, 'armure_eqp', false)) {
+        expliquer("L'armure de protection de " + nomPerso(target) + " le protège du critique");
       } else if (predicateAsBool(target, 'bouclierProtection') && ficheAttributeAsInt(target, 'bouclier_eqp', 0)) {
-          expliquer("Le bouclier de protection de " + nomPerso(target) + " le protège du critique");
-        } else if (predicateAsBool(target, 'anneauProtection')) {
-          expliquer("L'anneau de protection de " + nomPerso(target) + " le protège du critique");
+        expliquer("Le bouclier de protection de " + nomPerso(target) + " le protège du critique");
+      } else if (predicateAsBool(target, 'anneauProtection')) {
+        expliquer("L'anneau de protection de " + nomPerso(target) + " le protège du critique");
       } else {
         if (options.sortilege && options.attaquant) {
           let rollDmgCrit = rollDePlus(deEvolutif(options.attaquant));
@@ -23640,9 +23660,9 @@ var COFantasy2 = COFantasy2 || function() {
           otherDmg = otherDmg || [];
           otherDmg.push(dmgCrit);
         } else {
-        if (options.critCoef) critCoef = options.critCoef;
-        if (target.critCoef) critCoef += target.critCoef;
-        dmgCoef += critCoef;
+          if (options.critCoef) critCoef = options.critCoef;
+          if (target.critCoef) critCoef += target.critCoef;
+          dmgCoef += critCoef;
         }
       }
     }
