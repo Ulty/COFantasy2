@@ -1,4 +1,4 @@
-//Dernière modification : ven. 30 mai 2025,  04:53
+//Dernière modification : jeu. 05 juin 2025,  05:24
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3343,7 +3343,9 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (options.aoe === undefined && options.auto === undefined && portee > 0) {
-      //TODO: malus à la distance.
+      attBonus -=
+        malusDistance(attaquant, target.token, target.distance, portee, pageId,
+          explications, options.ignoreObstacles);
     }
     let chasseurEmerite =
       predicateAsBool(attaquant, 'chasseurEmerite') && estAnimal(target);
@@ -3752,8 +3754,8 @@ var COFantasy2 = COFantasy2 || function() {
   function critEnAttaque(attaquant, weaponStats, options) {
     let crit = 20;
     if (weaponStats) crit = weaponStats.crit;
-    if (isNaN(crit) || crit < 1 || crit > 20) {
-      error("Le critique n'est pas un nombre entre 1 et 20", crit);
+    if (isNaN(crit) || crit < 16 || crit > 20) {
+      error("Le critique n'est pas un nombre entre 16 et 20", crit);
       crit = 20;
     }
     if (predicateAsBool(attaquant, 'scienceDuCritique') ||
@@ -3762,13 +3764,9 @@ var COFantasy2 = COFantasy2 || function() {
       (crit == 20 && predicateAsBool(attaquant, 'ecuyer'))) crit -= 1;
     if (options.bonusCritique) crit -= options.bonusCritique;
     if (options.affute) crit -= 1;
-    if (options.contact && !weaponStats.armeGauche && predicateAsBool(attaquant, 'frappeChirurgicale'))
-      crit -= modCarac(attaquant, 'intelligence');
-    if (options.sortilege) {
-      crit -= predicateAsInt(attaquant, 'magieDeCombat', 0, 1);
-      if (predicateAsBool(attaquant, 'critiqueEpiqueSorts')) crit -= 2;
-    }
-    if (crit < 2) crit = 2;
+    if (weaponStats.legere && predicateAsBool(attaquant, 'frappeChirurgicale'))
+      crit -= 2;
+    if (crit < 16) crit = 16;
     return crit;
   }
 
@@ -8804,6 +8802,12 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (target.distance > porteeMax && target.msgEsquiveFatale === undefined && !(target.chairACanon || target.intercepter)) {
         return false;
+      }
+      if (target.distance > portee) {
+        if (options.deMalus) {
+          return false;
+        }
+        options.deMalus = true;
       }
       if (target.distance === 0 && options.seulementDistance) {
         sendPerso(attaquant, "est trop proche de " + nomPerso(target) + " pour cette attaque");
@@ -16994,6 +16998,80 @@ var COFantasy2 = COFantasy2 || function() {
     return ((distance_pix / PIX_PER_UNIT) * scale);
   }
 
+  //TODO; ajuster selon que les obstacles sont des alliés ou non
+  function malusDistance(perso1, tok2, distance, portee, pageId, explications, ignoreObstacles) {
+    if (distance === 0 || ignoreObstacles) return 0;
+    let tok1 = perso1.token;
+    // Maintenant, on cherche les tokens entre tok1 et tok2
+    let allToks =
+      findObjs({
+        _type: 'graphic',
+        _pageid: pageId,
+        _subtype: 'token',
+        layer: 'objects'
+      });
+    let mObstacle = 0;
+    let dp = distancePixToken(tok1, tok2);
+    let liste_obstacles = [];
+    let pt1 = pointOfToken(tok1);
+    let pt2 = pointOfToken(tok2);
+    allToks.forEach(function(obj) {
+      if (obj.id == tok1.id || obj.id == tok2.id) return;
+      let objCharId = obj.get('represents');
+      let perso = {
+        token: obj,
+        charId: objCharId
+      };
+      if (objCharId !== '' &&
+        (getState(perso, 'mort') ||
+          getState(perso, 'assomme') || getState(perso, 'endormi') ||
+          (attributeAsBool(perso, 'intangible') && attributeAsInt(perso, 'intangibleValeur', 1)) ||
+          (attributeAsBool(perso, 'intangibleInvisible') && attributeAsInt(perso, 'intangibleInvisibleValeur', 1)) ||
+          attributeAsBool(perso, 'estGobePar') ||
+          attributeAsBool(perso, 'enveloppePar')
+        )
+      )
+        return;
+      //On regarde si le token est une monture d'un des personnages
+      let attrMonte = tokenAttribute(perso, 'estMontePar');
+      let estMonture = attrMonte.find(function(a) {
+        let sp = splitIdName(a.get('current'));
+        if (sp === undefined) return false;
+        return sp.id == tok1.id || sp.id == tok2.id;
+      });
+      if (estMonture) return;
+      let obj_dist = distancePixToken(tok1, obj);
+      if (obj_dist > dp) return;
+      obj_dist = distancePixToken(tok2, obj);
+      if (obj_dist > dp) return;
+      let distToTrajectory = distancePixTokenSegment(obj, pt1, pt2);
+      // On modélise le token comme un disque
+      let rayonObj = tokenSizeAsCircle(obj) / 2;
+      if (distToTrajectory > rayonObj) return;
+      liste_obstacles.push(obj.get("name"));
+      // On calcule un malus proportionnel à l'arc à traverser
+      // Pour l'instant, malus = 1 si distance = PIX_PER_UNIT
+      let longueurArc = 2 * Math.sqrt(rayonObj * rayonObj - distToTrajectory * distToTrajectory);
+      let mToken = longueurArc / PIX_PER_UNIT;
+      //malus plus important si l'obstacle est au contact de la cible
+      if (distanceCombat(tok2, obj, pageId) === 0) mToken *= 5;
+      else mToken *= 3;
+      mObstacle += mToken;
+    });
+    // On ajuste aussi en fonction de la taille de la cible
+    mObstacle = mObstacle / (tokenSizeAsCircle(tok2) / PIX_PER_UNIT);
+    if (mObstacle > 5) mObstacle = 5;
+    else mObstacle = Math.round(mObstacle);
+    if (mObstacle > 0) {
+      log("Obstacle" + ((liste_obstacles.length > 1) ? "s" : "") + " trouvé : " + liste_obstacles.join(', '));
+      let msgObstacles = 'Obstacle' + ((liste_obstacles.length > 1) ? 's' : '') + ' sur le trajet => -' + mObstacle + ' en Attaque<br />';
+      if (liste_obstacles.length > 0)
+        msgObstacles += '<span style="font-size: 0.8em; color: #666;">' + liste_obstacles.join(', ') + '</span>';
+      explications.push(msgObstacles);
+    }
+    return mObstacle;
+  }
+
   function determinant(xa, ya, xb, yb) {
     return xa * yb - ya * xb;
   }
@@ -22246,6 +22324,7 @@ var COFantasy2 = COFantasy2 || function() {
     identifierArme(weaponStats, pred, 'arc', /\barc\b/i);
     identifierArme(weaponStats, pred, 'arbalete', /\barbal[eè]te\b/i);
     identifierArme(weaponStats, pred, 'baton', /\bb[aâ]ton\b/i);
+    identifierArme(weaponStats, pred, 'dague', /\bdague\b/i);
     identifierArme(weaponStats, pred, 'hache', /\bhache\b/i);
     identifierArme(weaponStats, pred, 'epee', /\b[eé]p[eé]e\b/i);
     identifierArme(weaponStats, pred, 'epieu', /\b[eé]pieu\b/i);
@@ -22262,6 +22341,10 @@ var COFantasy2 = COFantasy2 || function() {
       weaponStats.portee += 10;
       weaponStats.attDMBonusCommun += 2;
     }
+    weaponStats.legere = 
+      weaponStats.dague || weaponStats.rapiere || 
+      (weaponStats.epee && (weaponStats.name.search(/\bl[eé]g[eè]re\b/) > -1)) || 
+      weaponStats.modificateurs.search(/\blegere\b/) > -1;
     return weaponStats;
   }
 
