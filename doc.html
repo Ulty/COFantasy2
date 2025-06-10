@@ -70,7 +70,6 @@ tr {line-height: 25px;}
                 <li><a class="text-info" href="#dm_et_soins">Dégâts et soins</a></li>
                 <li><a class="text-info" href="#statut_etats">Statut et états</a></li>
                 <li><a class="text-info" href="#sorts">Sorts</a></li>
-                <li><a class="text-info" href="#consommables">Consommables</a></li>
                 <li><a class="text-info" href="#deplacements">Déplacements</a></li>
                 <li><a class="text-info" href="#lumiere">Lumière</a></li>
                 <li><a class="text-info" href="#anonymat">Anonymat et fausses identités</a></li>
@@ -243,6 +242,24 @@ tr {line-height: 25px;}
               <h4 class="text-secondary" >Objets magiques</h4>
               <div class="decalage">
                 <i>En attente d''un champ sur la fiche.</i>
+              </div>
+              <h4 class="text-secondary" id="consommables">Utilisation des ressources (potions, parchemins, ...) <code>!cof2-lister-ressources</code></h4>
+              <div class="decalage">
+                <p>Cette fonction affiche la liste des ressources de la fiche (onglet "Équipement"), avec la possibilité de cliquer sur un élément de la liste pour l'utiliser (et activer son effet) ou l'échanger avec un autre personnage (via le symbole d'échange).</p>
+                <p>Pour l'instant, seules les commandes <code>!cof2-effet</code>, <code>!cof2-attaque</code>, <code>!cof2-action</code> et <code>!cof2-soin</code> diminuent correctement le nombre de consommables.</p>
+                <div class="alert alert-warning">
+                  <p><strong>Attention : </strong></p>
+                  <ul>
+                    <li>Pour la commande <code>!cof2-attaque</code>, il est vivemement recommandé de ne pas utiliser de label, mais uniquement un nom et des options si vous voulez faciliter l'échange du consommable.</li>
+                    <li>De manière générale, faites attention avec les références utilisé dans le consommable du personnage qui utilise le consommable.<br />
+                    </li>
+                  </ul>
+                </div>
+                <p>L'échange via le symbole <span class="text-danger"><strong>&#8596;</strong></span> vous permettra de sélectionner un token destinataire qui recevra le consommable dans sa liste. Si le consommable existe déjà pour le destinataire, sa quantité sera augmenté de 1, sinon le consommable sera créé.</p>
+                <div class="alert alert-secondary">
+                  <p>Cette fonction peut-être très utile pour que les PJ échangent entre eux un consommable, mais aussi pour faciliter la vente d'objet entre PNJ et PJ.</p>
+                  <p>Pour cette dernière, il vous suffira de préparer un personnage avec un token qui contient, dans son équipement, les consommables à échanger/vendre.</p>
+                </div>
               </div>
             </div>
           <h2 class="text-primary" id="action_principales">2. Actions principales</h2>
@@ -745,27 +762,6 @@ tr {line-height: 25px;}
                 </ul>
                 Noter qu'un prédicat <code>courage</code> permet d'obtenir un bonus (égal à la valeur du prédicat) au jet pour résister à la peur.
                 <p><code>!cof-changer-de-forme</code> permet de gérer des changements de forme. Le seul argument nécessaire est le nom de la forme, qui doit corresondre au nom d'une des fiches en jeu. Après le changement, le personnage utilisera les caractéristiques, les attaques, les actions et les prédicats de cette fiche. On peut garder certaines caractéristiques en utilisant l'option <code>--gardeCarac</code>, et garder le meilleur avec <code>--gardeCaracSiMeilleure</code>. L'option <code>--utiliserAttaqueMagique</code> permet d'utiliser l'attaque magique du personnage si elle est plus forte que le score d'attaque de la créature. Une option <code>--augmentePVs</code> augmente les PV de ceux de la nouvelle forme divisés par 10. À noter que les prédicats sont toujours ajoutés, ils ne remplacent pas ceux de la fiche d'origine. Le personnage garde toujours ses PV et PM d'origine.</p>
-              </div>
-              <h3 class="text-info" id="consommables">2.6 Consommables <code>!cof-consommables</code></h3>
-              <div class="decalage">
-                <p>Cette fonction affiche une liste de consommables, avec la possibilité de cliquer sur un élément de la liste pour le consommer (et activer son effet) ou l'échanger avec un autre personnage (via le symbole d'échange).</p>
-                <p>Pour cela, la fonction utilise la liste des consommables sur la fiche (onglet "Équipement"). Elle ne va afficher que les consommables qui ont un effet (décrit dans la ligne Effet sous le nom du consommable). </p>
-                <p><img class="img-fluid" src="https://i.imgur.com/WZT8buT.png" data-href="https://i.imgur.com/WZT8buT.png"></p>
-                <figcaption>Exemple d'une liste de consommable.</figcaption>
-                <p>Pour l'instant, seules les commandes <code>!cof-effet-temp</code>, <code>!cof-effet-combat</code>, <code>!cof-effet</code>, <code>!cof-enduire-poison</code>, <code>!cof-attack</code>, <code>!cof-lancer-sort</code> et <code>!cof-soin</code> diminuent correctement le nombre de consommables.</p>
-                <div class="alert alert-warning">
-                  <p><strong>Attention : </strong></p>
-                  <ul>
-                    <li>Pour la commande <code>!cof-attack</code>, il est vivemement recommandé de ne pas utiliser de label, mais uniquement un nom et des options si vous voulez faciliter l'échange du consommable.</li>
-                    <li>De manière générale, faites attention avec les références utilisé dans le consommable du personnage qui utilise le consommable.<br />
-                    </li>
-                  </ul>
-                </div>
-                <p>L'échange via le symbole <span class="text-danger"><strong>&#8596;</strong></span> vous permettra de sélectionner un token destinataire qui recevra le consommable dans sa liste. Si le consommable existe déjà pour le destinataire, sa quantité sera augmenté de 1, sinon le consommable sera créé.</p>
-                <div class="alert alert-secondary">
-                  <p>Cette fonction peut-être très utile pour que les PJ échangent entre eux un consommable, mais aussi pour faciliter la vente d'objet entre PNJ et PJ.</p>
-                  <p>Pour cette dernière, il vous suffira de préparer un personnage avec un token qui contient, dans son équipement, les consommables à échanger/vendre.</p>
-                </div>
               </div>
               -->
               <h3 class="text-info" id="deplacements">2.7 Déplacements</h3>

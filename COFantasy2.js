@@ -1,4 +1,4 @@
-//Dernière modification : lun. 09 juin 2025,  10:25
+//Dernière modification : mar. 10 juin 2025,  06:42
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -144,8 +144,9 @@ var COFantasy2 = COFantasy2 || function() {
     if (etat == 'invisible') return etat;
     else if (etat == 'penombre') return "dans la pénombre";
     else if (etat == 'chef') return "est un leader";
+    else if (etat == 'invalide') return etat;
     let etext = etat;
-    if (etat.endsWith('e') && etat != 'invalide') {
+    if (etat.endsWith('e')) {
       etext = etat.substring(0, etat.length - 1) + 'é';
     }
     if (perso === undefined) return etext;
@@ -436,144 +437,142 @@ var COFantasy2 = COFantasy2 || function() {
   const CHANCE = String.fromCharCode(0x2618);
   const STATUT = 'Statut'; //String.fromCharCode(0x2BD1);
   const ACTIONS = 'A' + String.fromCharCode(0x2A67);
+  const CONSOMMABLES = String.fromCharCode(0x2615);
 
   //Crée les macros utiles au jeu
   const gameMacros = [{
-      name: ACTIONS,
-      action: "!cof2-liste-actions",
-      visibleto: 'all',
-      istokenaction: true
-    }, {
-      name: 'Attaque',
-      action: "!cof2-attaque @{selected|token_id} @{target|token_id}",
-      visibleto: 'all',
-      istokenaction: false
-    }, {
-      name: 'Action',
-      action: "!cof2-action ?{|Donner, peut agir --donneAction|Utiliser, agit --typeAction} ?{Type d'action?|M|A|L}",
-      istokenaction: false,
-      inBar: true,
-    },
-    /*{
-           name: 'Consommables',
-           action: "!cof-consommables",
-           visibleto: 'all',
-           istokenaction: true
-         },*/
-    {
-      name: 'Bouger',
-      action: "!cof2-bouger",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: MONTER,
-      oldName: 'Monter',
-      action: "!cof2-escalier haut",
-      visibleto: 'all',
-      istokenaction: true,
-      inBar: false
-    }, {
-      name: DESCENDRE,
-      oldName: 'Descendre',
-      action: "!cof2-escalier bas",
-      visibleto: 'all',
-      istokenaction: true,
-      inBar: false
-    }, {
-      name: 'Fin-combat',
-      action: "!cof2-fin-combat",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: 'Init',
-      action: "!cof2-init",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: 'Jets',
-      action: "!cof2-jet",
-      visibleto: 'all',
-      istokenaction: true,
-    }, {
-      name: 'Jets-GM',
-      action: "!cof2-jet --secret",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: CHANCE,
-      action: "!cof2-jet-chance",
-      visibleto: '',
-      istokenaction: false,
-      inBar: false
-    }, {
-      name: NUIT,
-      action: "!cof2-recuperation complet ?{Difficulté de jet de CON (0 pour aucun jet)}",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: REPOS,
-      action: "!cof2-recuperation rapide",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: STATUT,
-      action: "!cof2-statut",
-      visibleto: 'all',
-      istokenaction: true
-    }, {
-      name: 'Surprise',
-      action: "!cof2-surprise ?{difficulté}",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: 'Torche',
-      action: "!cof2-torche @{selected|token_id}",
-      visibleto: 'all',
-      istokenaction: true,
-    }, {
-      name: 'Éteindre',
-      action: "!cof2-eteindre-lumiere ?{Quelle lumière?|Tout}",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: 'devient',
-      action: "!cof2-effet ?{État|mort|surpris|assommé,assomme|renversé,renverse|aveuglé,aveugle|affaibli|étourdi,etourdi|paralysé,paralyse|ralenti|immobilisé,immobilise|endormi|apeuré,apeure|invisible|blesse|encombre} true",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: 'enlève',
-      action: "!cof2-effet ?{État|mort|surpris|assomme|renverse|aveugle|affaibli|etourdi|paralyse|ralenti|immobilise|endormi|apeure|invisible|blesse|encombre} false",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: 'Suivre',
-      action: "!cof2-suivre @{selected|token_id} @{target|token_id}",
-      visibleto: 'all',
-      istokenaction: true
-    }, {
-      name: UNDO,
-      action: "!cof2-undo",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    }, {
-      name: PAUSE,
-      action: "!cof2-pause",
-      visibleto: '',
-      istokenaction: false,
-      inBar: true
-    },
-  ];
+    name: ACTIONS,
+    action: "!cof2-liste-actions",
+    visibleto: 'all',
+    istokenaction: true
+  }, {
+    name: 'Attaque',
+    action: "!cof2-attaque @{selected|token_id} @{target|token_id}",
+    visibleto: 'all',
+    istokenaction: false
+  }, {
+    name: 'Action',
+    action: "!cof2-action ?{|Donner, peut agir --donneAction|Utiliser, agit --typeAction} ?{Type d'action?|M|A|L}",
+    istokenaction: false,
+    inBar: true,
+  }, {
+    name: CONSOMMABLES,
+    action: "!cof2-lister-ressource @{selected|token_id}",
+    visibleto: 'all',
+    istokenaction: true
+  }, {
+    name: 'Bouger',
+    action: "!cof2-bouger",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: MONTER,
+    oldName: 'Monter',
+    action: "!cof2-escalier haut",
+    visibleto: 'all',
+    istokenaction: true,
+    inBar: false
+  }, {
+    name: DESCENDRE,
+    oldName: 'Descendre',
+    action: "!cof2-escalier bas",
+    visibleto: 'all',
+    istokenaction: true,
+    inBar: false
+  }, {
+    name: 'Fin-combat',
+    action: "!cof2-fin-combat",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: 'Init',
+    action: "!cof2-init",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: 'Jets',
+    action: "!cof2-jet",
+    visibleto: 'all',
+    istokenaction: true,
+  }, {
+    name: 'Jets-GM',
+    action: "!cof2-jet --secret",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: CHANCE,
+    action: "!cof2-jet-chance",
+    visibleto: '',
+    istokenaction: false,
+    inBar: false
+  }, {
+    name: NUIT,
+    action: "!cof2-recuperation complet ?{Difficulté de jet de CON (0 pour aucun jet)}",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: REPOS,
+    action: "!cof2-recuperation rapide",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: STATUT,
+    action: "!cof2-statut",
+    visibleto: 'all',
+    istokenaction: true
+  }, {
+    name: 'Surprise',
+    action: "!cof2-surprise ?{difficulté}",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: 'Torche',
+    action: "!cof2-torche @{selected|token_id}",
+    visibleto: 'all',
+    istokenaction: true,
+  }, {
+    name: 'Éteindre',
+    action: "!cof2-eteindre-lumiere ?{Quelle lumière?|Tout}",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: 'devient',
+    action: "!cof2-effet ?{État|mort|surpris|assommé,assomme|renversé,renverse|aveuglé,aveugle|affaibli|étourdi,etourdi|paralysé,paralyse|ralenti|immobilisé,immobilise|endormi|apeuré,apeure|invisible|blesse|encombre} true",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: 'enlève',
+    action: "!cof2-effet ?{État|mort|surpris|assomme|renverse|aveugle|affaibli|etourdi|paralyse|ralenti|immobilise|endormi|apeure|invisible|blesse|encombre} false",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: 'Suivre',
+    action: "!cof2-suivre @{selected|token_id} @{target|token_id}",
+    visibleto: 'all',
+    istokenaction: true
+  }, {
+    name: UNDO,
+    action: "!cof2-undo",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: PAUSE,
+    action: "!cof2-pause",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, ];
 
   let stateCOF = state.COFantasy;
   let reglesOptionelles; // = stateCOF.options.regles.val;
@@ -10270,24 +10269,6 @@ var COFantasy2 = COFantasy2 || function() {
         return true;
       }
     }
-    if (options.dose) {
-      if (perso) {
-        let nomDose = options.dose.replace(/_/g, ' ');
-        let doses = attributeAsInt(perso, 'dose_' + options.dose, 0);
-        if (doses === 0) {
-          if (!options.testeRessources) {
-            sendPerso(perso, "n'a plus de " + nomDose, options.secret);
-          }
-          return true;
-        }
-        if (!options.testeRessources) {
-          setTokenAttr(perso, 'dose_' + options.dose, doses - 1, evt);
-        }
-      } else {
-        error("Impossible de savoir qui doit dépenser la dose", options);
-        return true;
-      }
-    }
     if (options.limiteAttribut) {
       if (perso) {
         let nomAttr = options.limiteAttribut.nom;
@@ -11093,7 +11074,7 @@ var COFantasy2 = COFantasy2 || function() {
             cmd = cmd.split(' ');
             switch (typeAction) {
               case 'soin':
-                if (!actSansChoix.includes('--limitePar') && !actSansChoix.includes('--dose')) { //Limitations spéficiques
+                if (!actSansChoix.includes('--limitePar')) { //Limitations spéficiques
                   let rangSoin = predicateAsInt(perso, 'voieDesSoins', 0);
                   if (cmd.includes('leger')) {
                     let soinsLegers = attributeAsInt(perso, 'soinsLegers', 0);
@@ -24919,7 +24900,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function commandeSoin(cmd, playerId, pageId, options) {
     let soigneur = options.acteur || options.lanceur;
-    if (!soigneur && (options.mana || (options.portee !== undefined) || options.limiteParJour || options.limiteParCombat || options.dose || options.limiteSoinsParJour)) {
+    if (!soigneur && (options.mana || (options.portee !== undefined) || options.limiteParJour || options.limiteParCombat || options.limiteSoinsParJour)) {
       error("Il faut préciser un soigneur pour ces options d'effet", options);
       return;
     }
@@ -24943,7 +24924,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'mineur':
         {
           effet = 'récupération mineure';
-          if (soigneur && options.dose === undefined && options.limiteParJour === undefined) {
+          if (soigneur && options.limiteParJour === undefined) {
             //TODO: revoir le système des rangs dans les voies,
             let rangSoin = predicateAsInt(soigneur, 'voieDesSoins', 0);
             options.limiteAttribut = {
@@ -25236,6 +25217,212 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }); //fin de iterCibles
+  }
+
+  // Utilisation des ressources et consommables -------------------------------
+
+  const ressourceNomRegExp = new RegExp(/^(repeating_ressources_.*_)res-desc/);
+  const ressourceQuantiteRegExp = new RegExp(/^(repeating_ressources_.*_)res-val/);
+  const ressourceEffetRegExp = new RegExp(/^(repeating_ressources_.*_)res-props/);
+
+  //!cof2-lister-ressource token-id
+  function commandeListerRessource(cmd, playerId, pageId, options, perso) {
+    let display = startFramedDisplay(playerId, 'Liste des consommables :', perso, {
+      chuchote: true
+    });
+    let attributes = findObjs({
+      _type: 'attribute',
+      _characterid: perso.charId
+    });
+    let consommables = {}; //map id -> nom, quantite, effet, attr
+    attributes.forEach(function(attr) {
+      let attrName = attr.get('name').trim();
+      let m = ressourceNomRegExp.exec(attrName);
+      if (m) {
+        let consoPrefix = m[1];
+        consommables[consoPrefix] = consommables[consoPrefix] || {};
+        consommables[consoPrefix].nom = attr.get('current');
+        return;
+      }
+      m = ressourceQuantiteRegExp.exec(attrName);
+      if (m) {
+        let consoPrefix = m[1];
+        consommables[consoPrefix] = consommables[consoPrefix] || {};
+        consommables[consoPrefix].quantite = parseInt(attr.get('current'));
+        consommables[consoPrefix].attr = attr;
+        return;
+      }
+      m = ressourceEffetRegExp.exec(attrName);
+      if (m) {
+        let consoPrefix = m[1];
+        consommables[consoPrefix] = consommables[consoPrefix] || {};
+        consommables[consoPrefix].effet = attr.get('current');
+        return;
+      }
+    }); //fin de la boucle sur les attributs
+    let aConsommable;
+    _.each(consommables, function(c, prefix) {
+      //On met d'abord les valeurs par défaut s'il manque un attribut
+      if (c.nom === undefined || c.nom === '') return;
+      if (c.effet === undefined) c.effet = '';
+      else if (c.effet.search(/\btype:munitions\b/) > -1) return;
+      if (c.quantite === undefined) {
+        c.quantite = 1;
+        c.attr = createObj('attribute', {
+          characterid: perso.charId,
+          name: prefix + 'res-val',
+          current: 1,
+        });
+      } else if (isNaN(c.quantite) || c.quantite < 1) {
+        return;
+      }
+      aConsommable = true;
+      let ligne = c.quantite + ' ';
+      let action = c.effet;
+      if (action === '') action = '!cof-action utilise ' + c.nom;
+      ligne += boutonComplexe(action, c.nom, perso, {
+        ressource: c.attr
+      });
+      // Pictos : https://wiki.roll20.net/CSS_Wizardry#Pictos
+      let overlay = ' title="Cliquez pour échanger"';
+      ligne += boutonSimple('!cof2-donner-consommable ' + perso.token.id + ' @{target|token_id} ' + c.attr.id, '<span style="font-family:Pictos">r</span>', overlay);
+      addLineToFramedDisplay(display, ligne);
+    }); //fin de la boucle sur les onsommables
+    if (aConsommable)
+      addLineToFramedDisplay(display, '<em>Cliquez sur le consommable pour l\'utiliser ou sur <tt><span style="font-family:Pictos">r</span></tt> pour l\'échanger avec un autre personnage.</em>');
+    else
+      addLineToFramedDisplay(display, "<code>Vous n'avez aucun consommable</code>");
+    sendFramedDisplay(display);
+  }
+
+  //!cof2-donner-consommable tid1 tid2 attrid
+  function commandeDonnerConsommable(cmd, playerId, pageId, options, perso1) {
+    if (cmd[1] == cmd[2]) {
+      sendPlayer("Échange avec soi-même, sans effet", playerId);
+      return;
+    }
+    //perso2 = token avec lequel on va faire l'échange
+    let perso2 = persoOfId(cmd[2], cmd[2], pageId);
+    if (perso2 === undefined) {
+      sendPlayer("Impossible de trouver la personne à qui donner l'objet", playerId);
+      return;
+    }
+    //On regarde si le joueur contrôle le token
+    if (!peutController(perso1, playerId)) {
+      sendPlayer("Pas les droits pour ça", playerId);
+      return;
+    }
+    //on récupère l'attribut à échanger de perso1
+    let attr1 = getObj('attribute', cmd[3]);
+    if (attr1 === undefined) {
+      log("Attribut a changé/perdu");
+      log(cmd);
+      sendPlayer("Plus possible d'utiliser cette action. Veuillez réafficher les consommables.", playerId);
+      return;
+    }
+    let consName;
+    let quantite1 = toInt(attr1.get('current'), 0);
+    const evt = {
+      type: "Échange de consommable",
+    };
+    addAttributeToEvt(attr1, evt, quantite1);
+    let effet;
+    let attrName = attr1.get('name').trim();
+    //On regarde si c'est un consommable sur la fiche
+    let m1 = ressourceQuantiteRegExp.exec(attrName);
+    if (m1) {
+      let consoPrefix = m1[1];
+      let attrConsName = charAttribute(perso1.charId, consoPrefix + 'res-desc');
+      if (attrConsName.length === 0) {
+        error("Impossible de trouver le nom du consommable", attr1);
+        return;
+      }
+      consName = attrConsName[0].get('current').trim();
+      let attrEffet = charAttribute(perso1.charId, consoPrefix + 'res-props');
+      effet = '';
+      if (attrEffet.length > 0) effet = attrEffet[0].get('current').trim();
+    } else {
+      error("L'attribut de l'objet n'est pas un objet dur la fiche", attr1);
+      return;
+    }
+    if (quantite1 < 1) {
+      attr1.set('current', 0);
+      whisperChar(perso1.charId, "Vous ne disposez plus de " + consName);
+      return;
+    }
+    // on baisse la valeur de 1 du consommable qu'on s'apprête à échanger
+    quantite1--;
+    attr1.set('current', quantite1);
+    // ajout du consommable dans perso2 :
+    let attributes = findObjs({
+      _type: 'attribute',
+      _characterid: perso2.charId
+    });
+    let quantite2 = 0;
+    // on recherche si le consommable existe chez perso2
+    let found = attributes.find(function(attr2) {
+      let attrName2 = attr2.get('name');
+      let m2 = ressourceNomRegExp.exec(attrName2);
+      if (!m2) return false;
+      if (consName != attr2.get('current').trim()) return false;
+      let consoPrefix2 = m2[1];
+      let attrEffet2 =
+        charAttribute(perso2.charId, consoPrefix2 + 'res-props');
+      if (attrEffet2.length === 0) {
+        attrEffet2 = createObj('attribute', {
+          characterid: perso2.charId,
+          name: consoPrefix2 + 'res-props',
+          current: effet
+        });
+        addCreatedAttributeToEvt(attrEffet2, evt);
+      } else if (attrEffet2[0].get('current').trim() != effet) {
+        error("Échange dangereux : pas le même effet pour le consommable selon le personnage \n" +
+          "Effet chez " + nomPerso(perso1) + " : " + effet + "\n" +
+          "Effet chez " + nomPerso(perso2) + " : " + attrEffet2[0].get('current'), attr2.get('name'));
+        return false;
+      }
+      let attrQte2 = charAttribute(perso2.charId, consoPrefix2 + 'res-val');
+      if (attrQte2.length === 0) {
+        quantite2 = 1;
+        attrQte2 = createObj('attribute', {
+          characterid: perso2.charId,
+          name: consoPrefix2 + 'res-val',
+          current: 2
+        });
+        addCreatedAttributeToEvt(attrQte2, evt);
+        return true;
+      }
+      attrQte2 = attrQte2[0];
+      quantite2 = parseInt(attrQte2.get('current'));
+      if (isNaN(quantite2) || quantite2 < 1) quantite2 = 0;
+      attrQte2.set('current', quantite2 + 1);
+      addAttributeToEvt(attrQte2, evt, quantite2);
+      return true;
+    });
+    // si le consommable n'a pas été trouvé, on le crée avec une valeur de 1.
+    if (!found) {
+      let pref = 'repeating_ressources_' + generateRowID() + '_';
+      let attre = createObj('attribute', {
+        name: pref + 'res-desc',
+        current: consName,
+        characterid: perso2.charId
+      });
+      addCreatedAttributeToEvt(attre, evt);
+      attre = createObj('attribute', {
+        name: pref + 'res-props',
+        current: effet,
+        characterid: perso2.charId
+      });
+      addCreatedAttributeToEvt(attre, evt);
+    }
+    quantite2++;
+    // on envoie un petit message précisant la résultante de l'action.
+    sendChat('COF', "Echange entre " + nomPerso(perso1) + " et " + nomPerso(perso2) + " terminée.");
+    whisperChar(perso1.charId, " Il vous reste " + quantite1 + " " + consName + ".");
+    whisperChar(perso2.charId, " Vous possédez désormais " + quantite2 + " " + consName + ".");
+    // le MJ est notifié :
+    sendChat('COF', "/w GM " + nomPerso(perso1) + " vient de donner <strong>1</strong> " + consName + " à " + nomPerso(perso2) + ".");
+    addEvent(evt);
   }
 
   // Informations et affichage ------------------------------------------------
@@ -28309,6 +28496,11 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeDmg,
       minArgs: 1,
     },
+    'donner-consommable': {
+      fn: commandeDonnerConsommable,
+      minArgs: 3,
+      acteur: 1
+    },
     'effet': {
       fn: commandeEffet,
       minArgs: 1
@@ -28449,6 +28641,11 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'undo-dernier-mvt': {
       fn: commandeUndoDernierMvt,
+      minArgs: 1,
+      acteur: 1
+    },
+    'lister-ressource': {
+      fn: commandeListerRessource,
       minArgs: 1,
       acteur: 1
     }
