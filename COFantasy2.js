@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 26 juin 2025,  03:26
+//Dernière modification : ven. 19 sept. 2025,  08:06
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -10435,29 +10435,39 @@ var COFantasy2 = COFantasy2 || function() {
     return pred;
   }
 
+  function addPredicatesTo(destPredicates, srcPredicates) {
+      for (const p in srcPredicates) {
+        let pred = destPredicates[p];
+        if (pred === undefined) {
+          destPredicates[p] = srcPredicates[p];
+        } else {
+          let t = typeof(pred);
+          switch (t) {
+            case 'boolean':
+              destPredicates[p] = pred | srcPredicates[p];
+              break;
+            case 'number':
+              if (p.startsWith('bonusTest')) {
+                destPredicates[p] = Math.max(pred, srcPredicates[p]);
+              } else {
+              destPredicates[p] = pred + srcPredicates[p];
+              }
+              break;
+            case 'string':
+              destPredicates[p] = [pred, srcPredicates[p]];
+              break;
+            case 'object':
+              pred.push(srcPredicates[p]);
+          }
+        }
+      }
+  }
+
   function joinPredicates(predicates, infos) {
     let pred = {};
     for (const cat in predicates) {
       if (cat == 'mooks') continue;
-      for (const p in predicates[cat]) {
-        if (pred[p] === undefined) {
-          pred[p] = predicates[cat][p];
-        } else {
-          switch (typeof(pred[p])) {
-            case 'boolean':
-              pred[p] |= predicates[cat][p];
-              break;
-            case 'number':
-              pred[p] += predicates[cat][p];
-              break;
-            case 'string':
-              pred[p] = [pred[p], predicates[cat][p]];
-              break;
-            case 'object':
-              pred[p].push(predicates[cat][p]);
-          }
-        }
-      }
+      addPredicatesTo(pred, predicates[cat]);
     }
     let pam = pred.armesMaitrisees;
     if (pam) {
@@ -10476,22 +10486,59 @@ var COFantasy2 = COFantasy2 || function() {
     return pred;
   }
 
+  const predicatsParCapacite = {
+    //Voies d'artificier
+    //Voie de l'artilleur
+    mecanismes: {
+      bonusTestEvolutif_reparer: true,
+      bonusTestEvolutif_mecanismes: true,
+      deBonusArmesDeSiege: true
+    }
+  };
+
   function predicatsDeVoie(perso, numVoie, capacites, armesMaitrisees) {
     //voie1nom: le nom de la voie
     //voie1-t1: le nom de la capacité
     //voie1r1_param: paramètre de capacité (préciser autre capa, etc)
     //voie1r1_props: propriétés. La fiche a déjà initial et doublon
     //v1r1: est-ce que la capacité est prise
-    let profil = ficheAttribute(perso, 'v' + numVoie + 'profil', '');
+    let v = 'v' + numVoie;
+    let voie = 'voie' + numVoie;
+    let profil = ficheAttribute(perso, v + 'profil', '');
     //Les armes maîtrisées:
-    if (numVoie == 2 || numVoie == 3 || numVoie > 3 && ficheAttributeAsBool(perso, 'v' + numVoie + 'r2')) {
+    if (numVoie == 2 || numVoie == 3 || numVoie > 3 && ficheAttributeAsBool(perso, v + 'r2', false)) {
       let am = armesMaitriseesParProfil[profil];
       if (!am) {
-        error("Voie " + ficheAttribute(perso, 'voie' + numVoie + 'nom', numVoie) + " sans profil associé", perso);
+        error("Voie " + ficheAttribute(perso, voie + 'nom', numVoie) + " sans profil associé", perso);
       } else {
         for (const m in am) {
           armesMaitrisees[m] = true;
         }
+      }
+    }
+    //Puis les prédicats
+    for (let rang = 1; rang < 6; rang++){//rang sur la fiche
+      if (!ficheAttributeAsBool(perso, v + 'r' + rang, false)) break;
+      let propsRaw = ficheAttribute(perso, voie+'r'+rang+'_props', '');
+      let props = predicateOfRaw(propsRaw);
+      let capaAuto = true;
+      if (props.ignoreAuto) {
+        capaAuto = false;
+        delete props.ignoreAuto;
+      }
+      //Propriétés utilisées par la fiches et ignorées par le script
+      delete props.initial;
+      delete props.doublon;
+      addPredicatesTo(capacites, props);
+      if (capaAuto) {
+        let capacite = ficheAttribute(perso, voie+'-t'+rang, '');
+        if (!capacite) continue;
+        let preds = predicatsParCapacite[capacite];
+        if (!preds) {
+          log("Prédicats pour "+capacite+" inconnus ou pas encore entrés");
+          continue;
+        }
+        addPredicatesTo(capacites, preds);
       }
     }
 
@@ -15528,6 +15575,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - activation: message à afficher quand l'effet s'active
   // - fin : message à afficher à la fin de l'effet
   function setEffetTemporaire(target, ef, duree, evt, options = {}) {
+    if (!target.messages) ef.whisper = nomPerso(target) + ' ';
     if (estImmuniseAEffet(target, ef.effet)) {
       if (ef.whisper !== undefined) {
         if (ef.whisper === true) {
@@ -18812,10 +18860,13 @@ var COFantasy2 = COFantasy2 || function() {
     let res = 0;
     p.forEach(function(voie) {
       if (res >= 7) return;
-      //voie peut être le numéro de voie ou le nom
-      let numeroVoie = parseInt(voie);
-      if (isNaN(numeroVoie) || numeroVoie > 9)
-        numeroVoie = numeroDeVoie(perso, voie);
+      //voie peut être le nom de la voie ou le bonus direct
+      let bonus = parseInt(voie);
+      if (!isNaN(bonus) && bonus > 2 && bonus < 8) {
+        if (bonus > res) res = bonus;
+        return;
+      }
+      let numeroVoie = numeroDeVoie(perso, voie);
       if (!numeroVoie) {
         error("Impossible de trouver la voie " + voie, competence);
         return;
@@ -21313,7 +21364,8 @@ var COFantasy2 = COFantasy2 || function() {
       bonus: 0,
       id: generateRowID()
     };
-    let exprDM = expr.trim().toLowerCase();
+    if (expr && typeof expr == 'object' && expr.length) expr = expr[0];
+    let exprDM = (expr+'').trim().toLowerCase();
     let indexD = exprDM.indexOf('d');
     if (indexD > 0) {
       dm.nbDe = parseInt(exprDM.substring(0, indexD));
@@ -28429,10 +28481,12 @@ var COFantasy2 = COFantasy2 || function() {
     attr.remove();
   }
 
+  const attributeQuiAffecteMaitriseArmes = new RegExp('^v[1-9]r2$|^v[1-9]profil$');
+
   function attributeChanged(attr) {
     let n = attr.get('name');
     if (n == 'cofantasy') treatSheetCommand(attr);
-    if (n == 'predicats_script') {
+    else if (n == 'predicats_script') {
       let infos = infosFiche[attr.get('characterid')];
       if (!infos) return;
       let predicats = infos.predicats;
@@ -28441,6 +28495,11 @@ var COFantasy2 = COFantasy2 || function() {
         delete predicats.champ_fiche;
         delete predicats.mooks;
       }
+      if (infos.armesMaitrisees) delete infos.armesMaitrisees;
+    } else if (attributeQuiAffecteMaitriseArmes.test(n)) {
+      let infos = infosFiche[attr.get('characterid')];
+      if (!infos) return;
+      if (infos.armesMaitrisees) delete infos.armesMaitrisees;
     }
   }
 
