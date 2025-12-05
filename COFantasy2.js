@@ -1,4 +1,4 @@
-//Dernière modification : ven. 19 sept. 2025,  08:06
+//Dernière modification : ven. 05 déc. 2025,  11:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -9379,6 +9379,11 @@ var COFantasy2 = COFantasy2 || function() {
     return attrAsBool(attr);
   }
 
+  function charAttributeAsString(perso, name, def = '') {
+    let attr = charAttribute(perso.charId, name);
+    return attrAsString(attr, def);
+  }
+
   function attributesInsensitive(perso, name, options) {
     return charAttribute(getCharId(perso, name, options), name, {
       caseInsensitive: true
@@ -10436,31 +10441,31 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function addPredicatesTo(destPredicates, srcPredicates) {
-      for (const p in srcPredicates) {
-        let pred = destPredicates[p];
-        if (pred === undefined) {
-          destPredicates[p] = srcPredicates[p];
-        } else {
-          let t = typeof(pred);
-          switch (t) {
-            case 'boolean':
-              destPredicates[p] = pred | srcPredicates[p];
-              break;
-            case 'number':
-              if (p.startsWith('bonusTest')) {
-                destPredicates[p] = Math.max(pred, srcPredicates[p]);
-              } else {
+    for (const p in srcPredicates) {
+      let pred = destPredicates[p];
+      if (pred === undefined) {
+        destPredicates[p] = srcPredicates[p];
+      } else {
+        let t = typeof(pred);
+        switch (t) {
+          case 'boolean':
+            destPredicates[p] = pred | srcPredicates[p];
+            break;
+          case 'number':
+            if (p.startsWith('bonusTest')) {
+              destPredicates[p] = Math.max(pred, srcPredicates[p]);
+            } else {
               destPredicates[p] = pred + srcPredicates[p];
-              }
-              break;
-            case 'string':
-              destPredicates[p] = [pred, srcPredicates[p]];
-              break;
-            case 'object':
-              pred.push(srcPredicates[p]);
-          }
+            }
+            break;
+          case 'string':
+            destPredicates[p] = [pred, srcPredicates[p]];
+            break;
+          case 'object':
+            pred.push(srcPredicates[p]);
         }
       }
+    }
   }
 
   function joinPredicates(predicates, infos) {
@@ -10517,9 +10522,9 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     //Puis les prédicats
-    for (let rang = 1; rang < 6; rang++){//rang sur la fiche
+    for (let rang = 1; rang < 6; rang++) { //rang sur la fiche
       if (!ficheAttributeAsBool(perso, v + 'r' + rang, false)) break;
-      let propsRaw = ficheAttribute(perso, voie+'r'+rang+'_props', '');
+      let propsRaw = ficheAttribute(perso, voie + 'r' + rang + '_props', '');
       let props = predicateOfRaw(propsRaw);
       let capaAuto = true;
       if (props.ignoreAuto) {
@@ -10531,11 +10536,11 @@ var COFantasy2 = COFantasy2 || function() {
       delete props.doublon;
       addPredicatesTo(capacites, props);
       if (capaAuto) {
-        let capacite = ficheAttribute(perso, voie+'-t'+rang, '');
+        let capacite = ficheAttribute(perso, voie + '-t' + rang, '');
         if (!capacite) continue;
         let preds = predicatsParCapacite[capacite];
         if (!preds) {
-          log("Prédicats pour "+capacite+" inconnus ou pas encore entrés");
+          log("Prédicats pour " + capacite + " inconnus ou pas encore entrés");
           continue;
         }
         addPredicatesTo(capacites, preds);
@@ -17886,6 +17891,18 @@ var COFantasy2 = COFantasy2 || function() {
             });
             return;
           }
+        case 'toutLeJeu':
+          {
+            let tokens = findObjs({
+              _type: 'graphic',
+              _subtype: 'token',
+            });
+            tokens.forEach(function(token) {
+              let tokCharId = token.get('represents');
+              if (tokCharId) selectedSet.add(token.id);
+            });
+            return;
+          }
         case 'equipe':
           {
             let nomEquipe = cmd.slice(1).join(' ');
@@ -21365,7 +21382,7 @@ var COFantasy2 = COFantasy2 || function() {
       id: generateRowID()
     };
     if (expr && typeof expr == 'object' && expr.length) expr = expr[0];
-    let exprDM = (expr+'').trim().toLowerCase();
+    let exprDM = (expr + '').trim().toLowerCase();
     let indexD = exprDM.indexOf('d');
     if (indexD > 0) {
       dm.nbDe = parseInt(exprDM.substring(0, indexD));
@@ -25773,6 +25790,430 @@ var COFantasy2 = COFantasy2 || function() {
     undoEvent();
   }
 
+  function commandeReinitialisePartie(cmd, playerId, pageId, options) {
+    let evt = {
+      type: "Réinitialise partie",
+    };
+    addEvent(evt);
+    const handouts = findObjs({
+      _type: 'handout'
+    });
+    handouts.forEach(function(hand) {
+      hand.set('inplayerjournals', '');
+    });
+    const characters = findObjs({
+      _type: 'character'
+    });
+    characters.forEach(function(c) {
+      c.set('inplayerjournals', '');
+    });
+    const attributes = findObjs({
+      _type: 'attribute'
+    });
+    attributes.forEach(function(attr) {
+      let name = attr.get('name');
+      if (name == 'pv') {
+        let c = toInt(attr.get('current'), 0);
+        let m = toInt(attr.get('max'), c);
+        if (m != c) {
+          attr.setWithWorker('current', m);
+          addAttributeToEvt(attr, evt, c, m, true);
+        }
+      }
+    });
+    const tokens = findObjs({
+      _type: 'graphic',
+      _subtype: 'token',
+    });
+    tokens.forEach(function(token) {
+      let tokCharId = token.get('represents');
+      if (!tokCharId) return;
+      let pvMax = toInt(token.get('bar1_max'), 0);
+      let pv = toInt(token.get('bar1_value'), pvMax);
+      if (pv != pvMax) {
+        setToken(token, 'bar1_value', pvMax, evt);
+      }
+      let markers = token.get('statusmarkers');
+      if (markers) {
+        setToken(token, 'statusmarkers', '', evt);
+        let perso = {
+          token,
+          charId: tokCharId
+        };
+        let prev = {
+          statusmarkers: markers
+        };
+        statusMarkersChanged(perso, prev);
+      }
+    });
+    sendPlayer("Partie réinitialisée", playerId);
+  }
+
+  const regPNJAtk = new RegExp("^repeating_pnjatk_([^_]*)_(.*)$");
+  //Convertit les tokens sélectionnés de fiches COF1 vers fiches COF2
+  function commandeDepuisCof1(cmd, playerId, pageId, options) {
+    let {
+      selected
+    } = getSelected(pageId, options);
+    let nb = selected.length;
+    if (nb === 0) {
+      sendPlayer("Pas de token sélectionné pour la conversion.", playerId);
+      return;
+    }
+    let treatedChars = new Set();
+    const optAttr = {
+      charAttr: true
+    };
+    let evt = {
+      type: 'Tranformation depuis COF1',
+      deletedAttributes: [],
+      attributes: [],
+      defaultTokens: []
+    };
+    addEvent(evt);
+    iterSelected(selected, function(perso) {
+      if (treatedChars.has(perso.charId)) return;
+      treatedChars.add(perso.charId);
+      if (charAttributeAsBool(perso, 'sheet_type')) {
+        sendPlayer(nomPerso(perso) + " déjà converti (attribut sheet_type)", playerId);
+        return;
+      }
+      let attributsIgnores = '';
+      let attributes = findObjs({
+        _type: 'attribute',
+        _characterid: perso.charId,
+      });
+      setFicheAttr(perso, 'sheet_type', 'pc', evt);
+      let setAttr = function(nom, valeur) {
+        setTokenAttr(perso, nom, valeur, evt, optAttr);
+      };
+      attributes.forEach(function(attr) {
+        let nom = attr.get('name');
+        let noml = nom.toLowerCase();
+        let v = attr.get('current');
+        switch (noml) {
+          case 'atkcac_base':
+          case 'atktir_base':
+          case 'atkmag_base':
+          case 'pc_base':
+          case 'pc_bonus':
+          case 'pr':
+          case 'max_attack_label':
+          case 'mod_atktir':
+          case 'mod_atkmag':
+          case 'mod_initiative':
+          case 'pnj_for_sup':
+          case 'pnj_dex_sup':
+          case 'pnj_con_sup':
+          case 'pnj_int_sup':
+          case 'pnj_cha_sup':
+          case 'pnj_sag_sup':
+          case 'torseequipe':
+          case 'init_div':
+          case 'defdiv':
+          case 'force':
+          case 'dexterite':
+          case 'constitution':
+          case 'intelligence':
+          case 'charisme':
+          case 'sagesse':
+          case 'defense_si_attaque_risquee':
+          case 'show_script':
+          case 'statblock':
+          case 'tab':
+          case 'type_fiche':
+          case 'version':
+          case 'defarmureon':
+          case 'defbouclieron':
+            //on efface juste
+            break;
+          case 'niveau':
+          case 'profil':
+          case 'pv':
+          case 'for':
+          case 'con':
+          case 'int':
+          case 'cha':
+            //ne change pas
+            return;
+          case 'pnj_pv':
+          case 'defarmure':
+            setAttr('armure', v);
+            break;
+          case 'pnj_jets_caches':
+            setAttr('togm', v);
+            break;
+          case 'pnj_for':
+            setAttr('for', v);
+            break;
+          case 'for_sup':
+            if (v == '@{jetsup}')
+              setAttr('for_sup', 'S');
+            return;
+          case 'pnj_dex':
+          case 'dex':
+            setAttr('agi', v);
+            break;
+          case 'dex_sup':
+            if (v == '@{jetsup}')
+              setAttr('agi_sup', 'S');
+            break;
+          case 'pnj_con':
+            setAttr('con', v);
+            break;
+          case 'con_sup':
+            if (v == '@{jetsup}')
+              setAttr('con_sup', 'S');
+            return;
+          case 'pnj_int':
+            setAttr('int', v);
+            break;
+          case 'int_sup':
+            if (v == '@{jetsup}')
+              setAttr('int_sup', 'S');
+            return;
+          case 'pnj_cha':
+            setAttr('cha', v);
+            break;
+          case 'cha_sup':
+            if (v == '@{jetsup}')
+              setAttr('cha_sup', 'S');
+            return;
+          case 'pnj_sag':
+          case 'sag':
+            setAttr('per', v);
+            setAttr('vol', v);
+            break;
+          case 'sag_sup':
+            if (v == '@{jetsup}') {
+              setAttr('per_sup', 'S');
+              setAttr('vol_sup', 'S');
+            }
+            break;
+          case 'pnj_init':
+            let ib = v - 10;
+            if (ib >= 0) ib = Math.ceil(0.8 * ib);
+            setAttr('init', 10 + ib);
+            break;
+          case 'pnj_def':
+            setAttr('def', v);
+            break;
+          case 'race':
+            setAttr('peuple', v);
+            break;
+          case 'taille':
+            if (v !== '') {
+              setAttr('taille', v[0].toUpperCase() + v.slice(1).toLowerCase());
+            }
+            return;
+          case 'scriptversion':
+            attr.set(nom, scriptVersion);
+            return;
+          case 'type_personnage':
+            if (v == 'PNJ') setFicheAttr(perso, 'sheet_type', 'npc', evt);
+            break;
+          default:
+            const m = regPNJAtk.exec(nom);
+            if (m) {
+              let pref = 'repeating_npcarmes_' + m[1];
+              switch (m[2]) {
+                case 'armeoptflag':
+                case 'armebonusoption':
+                case 'armedmtemp':
+                case 'armedegats':
+                case 'armepoudre':
+                case 'armereussiteauto':
+                case 'armedmrollmod':
+                case 'armeattrollmod':
+                case 'armeattnbde':
+                case 'armeattde':
+                case 'armejet':
+                case 'armeportable':
+                case 'armepredicats':
+                  break;
+                case 'armelabel':
+                  setAttr(pref + '_arme-label', v);
+                  break;
+                case 'armenom':
+                  setAttr(pref + '_arme-nom', v);
+                  break;
+                case 'armeatk':
+                  setAttr(pref + '_arme-atk', v);
+                  break;
+                case 'armecrit':
+                  setAttr(pref + '_arme-crit', v);
+                  break;
+                case 'armedmnbde':
+                  {
+                    let dm = charAttributeAsString(perso, pref + '_arme-dm');
+                    if (dm) {
+                      let indexD = dm.indexOf('d');
+                      if (indexD > 0) {
+                        setAttr(pref + '_arme-dm', v + dm.substring(indexD));
+                      }
+                    } else {
+                      setAttr(pref + '_arme-dm', v);
+                    }
+                    break;
+                  }
+                case 'armedmde':
+                  {
+                    let dm = charAttributeAsString(perso, pref + '_arme-dm');
+                    if (dm) {
+                      setAttr(pref + '_arme-dm', dm + 'd' + v);
+                    } else {
+                      setAttr(pref + '_arme-dm', 'd' + v);
+                    }
+                    break;
+                  }
+                case 'armedm':
+                  setAttr(pref + '_arme-dmdiv', v);
+                  break;
+                case 'armeportee':
+                  setAttr(pref + '_arme-portee', v);
+                  break;
+                case 'armespec':
+                  setAttr(pref + '_arme-special', v);
+                  break;
+                case 'armeactionvisible':
+                  setAttr(pref + '_arme-active', v);
+                  break;
+                case 'armetypeattaque':
+                  setAttr(pref + '_arme-atktype', v);
+                  break;
+                case 'armemodificateurs':
+                  setAttr(pref + '_arme-atkmods', v);
+                  break;
+                case 'armetypedegats':
+                  let type = 'naturel';
+                  switch (v) {
+                    case 'Naturel':
+                      type = 'naturel';
+                      break;
+                    case 'Arme 1 main':
+                      type = 'main';
+                      break;
+                    case 'Arme 2 mains':
+                      type = 'main';
+                      break;
+                    case 'Sortilege':
+                      type = 'sort';
+                      break;
+                    case 'Arme gauche':
+                      type = 'main';
+                      break;
+                    case 'Arme de jet':
+                      type = 'jet';
+                      break;
+                    default:
+                  }
+                  setAttr(pref + '_arme-dmtype', type);
+                  break;
+                case 'armeoptions':
+                  setAttr(pref + '_arme-options', v);
+                  break;
+                case 'armejetqte':
+                  let maxVal = attr.get('max');
+                  setTokenAttr(perso, pref + '_jet-dispo', v, evt, {
+                    charAttr: true,
+                    maxVal
+                  });
+                  break;
+                case 'armejettaux':
+                  setAttr(pref + '_jet-perte', v);
+                  break;
+                default:
+                  log(nom + " pas reconnu ");
+                  log(m);
+              }
+            } else {
+              attributsIgnores += nom + ' : ' + v;
+              let max = attr.get('max');
+              if (max) attributsIgnores += ' , ' + max;
+              attributsIgnores += ' .\n';
+            }
+        }
+        deleteAttribute(attr, evt);
+      });
+      if (attributsIgnores !== '') {
+        setAttr('Attributs COF1 ignorés', attributsIgnores);
+        sendPlayer("Attributs ignorés pour " + nomPerso(perso), playerId);
+        sendPlayer(attributsIgnores, playerId);
+      } else {
+        sendPlayer(nomPerso(perso) + " traduit.", playerId);
+      }
+    });
+    sendPlayer("Traduction des personnages en COF2 terminée", playerId);
+  }
+
+  function commandeAgrandirPage(cmd, playerId, pageId, options) {
+    let facteur = parseFloat(cmd[1]);
+    if (isNaN(facteur) || facteur <= 0) {
+      error("Facteur incorrect", cmd);
+      return;
+    }
+    if (!playerIsGM(playerId)) {
+      sendPlayer("Commande réservée aux MJs", playerId);
+      return;
+    }
+    let page = getObj('page', pageId);
+    if (page === undefined) {
+      error("Impossible de trouver la page correspondant à l'id", pageId);
+      return;
+    }
+    let agrandir = function(o, field) {
+      o.set(field, o.get(field) * facteur);
+    };
+    let move = function(o) {
+      agrandir(o, 'top');
+      agrandir(o, 'left');
+    };
+    let scale = function(o) {
+      agrandir(o, 'width');
+      agrandir(o, 'height');
+    };
+    scale(page);
+    let objects = findObjs({
+      _type: 'graphic',
+      _pageid: pageId
+    });
+    objects.forEach(function(o) {
+      move(o);
+      if (o.get('layer') == 'map') scale(o);
+    });
+    let paths = findObjs({
+      _type: 'path',
+      _pageid: pageId
+    });
+    paths.forEach(function(p) {
+      move(p);
+      agrandir(p, 'scaleX');
+      agrandir(p, 'scaleY');
+    });
+    paths = findObjs({
+      _type: 'pathv2',
+      _pageid: pageId
+    });
+    paths.forEach(function(p) {
+      //On déplace, mais les coordonnées sont x et y (au lieu de top et left)
+      agrandir(p, 'x');
+      agrandir(p, 'y');
+      let chemin = JSON.parse(p.get('points'));
+      chemin = chemin.map(function(point) {
+        return [point[0]*facteur, point[1]*facteur];
+      });
+      p.set('points', JSON.stringify(chemin));
+    });
+    let texts = findObjs({
+      _type: 'text',
+      _pageid: pageId
+    });
+    texts.forEach(function(t) {
+      move(t);
+    });
+    sendPlayer("Agrandissement terminé", playerId);
+  }
+
   function getPlayerIdFromMsg() {
     if (!apiMsg || apiMsg.playerid === undefined) return;
     let playerId = apiMsg.playerid;
@@ -28515,6 +28956,10 @@ var COFantasy2 = COFantasy2 || function() {
       minArgs: 2,
       acteur: 1
     },
+    'agrandir-page': {
+      fn: commandeAgrandirPage,
+      minArgs: 1,
+    },
     'attaque': {
       fn: commandeAttaque,
       minArgs: 2,
@@ -28586,6 +29031,9 @@ var COFantasy2 = COFantasy2 || function() {
       minArgs: 1,
       acteur: 1
     },
+    'depuis-cof1': {
+      fn: commandeDepuisCof1,
+    },
     'gerer-equipe': {
       fn: commandeGererEquipe,
       minArgs: 1
@@ -28644,6 +29092,9 @@ var COFantasy2 = COFantasy2 || function() {
     'ramasser-arme': {
       fn: commandeRamasserArme,
       minArgs: 2
+    },
+    'reinit-partie': {
+      fn: commandeReinitialisePartie,
     },
     'reveler-nom': {
       fn: commandeRevelerNom
