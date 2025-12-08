@@ -1,4 +1,4 @@
-//Dernière modification : ven. 05 déc. 2025,  11:12
+//Dernière modification : lun. 08 déc. 2025,  05:01
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2044,15 +2044,14 @@ var COFantasy2 = COFantasy2 || function() {
     };
     let reposPerso = function(perso) {
       //On remet les dm temp à 0.
+      updateCurrentBar(perso, 4, 0, evt);
+      //On enlève aussi la barre 4, c'est plus propre
       removeFicheAttr(perso, 'temp_dm', evt, {
         mook: true
       });
-      let hasMana = (ficheAttributeAsInt(perso, 'pm', 0) > 0);
-      if (!hasMana) { //Il faut aussi enlever de la barre 2
-        setToken(perso.token, 'bar2_value', '', evt);
-        setToken(perso.token, 'bar2_max', '', evt);
-        setToken(perso.token, 'bar2_link', '', evt);
-      }
+      setToken(perso.token, 'bar4_value', '', evt);
+      setToken(perso.token, 'bar4_max', '', evt);
+      setToken(perso.token, 'bar4_link', '', evt);
       nbReposes++;
       addCellInFramedDisplay(displayMJ, nomPerso(perso), 100, true, fond);
       let dr = ficheAttributeAsInt(perso, 'dr', 2);
@@ -23273,7 +23272,7 @@ var COFantasy2 = COFantasy2 || function() {
         let pvAttr = findObjs({
           _type: 'attribute',
           _characterid: charId,
-          name: 'PV'
+          name: 'pv'
         }, {
           caseInsensitive: true
         });
@@ -24631,45 +24630,41 @@ var COFantasy2 = COFantasy2 || function() {
           pvmax = bar1;
           token.set('bar1_max', bar1);
         }
-        let hasMana = (ficheAttributeAsInt(target, 'pm', 0) > 0);
-        let tempDmg = 0;
-        if (hasMana) {
-          if (estMook(target)) tempDmg = attributeAsInt(target, 'temp_dm', 0);
-          else tempDmg = ficheAttributeAsInt(target, 'temp_dm', 0);
-        } else {
-          tempDmg = parseInt(token.get('bar2_value'));
-          if (isNaN(tempDmg)) {
-            if (target.tempDmg) { //on met la bar2 aux DM temporaires
-              if (estMook(target)) {
-                token.set("bar2_max", pvmax);
-              } else {
-                let tmpHitAttr =
-                  findObjs({
-                    _type: "attribute",
-                    _characterid: charId,
-                    name: 'temp_dm'
-                  }, {
-                    caseInsensitive: true
+        let tempDmg = parseInt(token.get('bar4_value'));
+        if (isNaN(tempDmg)) {
+          if (target.tempDmg) { //on met la bar4 aux DM temporaires
+            if (estMook(target)) {
+              token.set("bar4_max", pvmax);
+              tempDmg = 0;
+            } else {
+              let tmpHitAttr =
+                findObjs({
+                  _type: "attribute",
+                  _characterid: charId,
+                  name: 'temp_dm'
+                }, {
+                  caseInsensitive: true
+                });
+              let dmTemp;
+              if (tmpHitAttr.length === 0) {
+                dmTemp =
+                  createObj('attribute', {
+                    characterid: charId,
+                    name: 'temp_dm',
+                    current: 0,
+                    max: pvmax
                   });
-                let dmTemp;
-                if (tmpHitAttr.length === 0) {
-                  dmTemp =
-                    createObj('attribute', {
-                      characterid: charId,
-                      name: 'temp_dm',
-                      current: 0,
-                      max: pvmax
-                    });
-                  addCreatedAttributeToEvt(dmTemp, evt);
-                } else {
-                  dmTemp = tmpHitAttr[0];
-                }
-                affectToken(token, 'bar2_value', '', evt);
-                setToken(token, 'bar2_max', pvmax, evt);
-                setToken(token, 'bar2_link', dmTemp.id, evt);
+                addCreatedAttributeToEvt(dmTemp, evt);
+                tempDmg = 0;
+              } else {
+                dmTemp = tmpHitAttr[0];
+                if (!dmTemp.get('max')) dmTemp.set('max', pvmax);
+                tempDmg = toInt(dmTemp.get('current'), 0);
               }
+              affectToken(token, 'bar4_value', '', evt);
+              setToken(token, 'bar4_max', pvmax, evt);
+              setToken(token, 'bar4_link', dmTemp.id, evt);
             }
-            tempDmg = 0;
           }
         }
         if (!options.aoe && dmgTotal > 1 && predicateAsBool(target, 'ciblesMultiples')) {
@@ -24696,11 +24691,7 @@ var COFantasy2 = COFantasy2 || function() {
             pvPerdus -= tempDmg - pvmax;
             tempDmg = pvmax;
           }
-          if (hasMana) {
-            setTokenAttr(target, 'temp_dm', tempDmg, evt);
-          } else {
-            updateCurrentBar(target, 2, tempDmg, evt);
-          }
+          updateCurrentBar(target, 4, tempDmg, evt);
         } else {
           //On enlève les points de vie
           if (bar1 > 0 && bar1 <= dmgTotal &&
@@ -24905,22 +24896,14 @@ var COFantasy2 = COFantasy2 || function() {
       }
       // On  cherche si il y a des DM temporaires à soigner
       if (bar1 > pvmax) {
-        let hasMana = (ficheAttributeAsInt(perso, 'pm', 0) > 0);
-        let dmgTemp;
-        if (hasMana) {
-          if (estMook(perso)) dmgTemp = attributeAsInt(perso, 'temp_dm', 0);
-          else dmgTemp = ficheAttributeAsInt(perso, 'temp_dm', 0);
-        } else {
-          dmgTemp = toInt(token.get('bar2_value'), 0);
-        }
+        let dmgTemp = toInt(token.get('bar4_value'), 0);
         if (dmgTemp > 0) {
           let newDmgTemp = dmgTemp - bar1 + pvmax;
           if (newDmgTemp < 0) {
             newDmgTemp = 0;
             bar1 -= dmgTemp;
           } else bar1 = pvmax;
-          if (hasMana) setTokenAttr(perso, 'temp_dm', newDmgTemp, evt);
-          else updateCurrentBar(perso, 2, newDmgTemp, evt);
+          updateCurrentBar(perso, 4, newDmgTemp, evt);
         }
         soinsEffectifs -= (bar1 - pvmax);
         bar1 = pvmax;
@@ -25519,17 +25502,8 @@ var COFantasy2 = COFantasy2 || function() {
         let manaMax = parseInt(manaAttr[0].get('max'));
         hasMana = !isNaN(manaMax) && manaMax > 0;
       }
-      let dmTemp = parseInt(token.get('bar2_value'));
-      if (hasMana) { //ne peut pas être un PNJ
-        if (lie) {
-          dmTemp = ficheAttributeAsInt(perso, 'temp_dm', 0);
-        } else {
-          dmTemp = attributeAsInt(perso, 'temp_dm', 0);
-        }
-      } else if (lie) {
-        dmTemp = ficheAttributeAsInt(perso, 'temp_dm', 0);
-      }
-      if (!isNaN(dmTemp) && dmTemp > 0) {
+      let dmTemp = toInt(token.get('bar4_value'), 0);
+      if (dmTemp > 0) {
         line = "Dommages temporaires : " + dmTemp;
         addLineToFramedDisplay(display, line);
       }
@@ -26200,7 +26174,7 @@ var COFantasy2 = COFantasy2 || function() {
       agrandir(p, 'y');
       let chemin = JSON.parse(p.get('points'));
       chemin = chemin.map(function(point) {
-        return [point[0]*facteur, point[1]*facteur];
+        return [point[0] * facteur, point[1] * facteur];
       });
       p.set('points', JSON.stringify(chemin));
     });
