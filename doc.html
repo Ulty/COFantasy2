@@ -274,8 +274,10 @@ tr {line-height: 25px;}
                 <p>La commande accepte les arguments suivants:</p>
                 <ul>
                   <li><code>--difficulte <i>i</i></code> la difficulté du test
-                  <li><code>--bonus</code> pour spécifier un bonus numérique au jet.</li>
-                  <li><code>--bonusEvolutif <i>b</i></code> </li>
+                    <li><code>--bonus <i>b</i></code> pour spécifier un bonus numérique <i>bi</i> au jet.</li>
+                    <li><code>--bonusEvolutif <i>b</i></code> pour un bonus évolutif. <i>b</i> peut soit être un nombre, soit un nom de bonus évolutif.</li>
+                    <li><code>--bonusPeuple <i>b</i></code> pour un bonus de voie de peuple. <i>b</i> peut soit être un nombre, soit un nom de bonus de peuple.</li>
+                    <li><code>--bonusPrestige <i>b</i></code> pour un bonus de voie de prestige. <i>b</i> peut soit être un nombre, soit un nom de bonus de voie de prestige.</li>
                   <li><code>--deBonus</code> lance le jet avec un dé bonus.</li>
                   <li><code>--deMalus</code> lance le jet avec un dé malus.</li>
                   <li><code>--predicat</code> pour spécifier un prédicat dont la valeur doit être ajoutée au jet. Il est possible de spécifier plusieurs prédicats.</li>
@@ -2528,6 +2530,12 @@ tr {line-height: 25px;}
                   <li><strong>bonusTestEvolutif_<i>competence</i></strong> : bonus ou nom de voie. Si on donne un nom de voie, le bonus est le rang dans la voie + 2, capé à 7.</li>
                   <li><strong>bonusTestPeuple_<i>competence</i></strong>: bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 3.</li>
                   <li><strong>bonusTestPrestige_<i>competence</i></strong> : bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 5.</li>
+                  <li><strong>descriptionTestEvolutif_<i>nom</i></strong> : description des actions et circonstances correspondant au bonus évolutif nommé <i>nom</i></li>
+                  <li><strong>descriptionTestPeuple<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de peuple nommé <i>nom</i></li>
+                  <li><strong>descriptionTestPrestige<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de voie de prestige nommé <i>nom</i></li>
+                  <li><strong>nomTestEvolutif_<i>nom</i></strong> : le nom à afficher pour bonus évolutif nommé <i>nom</i></li>
+                  <li><strong>nomTestPeuple<i>nom</i></strong> : le nom à afficher pour bonus de peuple nommé <i>nom</i></li>
+                  <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
                 </ul>
               </div>
             </div>

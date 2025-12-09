@@ -1,4 +1,4 @@
-//Dernière modification : lun. 08 déc. 2025,  05:01
+//Dernière modification : mar. 09 déc. 2025,  02:29
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2052,6 +2052,7 @@ var COFantasy2 = COFantasy2 || function() {
       setToken(perso.token, 'bar4_value', '', evt);
       setToken(perso.token, 'bar4_max', '', evt);
       setToken(perso.token, 'bar4_link', '', evt);
+      setState(perso, 'assomme', false, evt);
       nbReposes++;
       addCellInFramedDisplay(displayMJ, nomPerso(perso), 100, true, fond);
       let dr = ficheAttributeAsInt(perso, 'dr', 2);
@@ -10490,15 +10491,25 @@ var COFantasy2 = COFantasy2 || function() {
     return pred;
   }
 
+  const profilParVoie = {
+    'artilleur': 'arquebusier',
+    'explosifs': 'arquebusier',
+  };
+
   const predicatsParCapacite = {
     //Voies d'artificier
     //Voie de l'artilleur
     mecanismes: {
-      bonusTestEvolutif_reparer: true,
       bonusTestEvolutif_mecanismes: true,
+      nomTestEvolutif_mecanismes: 'Mécanismes',
+      descriptionTestEvolutif_mecanismes: "réparer ou comprendre des mécanismes (y compris désamorcer des pièges mécaniques et manipuler des armes de siège)",
       deBonusArmesDeSiege: true
     }
   };
+
+  function removeAccents(s) {
+    if (s) return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
 
   function predicatsDeVoie(perso, numVoie, capacites, armesMaitrisees) {
     //voie1nom: le nom de la voie
@@ -10509,11 +10520,18 @@ var COFantasy2 = COFantasy2 || function() {
     let v = 'v' + numVoie;
     let voie = 'voie' + numVoie;
     let profil = ficheAttribute(perso, v + 'profil', '');
+    if (!profil) {
+      let nomVoie = ficheAttribute(perso, voie + 'nom', numVoie);
+      profil = profilParVoie[nomVoie];
+      if (!profil && (numVoie == 2 || numVoie == 3)) {
+        error("Voie " + nomVoie + " sans profil associé", perso);
+      }
+    }
     //Les armes maîtrisées:
-    if (numVoie == 2 || numVoie == 3 || numVoie > 3 && ficheAttributeAsBool(perso, v + 'r2', false)) {
+    if (numVoie == 2 || numVoie == 3 || (profil && numVoie > 3 && ficheAttributeAsBool(perso, v + 'r2', false))) {
       let am = armesMaitriseesParProfil[profil];
       if (!am) {
-        error("Voie " + ficheAttribute(perso, voie + 'nom', numVoie) + " sans profil associé", perso);
+        if (profil) error("Pas d'arme maîtrisée pour le profil " + profil, perso);
       } else {
         for (const m in am) {
           armesMaitrisees[m] = true;
@@ -10537,15 +10555,27 @@ var COFantasy2 = COFantasy2 || function() {
       if (capaAuto) {
         let capacite = ficheAttribute(perso, voie + '-t' + rang, '');
         if (!capacite) continue;
+        capacite = removeAccents(capacite);
         let preds = predicatsParCapacite[capacite];
         if (!preds) {
           log("Prédicats pour " + capacite + " inconnus ou pas encore entrés");
           continue;
         }
+        //Calcul des bonus évolutifs
+        preds = deepCopy(preds);
+        let rmax = -1;
+        for (const p in preds) {
+          if (p.startsWith('bonusTestEvolutif_')) {
+            if (rmax == -1) {
+              rmax = rangDansLaVoie(perso, numVoie);
+              if (rmax > 5) rmax = 5;
+            }
+            preds[p] = rmax + 2;
+          }
+        }
         addPredicatesTo(capacites, preds);
       }
     }
-
   }
 
   function getPredicates(perso) {
@@ -18871,7 +18901,15 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function bonusEvolutif(perso, competence) {
+  function expliquerBonus(perso, typeBonus, capacite, res, expliquer) {
+      let nom = predicateAsBool(perso, 'nomTest'+typeBonus+'_'+capacite);
+      if (!nom) nom = capacite;
+      let descr = predicateAsBool(perso, 'descriptionTest'+typeBonus+'_' + capacite);
+    if (res > 0) res = '+'+res;
+      if (descr) expliquer('<span title="' + descr + '">' + nom + '</span> : ' + res);
+  }
+
+  function bonusEvolutif(perso, competence, expliquer) {
     let p = predicatesNamed(perso, 'bonusTestEvolutif_' + competence);
     let res = 0;
     p.forEach(function(voie) {
@@ -18896,12 +18934,15 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     });
+    if (res > 0 && expliquer) {
+      expliquerBonus(perso, 'Evolutif', competence, res, expliquer);
+    }
     return res;
   }
 
   function bonusAuxCompetences(perso, comp, expliquer) {
     let bonus = predicateAsInt(perso, 'bonusTest_' + comp, 0);
-    bonus += bonusEvolutif(perso, comp);
+    bonus += bonusEvolutif(perso, comp, expliquer);
     bonus += predicateAsInt(perso, 'bonusTestPeuple_' + comp, 0, 3);
     bonus += predicateAsInt(perso, 'bonusTestPrestige_' + comp, 0, 5);
     if (bonus > 15) bonus = 15;
@@ -19073,39 +19114,39 @@ var COFantasy2 = COFantasy2 || function() {
     return bonus;
   }
 
-  function bonusTestToutesCaracs(personnage, options, evt, expliquer) {
+  function bonusTestToutesCaracs(perso, options, evt, expliquer) {
     if (options && options.cacheBonusToutesCaracs) {
       if (options.cacheBonusToutesCaracs.val !== undefined) {
         return options.cacheBonusToutesCaracs.val;
       }
     }
-    let bonus = predicateAsInt(personnage, 'bonusTousTests', 0);
+    let bonus = predicateAsInt(perso, 'bonusTousTests', 0);
     if (bonus)
       expliquer("Bonus aux tests : " + ((bonus < 0) ? "-" : "+") + bonus);
-    if (attributeAsBool(personnage, 'chantDesHeros')) {
-      let bonusChantDesHeros = getIntValeurOfEffet(personnage, 'chantDesHeros', 1);
+    if (attributeAsBool(perso, 'chantDesHeros')) {
+      let bonusChantDesHeros = getIntValeurOfEffet(perso, 'chantDesHeros', 1);
       expliquer("Chant des héros : +" + bonusChantDesHeros + " au jet");
       bonus += bonusChantDesHeros;
     }
-    if (attributeAsBool(personnage, 'benediction')) {
-      let bonusBenediction = getIntValeurOfEffet(personnage, 'benediction', 1);
+    if (attributeAsBool(perso, 'benediction')) {
+      let bonusBenediction = getIntValeurOfEffet(perso, 'benediction', 1);
       expliquer("Bénédiction : +" + bonusBenediction + " au jet");
       bonus += bonusBenediction;
     }
-    let fortifie = attributeAsInt(personnage, 'fortifie', 0);
+    let fortifie = attributeAsInt(perso, 'fortifie', 0);
     if (fortifie > 0) {
       expliquer("Fortifié : +3 au jet");
       bonus += 3;
       if (evt) {
         fortifie--;
         if (fortifie === 0) {
-          removeTokenAttr(personnage, 'fortifie', evt);
+          removeTokenAttr(perso, 'fortifie', evt);
         } else {
-          setTokenAttr(personnage, 'fortifie', fortifie, evt);
+          setTokenAttr(perso, 'fortifie', fortifie, evt);
         }
       }
     }
-    let bonusCondition = attributeAsInt(personnage, 'modificateurTests', 0);
+    let bonusCondition = attributeAsInt(perso, 'modificateurTests', 0);
     if (bonusCondition != 0) {
       bonus += bonusCondition;
       if (bonusCondition > 0) {
@@ -19118,23 +19159,52 @@ var COFantasy2 = COFantasy2 || function() {
       if (options.bonus) bonus += options.bonus;
       if (options.bonusAttrs) {
         options.bonusAttrs.forEach(function(attr) {
-          let bonusAttribut = charAttributeAsInt(personnage, attr, 0);
+          let bonusAttribut = charAttributeAsInt(perso, attr, 0);
           if (bonusAttribut !== 0) {
             expliquer("Attribut " + attr + " : " + ((bonusAttribut < 0) ? "-" : "+") + bonusAttribut);
             bonus += bonusAttribut;
           }
           if (!options.competence || attr != options.competence.trim().toLowerCase())
-            bonus += bonusAuxCompetences(personnage, attr, expliquer);
+            bonus += bonusAuxCompetences(perso, attr, expliquer);
         });
       }
       if (options.bonusPreds) {
         options.bonusPreds.forEach(function(pred) {
-          let bonusPred = predicateAsInt(personnage, pred, 0);
+          let bonusPred = predicateAsInt(perso, pred, 0);
           if (bonusPred !== 0) {
             expliquer("Prédicat " + pred + " : " + ((bonusPred < 0) ? "-" : "+") + bonusPred);
             bonus += bonusPred;
           }
         });
+      }
+      if (options.bonusEvolutif) {
+        let b = parseInt(options.bonusEvolutif);
+        if (isNaN(b)) {
+          bonus += bonusEvolutif(perso, options.bonusEvolutif, expliquer);
+        } else {
+          bonus += b;
+          expliquer("Bonus évolutif : " + b);
+        }
+      }
+      if (options.bonusPeuple) {
+        let b = parseInt(options.bonusPeuple);
+        if (isNaN(b)) {
+          bonus += 3;
+          expliquerBonus(perso, 'Peuple', options.bonusPeuple, 3, expliquer);
+        } else {
+          bonus += b;
+          expliquer("Bonus de peuple : " + b);
+        }
+      }
+      if (options.bonusPrestige) {
+        let b = parseInt(options.bonusPrestige);
+        if (isNaN(b)) {
+          bonus += 5;
+          expliquerBonus(perso, 'Prestige', options.bonusPeuple, 5, expliquer);
+        } else {
+          bonus += b;
+          expliquer("Bonus de voie de prestige : " + b);
+        }
       }
       //TODO: le malus du casque
       if (options.cacheBonusToutesCaracs) {
@@ -20211,6 +20281,60 @@ var COFantasy2 = COFantasy2 || function() {
     CHA: 'charisme'
   };
 
+  function choixBonusCapacite(perso) {
+    let infos = infosFiche[perso.charId];
+    let preds;
+    if (!infos) preds = getPredicates(perso);
+    infos = infosFiche[perso.charId];
+    if (!infos) return ''; //ne devrait pas arriver
+    let res = infos.choixBonusCapacite;
+    if (res == undefined) {
+      if (!preds) preds = getPredicates(perso);
+      if (!preds) return '';
+      res = '';
+      let bonusEvolutifs = [];
+      let bonusPeuple = [];
+      let bonusPrestige = [];
+      for (const p in preds) {
+        if (p.startsWith('bonusTestEvolutif_'))
+          bonusEvolutifs.push(p.substring(18));
+        else if (p.startsWith('bonusTestPeuple_'))
+          bonusPeuple.push(p.substring(16));
+        else if (p.startsWith('bonusTestPrestige_'))
+          bonusPrestige.push(p.substring(18));
+      }
+      if (bonusEvolutifs.length > 0) {
+        res = '?{Bonus évolutif|Aucun,&#32;';
+        bonusEvolutifs.forEach(function(b) {
+          let nom = preds['nomTestEvolutif_'+b];
+          if (!nom || typeof nom != 'string') nom = b;
+          res+= '|'+nom+','+'--bonusEvolutif '+b;
+        });
+        res += '} ';
+      }
+      if (bonusPeuple.length > 0) {
+        res += '?{Bonus de peuple|Aucun,&#32;';
+        bonusPeuple.forEach(function(b) {
+          let nom = preds['nomTestPeuple'+b];
+          if (!nom || typeof nom != 'string') nom = b;
+          res+= '|'+nom+','+'--bonusPeuple '+b;
+        });
+        res += '} ';
+      }
+      if (bonusPrestige.length > 0) {
+        res += '?{Bonus de voie de prestige|Aucun,&#32;';
+        bonusPrestige.forEach(function(b) {
+          let nom = preds['nomTestPrestige'+b];
+          if (!nom || typeof nom != 'string') nom = b;
+          res+= '|'+nom+','+'--bonusPrestige '+b;
+        });
+        res += '}';
+      }
+      infos.choixBonusCapacite = res;
+    }
+    return res;
+  }
+
   //Par construction, msg.content ne doit pas contenir d'option --competence,
   //et commencer par !cof2-jet
   function boutonsCompetences(display, perso, carac, fond) {
@@ -20233,6 +20357,12 @@ var COFantasy2 = COFantasy2 || function() {
       else sec = true;
       cell += boutonSimple(action + " --competence " + comp, comp, BS_BUTTON);
     });
+    let c = choixBonusCapacite(perso);
+    if (c) {
+      if (sec) cell += ' ';
+      else sec = true;
+      cell += boutonSimple(action + ' ' + c, "choisir bonus", BS_BUTTON);
+    }
     addCellInFramedDisplay(display, cell, 80, false, fond);
   }
 
@@ -24244,7 +24374,7 @@ var COFantasy2 = COFantasy2 || function() {
     }; //si il faut noter les DMs d'un type particulier
     if (mainDmgType == 'drain') dmSuivis.drain = dmgTotal;
     predicatesNamed(target, 'vitaliteSurnaturelle').forEach(function(a) {
-      if (typeof a != "string") return;
+      if (typeof a != 'string') return;
       let indexType = a.indexOf('/');
       if (indexType < 0 || indexType == a.length) return;
       a = a.substring(indexType + 1);
@@ -27272,6 +27402,9 @@ var COFantasy2 = COFantasy2 || function() {
       fn: integerOption,
       additif: true,
     },
+    bonusEvolutif: wordDefaultOption,
+    bonusPeuple: wordDefaultOption,
+    bonusPrestige: wordDefaultOption,
     cible: {
       fn: selectionOption
     },
@@ -27788,7 +27921,9 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function synchronisationDesBarres(token) {
-    for (let barNumber = 1; barNumber <= 3; barNumber++) {
+    let bar1_liee = false;
+    let maxPV = 0;
+    for (let barNumber = 1; barNumber <= 4; barNumber++) {
       let attrId = token.get('bar' + barNumber + '_link');
       if (attrId) {
         let attr = getObj('attribute', attrId);
@@ -27796,7 +27931,32 @@ var COFantasy2 = COFantasy2 || function() {
           let fieldv = 'bar' + barNumber + '_value';
           token.set(fieldv, attr.get('current'));
           let fieldm = 'bar' + barNumber + '_max';
+          let m = attr.get('max');
           token.set(fieldm, attr.get('max'));
+          if (barNumber == 1) {
+            bar1_liee = true;
+            maxPV = m;
+          }
+        }
+      } else if (barNumber == 4 && bar1_liee) {
+        //Pour la barre 4, on considère qu'elle peut ne pas être dans le token par défaut
+        let perso = persoOfToken(token);
+        if (!perso) continue;
+        let tmpDMAttr =
+          findObjs({
+            _type: "attribute",
+            _characterid: perso.charId,
+            name: 'temp_dm'
+          }, {
+            caseInsensitive: true
+          });
+        if (tmpDMAttr.length > 0) {
+          let tmpDM = toInt(tmpDMAttr[0].get('current'), 0);
+          if (tmpDM > 0) {
+            token.set('bar4_value', tmpDM);
+            token.set('bar4_max', toInt(maxPV, tmpDM));
+            token.set('bar4_link', tmpDMAttr[0].id);
+          }
         }
       }
     }
