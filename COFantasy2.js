@@ -1,4 +1,4 @@
-//Dernière modification : mer. 17 déc. 2025,  05:47
+//Dernière modification : jeu. 18 déc. 2025,  06:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2340,7 +2340,14 @@ var COFantasy2 = COFantasy2 || function() {
       defense += target.protegeParAllie;
       explications.push("Protégé par un allié : +" + target.protegeParAllie + " en DEF");
     }
-    defense += attributeAsInt(target, 'defenseTotale', 0);
+    if (attributeAsBool(target, 'optionTactiqueDefensePartielle')) {
+      defense += 3;
+      explications.push("Défense partielle => +3 en DEF");
+    }
+    if (attributeAsBool(target, 'optionTactiqueDefenseTotale')) {
+      defense += 5;
+      explications.push("Défense totale => +5 en DEF");
+    }
     let pacifisme = predicateAsInt(target, 'pacifisme', 0, 5);
     if (pacifisme > 0 && !attributeAsBool(target, 'attributDeCombat_pacifismeAnnule'))
       defense += pacifisme;
@@ -2585,7 +2592,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let armeTarget = armesEnMain(target); //peuple target.arme et armeGauche
     if (options.distance) {
-      let bonusCouvert = attributeAsInt(target, 'bonusCouvert');
+      let bonusCouvert = attributeAsInt(target, 'bonusCouvert', 0, 2);
       if (bonusCouvert) {
         if (attaquant && predicateAsBool(attaquant, 'joliCoup')) {
           explications.push("Cible à couvert, mais " + nomPerso(attaquant) + " sait bien viser");
@@ -3386,7 +3393,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.aoe === undefined && options.auto === undefined && portee > 0) {
       attBonus -=
         malusDistance(attaquant, target.token, target.distance, portee, pageId,
-          explications, options.ignoreObstacles);
+          explications, options.ignoreObstacles || options.sortilege);
     }
     let chasseurEmerite =
       predicateAsBool(attaquant, 'chasseurEmerite') && estAnimal(target);
@@ -3502,6 +3509,12 @@ var COFantasy2 = COFantasy2 || function() {
       ) {
         attBonus -= 2;
         explications.push("Effrayé => -2 en Attaque");
+      }
+      let soutien = 'soutenuContre(' + target.token.id + ')';
+      if (attributeAsBool(attaquant, soutien)) {
+        let bonusSoutien = getIntValeurOfEffet(attaquant, soutien, 5);
+        attBonus += bonusSoutien;
+        explications.push("Soutenu => +" + bonusSoutien + " en Attaque");
       }
     }
     let attrAgrippe = tokenAttribute(attaquant, 'agrippe');
@@ -3649,20 +3662,31 @@ var COFantasy2 = COFantasy2 || function() {
     //D'abord les options d'attaque qui n'ont de sens que si on a à la fois
     //un jet et qu'on fait des DM
     if (!options.pasDeDmg && !options.feinte) {
-      if (ficheAttributeAsInt(attaquant, 'pc-tactic', 0) == 2) {
-        //TODO, voir la nouvelle fiche
-        options.attaqueEnPuissance = ficheAttributeAsInt(attaquant, 'attaque_en_puissance', 1);
-      }
-      if (!options.auto && options.attaqueEnPuissance) {
-        attBonus -= 5 * options.attaqueEnPuissance;
-        explications.push("Attaque en puissance => -" + (5 * options.attaqueEnPuissance) + " en Attaque et +" + options.attaqueEnPuissance + options.d6 + " DM");
-      }
-      if (ficheAttributeAsInt(attaquant, 'pc-tactic', 0) == 1) {
-        options.attaqueAssuree = true;
-      }
-      if (options.attaqueAssuree) {
-        attBonus += 5;
-        explications.push("Attaque assurée => +5 en Attaque et DM/2");
+      if (!options.auto && !options.sortilege) {
+        if (!options.attaqueAssuree && !options.attaqueViolente & !options.attaquePrecise) {
+          let tactique = ficheAttributeAsInt(attaquant, 'tactique', 0);
+          switch (tactique) {
+            case 1: //attaque assurée +5 attaque et DM/2, seulement contact et distance
+              options.attaqueAssuree = true;
+              break;
+            case 2: //attaque précise -3 attaque et +1d4E DM, seulement contact et distance
+              options.attaquePrecise = true;
+              break;
+            case 3: //attaque violente -7 attaque et +2d4E DM, seulement contact et distance
+              options.attaqueViolente = true;
+              break;
+          }
+        }
+        if (options.attaquePrecise) {
+          attBonus -= 3;
+          explications.push("Attaque précise => - 3 en Attaque et +1d4° DM");
+        } else if (options.attaqueViolente) {
+          attBonus -= 7;
+          explications.push("Attaque violente => - 7 en Attaque et +2d4° DM");
+        } else if (options.attaqueAssuree) {
+          attBonus += 5;
+          explications.push("Attaque assurée => +5 en Attaque et DM/2");
+        }
       }
       if (ficheAttributeAsBool(attaquant, 'attaque_dm_temp_check')) {
         options.attaqueDmTemp = true;
@@ -4946,8 +4970,6 @@ var COFantasy2 = COFantasy2 || function() {
                 options.devorer = true;
               if (predicateAsBool(attaquant, 'gober'))
                 options.gober = true;
-              if (predicateAsBool(attaquant, 'attaqueViolente'))
-                options.attaqueViolente = true;
             }
           }
           // Cas des armes à poudre
@@ -5627,7 +5649,6 @@ var COFantasy2 = COFantasy2 || function() {
           setTokenAttr(attaquant, 'attributDeCombat_premiereAttaque', true, evt);
         }
         if (options.feinte) explications.push("Mais c'était une feinte...");
-        if (options.sortilege) options.ignoreObstacles = true;
         args.rollAttack = rollAttack;
         args.d20roll = d20roll;
         args.attSkill = attSkill;
@@ -6416,11 +6437,18 @@ var COFantasy2 = COFantasy2 || function() {
       });
       explications.push("Même pas mal => +1" + options.d6 + " DM");
     }
-    if (!options.auto && options.attaqueEnPuissance) {
-      attaquant.additionalDmg.push({
-        type: mainDmgType,
-        value: options.attaqueEnPuissance + options.d6
-      });
+    if (!options.auto) {
+      if (options.attaquePrecise) {
+        attaquant.additionalDmg.push({
+          type: mainDmgType,
+          value: '1d' + deEvolutif(attaquant),
+        });
+      } else if (options.attaqueViolente) {
+        attaquant.additionalDmg.push({
+          type: mainDmgType,
+          value: '2d' + deEvolutif(attaquant),
+        });
+      }
     }
     let attaqueAOutrance = attributeAsInt(attaquant, 'attaqueAOutrance', 0);
     if (attaqueAOutrance > 1) {
@@ -6598,13 +6626,6 @@ var COFantasy2 = COFantasy2 || function() {
               setTokenAttr(target, 'estDevorePar', attaquant.token.id, evt);
             }
           }
-        }
-        if (options.attaqueViolente) {
-          target.messages.push(nomPerso(attaquant) + " fait une attaque violente. Jet de force opposé pour voir si " + nomPerso(target) + " se fait projeter");
-          target.effets.push({
-            attaqueViolente: true,
-            save: true
-          });
         }
         if (options.ecraser) {
           target.messages.push(nomPerso(attaquant) + " saisit " + nomPerso(target) + " entre ses bras puissants");
@@ -7610,30 +7631,6 @@ var COFantasy2 = COFantasy2 || function() {
                           savesEffets--;
                           etatsAvecSave();
                         });
-                    } else if (ef.attaqueViolente) {
-                      let rollIdAtt = 'attaqueViolente_' + target.token.id;
-                      testOppose(rollIdAtt, target, 'FOR', options, attaquant, 'FOR',
-                        options, target.messages, evt,
-                        function(resultat, crit, rt1, rt2) {
-                          if (resultat == 2) {
-                            let distance = rollDePlus(6);
-                            target.messages.push(nomPerso(target) + " est projeté" + eForFemale(target) + " à " +
-                              distance.roll + " mètres et tombe au sol");
-                            setState(target, 'renverse', true, evt);
-                            if (attackLabel) {
-                              let cmdAttaqueGratuite = '!cof2-attaque ' + attaquant.token.id + ' ' + target.token.id + ' ' + attackLabel;
-                              target.messages.push(boutonSimple(cmdAttaqueGratuite, 'Attaque gratuite'));
-                            } else {
-                              target.messages.push(nomPerso(attaquant) + " a droit à une attaque gratuite contre " + nomPerso(target));
-                            }
-                          } else {
-                            if (resultat === 0) diminueMalediction(attaquant, evt);
-                            target.messages.push(nomPerso(target) + " tient bon et ne recule pas");
-                          }
-                          saves--;
-                          savesEffets--;
-                          etatsAvecSave();
-                        });
                     } else {
                       if (ef.typeDmg && immuniseAuType(target, ef.typeDmg, attaquant, options)) {
                         if (!target['msgImmunite_' + ef.typeDmg]) {
@@ -8095,7 +8092,7 @@ var COFantasy2 = COFantasy2 || function() {
   const defaultWeaponStats = {
     name: 'inconnu',
     attSkill: 'atkcac',
-    attNbDices: 1,
+    attNbDices: 0,
     attDice: 4,
     attDMBonusCommun: 0,
     attCarBonus: '',
@@ -8144,9 +8141,11 @@ var COFantasy2 = COFantasy2 || function() {
         //TODO: combat à deux armes
         //    malusAttaqueMainGauche(attaquant, weaponStats);
       } else {
-        weaponStats = getWeaponStats(attaquant, attackLabel, true);
+        weaponStats = getWeaponStats(attaquant, attackLabel, attackLabel != -1);
         if (!weaponStats) {
-          weaponStats = defaultWeaponStats;
+          weaponStats = {...defaultWeaponStats
+          };
+          if (options.sortilege && !options.toucher) weaponStats.attSkill = 'atkmag';
           weaponStats.name = attackLabel;
         }
       }
@@ -9412,9 +9411,13 @@ var COFantasy2 = COFantasy2 || function() {
     display.header = res;
   }
 
-  //Si options.chuchote est vrai, la frame est chuchotée au joueur qui fait l'action
-  //Si options.chuchote est un nom, on chuchote la frame à ce nom
-  //Pour retarder la décision sur la cible de chuchotement, utiliser options.retarder
+  //Champs d'option utilisés:
+  //  chuchote: si vrai, la frame est chuchotée au joueur qui fait l'action
+  //            si c'est un nom, on chuchote la frame à ce nom
+  //  retarder : retarder la décision sur la cible de chuchotement
+  //  perso2: action entre 2 personnages
+  //  action_right
+  //  image
   function startFramedDisplay(playerId, action, perso, options = {}) {
     if (options.secret) {
       if (playerIsGM(playerId)) {
@@ -10839,7 +10842,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Injonction',
         type: 'A',
         mana: 1,
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Injonction --toucher [[@{selected|atkmag}]] --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 20"
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Injonction --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
       },
     },
     //Voies de magicien /////////////////////////////////////////////
@@ -10864,7 +10867,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 1,
         //TODO: ajouter effet de lumière sur la cible
-        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --toucher [[@{selected|atkmag}]] --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
       }],
     },
     'familier': {
@@ -11034,9 +11037,11 @@ var COFantasy2 = COFantasy2 || function() {
     let profil = ficheAttribute(perso, v + 'profil', '');
     if (!profil) {
       let nomVoie = ficheAttribute(perso, voie + 'nom', numVoie);
-      profil = profilParVoie[nomVoie];
-      if (!profil && (numVoie == 2 || numVoie == 3)) {
-        log("Voie " + nomVoie + " sans profil associé pour " + nomPerso(perso));
+      if (nomVoie != numVoie) {
+        profil = profilParVoie[nomVoie];
+        if (!profil && (numVoie == 2 || numVoie == 3)) {
+          log("Voie " + nomVoie + " sans profil associé pour " + nomPerso(perso));
+        }
       }
     }
     if (profil) profil = removeAccents(profil).toLowerCase().trim();
@@ -11544,6 +11549,9 @@ var COFantasy2 = COFantasy2 || function() {
     act = act.replace(new RegExp(escapeRegExp(pref + 'token_id}'), 'g'), perso.token.id);
     act = act.replace(new RegExp(escapeRegExp(pref + 'token_name}'), 'g'), nomPerso(perso));
     let tmp = act.split('@{selected');
+    let opt = {
+      transforme: true
+    };
     tmp.forEach(function(elem) {
       if (elem.startsWith('|')) {
         // attribut demandé
@@ -11551,7 +11559,9 @@ var COFantasy2 = COFantasy2 || function() {
         let carac = modOfCarac(attribute_name);
         let replacement;
         if (carac) {
-          replacement = modCarac(perso, carac);
+          replacement = modCarac(perso, carac, opt);
+        } else if (attribute_name == 'atkmag' || attribute_name == 'atkcac' || attribute_name == 'atktir') {
+          replacement = attaquePerso(perso, attribute_name, opt);
         } else {
           let attrs = findObjs({
             _type: 'attribute',
@@ -11727,7 +11737,7 @@ var COFantasy2 = COFantasy2 || function() {
         let toReturn = boutonSimple(action, text, buttonStyle + overlay);
         return toReturn;
       } else {
-        log("Action vide dans boutonComplexe " + action);
+        log("Action vide dans boutonComplexe " + action + "(texte = " + text + "), pour " + nomPerso(perso));
         return '';
       }
     } else {
@@ -12095,6 +12105,138 @@ var COFantasy2 = COFantasy2 || function() {
         ligneArme += boutonSimple('!cof2-degainer --montreActions --select ' + perso.token.id + " --typeAction M", '<span style="font-family:Pictos">}</span>');
     }
     return ligneArme;
+  }
+
+  function commandeRetarderTour(cmd, playerId, pageId, options, perso) {
+    let combat = stateCOF.combat;
+    if (!combat) {
+      sendPlayer("Pas en combat", playerId);
+      return;
+    }
+    let cible = persoOfId(cmd[2], cmd[2], pageId);
+    if (!cible) {
+      sendPlayer("La cible n'est pas valide", playerId);
+      return;
+    }
+    let init1 = persoInit(perso);
+    let init2 = persoInit(cible);
+    if (init2 >= init1) {
+      sendPlayer("Impossible d'agir après " + nomPerso(cible) + " si " + onGenre(cible, 'il', 'elle') + " ne le veut pas", playerId);
+      return;
+    }
+    let evt = {
+      type: 'attendre'
+    };
+    addEvent(evt);
+    let to = getTurnOrder(combat, evt);
+    //On calcule les initiatives actuelles de perso et cible
+    let eltPerso;
+    to.pasAgi.forEach(function(elt) {
+      if (elt.id == perso.token.id) {
+        init1 = elt.pr;
+        eltPerso = elt;
+      } else if (elt.id == cible.token.id) init2 = elt.pr;
+    });
+    if (!eltPerso) {
+      sendPlayer(nomPerso(perso) + " a déjà agi", playerId);
+      return;
+    }
+    if (init1 < init2) {
+      sendPlayer(nomPerso(cible) + " a déjà agi", playerId);
+      return;
+    }
+    eltPerso.pr = init2 - 1;
+    sendPerso(perso, " attend un peu avant d'agir...");
+    setTurnOrder(to, evt);
+  }
+
+  function commandeSoutenir(cmd, playerId, pageId, options, perso) {
+    let persoASoutenir = persoOfId(cmd[2], cmd[2], pageId);
+    if (!persoASoutenir) {
+      sendPlayer("La personne à soutenir n'est pas valide", playerId);
+      return;
+    }
+    let cible = persoOfId(cmd[3], cmd[3], pageId);
+    if (!cible) {
+      sendPlayer("La cible n'est pas valide", playerId);
+      return;
+    }
+    if (distanceCombat(perso.token, cible.token) > 0) {
+      sendPlayer("Trop loin de " + nomPerso(cible) + " pour soutenir une attaque contre " + onGenre(cible, 'lui', 'elle'));
+      return;
+    }
+    const evt = {
+      type: "Soutenir",
+    };
+    addEvent(evt);
+    if (limiteRessources(perso, options, 'soutenir', 'soutenir', evt)) return;
+    //Soutenir fait entrer en combat
+    let explications = [];
+    entrerEnCombat(perso, [], explications, evt);
+    explications.forEach(function(m) {
+      sendPerso(perso, m, options.secret);
+    });
+    let effet = 'soutenuContre(' + cible.token.id + ')';
+    let attrs = tokenAttribute(persoASoutenir, effet);
+    if (attrs.length === 0) {
+      setAttrDuree(persoASoutenir, effet, 1, evt);
+    } else {
+      addToAttributeAsInt(persoASoutenir, effet + 'Valeur', 5, 5, evt);
+    }
+    sendPerso(perso, "Soutient la prochaine attaque au contact de " + nomPerso(persoASoutenir) + " contre " + nomPerso(cible));
+  }
+
+  function commandeOptionsTactiques(cmd, playerId, pageId, options) {
+    let {
+      selected
+    } = getSelected(pageId, options);
+    if (selected.length === 0) {
+      sendPlayer("Pas de token sélectionné", playerId);
+      return;
+    }
+    let opt_display = {
+      chuchote: true
+    };
+    iterSelected(selected, function(perso) {
+      let title = "Options tactiques";
+      let arme = armesEnMain(perso);
+      if (arme) opt_display.action_right = arme.name;
+      let display = startFramedDisplay(playerId, title, perso, opt_display);
+      if (typeActionPossible(perso), 'A') {
+        let att = "!cof2-attaque " + perso.token.id + " @{target|token_id} -1 --typeAction A";
+        let b = "Attaque assurée";
+        let c = att + " --attaqueAssuree";
+        let line = boutonSimple(c, b, BS_BUTTON);
+        addLineToFramedDisplay(display, line);
+        b = "Attaque précise";
+        c = att + " --attaquePrecise";
+        line = boutonSimple(c, b, BS_BUTTON);
+        addLineToFramedDisplay(display, line);
+        b = "Attaque violente";
+        c = att + " --attaqueViolente";
+        line = boutonSimple(c, b, BS_BUTTON);
+        addLineToFramedDisplay(display, line);
+        b = "Défense partielle";
+        c = "!cof2-effet optionTactiqueDefensePartielle 1 --typeAction A --select " + perso.token.id;
+        line = boutonSimple(c, b, BS_BUTTON);
+        addLineToFramedDisplay(display, line);
+      }
+      if (typeActionPossible(perso), 'L') {
+        let b = "Défense totale";
+        let c = "!cof2-effet optionTactiqueDefenseTotale 1 --typeAction L --select " + perso.token.id;
+        let line = boutonSimple(c, b, BS_BUTTON);
+        addLineToFramedDisplay(display, line);
+        b = "Soutien";
+        c = "!cof2-soutenir " + perso.token.id + " @{target|Personnage à soutenir|token_id} @{target|Cible|token_id} --typeAction L";
+        line = boutonSimple(c, b, BS_BUTTON);
+        addLineToFramedDisplay(display, line);
+      }
+      let b = "Retarder son tour";
+      let c = "!cof2-retarder-tour " + perso.token.id + " @{target|Agir après|token_id}";
+      let line = boutonSimple(c, b, BS_BUTTON);
+      addLineToFramedDisplay(display, line);
+      sendFramedDisplay(display);
+    });
   }
 
   function findListeActions(perso, listActions) {
@@ -12616,6 +12758,8 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
+    let command = "!cof2-options-tactiques --select " + perso.token.id;
+    ligne += boutonSimple(command, "Options tactiques", BS_BUTTON) + '<br/>';
     let onlyTitle = false;
     //TODO afficher les actions par défaut, manoeuvres, etc.
     if (!actionsAAfficher && actionsDuTour == 1 && isActiveTurnPerso(perso)) {
@@ -12669,6 +12813,10 @@ var COFantasy2 = COFantasy2 || function() {
     let {
       selected
     } = getSelected(pageId, options);
+    if (selected.length === 0) {
+      sendPlayer("Pas de token sélectionné", playerId);
+      return;
+    }
     iterSelected(selected, function(perso) {
       if (liste) {
         const evt = {
@@ -15169,6 +15317,18 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true,
       entrave: true
     },
+    optionTactiqueDefensePartielle: {
+      activation: "se met en position défensive",
+      actif: "se défend",
+      fin: "",
+      visible: true
+    },
+    optionTactiqueDefenseTotale: {
+      activation: "se consacre entièrement à sa défense",
+      actif: "ne fait que se défendre",
+      fin: "",
+      visible: true
+    },
     penombreTemp: {
       activation: "ne voit plus très loin",
       actif: "est dans la pénombre",
@@ -15245,6 +15405,14 @@ var COFantasy2 = COFantasy2 || function() {
       dm: true,
       visible: true
     },
+    soutenuContre: {
+      activation: "est soutenu pour sa prochaine attaque",
+      activationF: "est soutenue pour sa prochaine attaque",
+      actif: "est soutenu pour sa prochaine attaque",
+      actifF: "est soutenue pour sa prochaine attaque",
+      fin: '',
+      generic: true
+    },
     sprint: {
       activation: "pousse un sprint",
       actif: "est en train de sprinter",
@@ -15285,6 +15453,13 @@ var COFantasy2 = COFantasy2 || function() {
       actifF: "est bénie",
       fin: "l'effet de la bénédiction s'estompe"
     },
+    bonusCouvert: {
+      //courant: la valeur du bonus
+      activation: "se met à couvert",
+      actif: "est à couvert",
+      fin: "n'est plus à couvert",
+      visible: "true"
+    },
     charme: {
       activation: "devient un ami de longue date",
       activationF: "devient une amie de longue date",
@@ -15293,7 +15468,6 @@ var COFantasy2 = COFantasy2 || function() {
       prejudiciable: true
     },
     colleASaProie: {
-      //courant: id du token auquel il est collé
       activation: "se fixe sur sa proie pour lui aspirer le sang",
       actif: "est collé à sa proie",
       fin: "se détache de sa proie",
@@ -16958,7 +17132,8 @@ var COFantasy2 = COFantasy2 || function() {
         let doit = function() {
           let opt = {
             maxVal: options.dureeEnMinutes,
-            msg: whisper + messageActivation(perso, mEffet, effet),
+            msg: messageActivation(perso, mEffet, effet),
+            secret: options.secret,
           };
           if (options.valeurAjoutee) {
             addToAttributeAsInt(perso, effet, 0, options.valeurAjoutee, evt);
@@ -26677,7 +26852,7 @@ var COFantasy2 = COFantasy2 || function() {
           addLineToFramedDisplay(display, mi);
         }
       });
-      let bonusCouvert = attributeAsInt(perso, 'bonusCouvert');
+      let bonusCouvert = attributeAsInt(perso, 'bonusCouvert', 0, 2);
       if (bonusCouvert) {
         addLineToFramedDisplay(display, "est à couvert (+" + bonusCouvert + " DEF)");
       }
@@ -28355,7 +28530,10 @@ var COFantasy2 = COFantasy2 || function() {
     artificiel: boolDefaultOption,
     asphyxie: boolDefaultOption,
     attackId: wordDefaultOption,
+    attaqueAssuree: boolDefaultOption,
     attaqueMagiqueOpposee: boolDefaultOption,
+    attaquePrecise: boolDefaultOption,
+    attaqueViolente: boolDefaultOption,
     attribut: {
       fn: wordOption,
       optName: 'bonusAttr',
@@ -30200,6 +30378,9 @@ var COFantasy2 = COFantasy2 || function() {
     'options': {
       fn: commandeOptions
     },
+    'options-tactiques': {
+      fn: commandeOptionsTactiques,
+    },
     'parade-projectiles': {
       fn: commandeParadeProjectiles,
     },
@@ -30225,6 +30406,11 @@ var COFantasy2 = COFantasy2 || function() {
     'reinit-partie': {
       fn: commandeReinitialisePartie,
     },
+    'retarder-tour': {
+      fn: commandeRetarderTour,
+      minArgs: 2,
+      acteur: 1,
+    },
     'reveler-nom': {
       fn: commandeRevelerNom
     },
@@ -30236,6 +30422,11 @@ var COFantasy2 = COFantasy2 || function() {
     'save-state': {
       fn: commandeSaveState,
       minArgs: 3
+    },
+    'soutenir': {
+      fn: commandeSoutenir,
+      minArgs: 3,
+      acteur: 1
     },
     'sprinter': {
       fn: commandeSprinter,

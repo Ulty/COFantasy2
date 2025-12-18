@@ -124,6 +124,7 @@ tr {line-height: 25px;}
                 <li><a class="text-info" href="#Reset_state">Purger les variables d'état du jeu</a></li>
               </ul>
               <li><a href="#index_predicats">Index des prédicats</a></li>
+              <li><a href="#index_effets">Index des effets</a></li>
             </ol>
           </div>
         </div>
@@ -403,7 +404,7 @@ tr {line-height: 25px;}
                   <li><code>--tranchant</code>, <code>--perforant</code>, <code>--contondant</code> : précise le type d'arme (si pertinent), pour pouvoir utiliser les RD spécifiques à un type d'arme.</li>
                   <li><code>--ignoreRD</code> : l'attaque ignore les RD et division de DMs. Il est possible de donner en argument une valeur de RD ignorée, de sorte que l'attaque ignore les RD jusqu'à cette valeur. Par exemple on pourra écrire <code>--ignoreRD 5</code>.</li>
                   <li><code>--ignoreMoitieRD</code> : l'attaque ignore la moitié de la RD.</li>
-                  <li><code>--sortilege</code> pour indiquer qu'il s'agit d'un sortilège, de façons à pouvoir appliquer tous les effets spécifiques aux sorts. Cette options devrait être passées pour toutes les capacités suivies d'une étoile dans le livre des règles. En particulier, tout sortilege ignore les malus d'obstacles.</li>
+                  <li><code>--sortilege</code> pour indiquer qu'il s'agit d'un sortilège, de façons à pouvoir appliquer tous les effets spécifiques aux sorts. Cette options devrait être passées pour toutes les capacités suivies d'une étoile dans le livre des règles. En particulier, tout sortilege ignore les malus d'obstacles. Pour les attaques qui n'utilisent pas une ligne d'attaque de la fiche, utilise l'attaque magique pour toucher par défaut.</li>
                   <li><code>--reroll1</code> : relance les 1 aux dés de dégats. À noter que cela ne concerne que les dés de base de l'attaque, pas les DM supplémentaire. </li>
                   <li><code>--explodeMax</code> : relance les valeurs maximum aux dés de DM de base, et rajoute le nouveau résultat (qui lui-même explose).</li>
                   <li><code>--mana <i>n</i></code> : l'attaque coûte <i>n</i> points de mana. Si l'attaque provoque un effet temporaire, le script essaiera de le supprimer à la mort du lanceur (même avec un coût nul).</li>
@@ -695,13 +696,17 @@ tr {line-height: 25px;}
                 <div class="decalage">
                 <p>Pour des conditions hostiles, faire <code>!cof-effet conditionsHostiles oui</code> en sélectionnant les personnages concernés. Pour des conditions extrêmes, <code>!cof2-effet conditionsHostiles 5</code>. À noter que le script permet de passer en argument n'importe quel nombre, qui sera appliqué en malus à la DEX, FOR, DEF et attaque.</p>
                 </div>
+                -->
                 <h4 class="text-secondary">Autres bufs et debufs</h4>
                 <div class="decalage">
+                  <!--
                   <p><code>!cof-buf-def <i>n</i></code> : buf ou debuf de la DEF.</p>
                   <p><code>!cof-remove-buf-def</code> : enlève tout buf ou debuf de la def.</p>
-                  <p><code>!cof-effet-temp <i>effet duree</i></code> : ajoute l'effet <i>effet</i> à la cible pour la durée, <code>!cof-effet-combat <i>effet</i></code> ajoute l'effet pour le combat, et <code>!cof-effet <i>effet</i></code> ajoute ou enlève un effet à durée indéterminée. À noter que si la durée est 0 ou <code>fin</code>, alors la commande met fin à l'effet (utile pour des effets temporaires qui ont une action en fin d'effet, comme <code>agrandissement</code> ou <code>formeDArbre</code>). Un personnage ayant un prédicat nommé <code>immunite_<i>effetTemp</i></code> est immunisé à l'effet temporaire de nom <i>effetTemp</i>.</p>
+                  -->
+                  <p><code>!cof2-effet <i>effet </i> <i>activation</i></code> : ajoute l'effet <i>effet</i> à la cible. Vous trouverez la liste des effets implémentés dans la <a href=#index_effets>section des effets</a>. Les effets classés en 3 catégories : effets à durée en tour, effets qui durent tout un combat, et effets qui peuvent durer en dehors d'un combat. Pour les effets à durée en tours, <i>activation</i> doit être le nombre de tours (0 met fin à l'effet). Pour les autres effets, <i>activation</i> peut être omis, ou être <code>oui</code>, <code>true</code>, <code>début</code> ou un entier non nul pour l'activer, ou bien <code>fin</code>, <code>false</code>, <code>non</code> ou 0 pour y mettre fin. Si on utilise un nombre pour un de ces effets, il peut être utilisé comme paramètre de l'effet.</p>
+                  <p>Un personnage ayant un prédicat nommé <code>immunite_<i>effet</i></code> est immunisé à l'effet de nom <i>effet</i>.</p>
                   <ul>
-                    <li><code>--lanceur <i>id</i></code> : indique quel est le lanceur. Utile pour un certain nombre d'autres options.</li>
+                    <li><code>--acteur <i>id</i></code> : indique la source de l'effet. Utile pour un certain nombre d'autres options.</li>
                     <li><code>--mana <i>id cout</i></code> : impose au token <i>id</i> de dépenser <i>cout</i> mana. Si <code>--lanceur</code> est donné, <i>id</i> est inutile. La présence de cette option, même avec un coût de 0, indique au script que l'effet devrait être supprimé à la mort du lanceur.</li>
                     <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette effet à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof-attack</code>). Par défaut, le nom de cette ressource est <i>effet</i>. Attention, il faut un lanceur auquel appliquer la limite par jour !</li>
                     <li><code>--limiteParCombat</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par combat.  Attention, il faut un lanceur auquel appliquer la limite par combat !</li>
@@ -709,17 +714,11 @@ tr {line-height: 25px;}
                     <li><code>--dose <i>nom</i></code>: définie une ressource nommée <code>dose_<i>nom</i></code>, dont la valeur doit être positive. Utile par exemple pour les parchemins, les potions ou les baguettes.</li>
                     <li><code>--depensePR</code>: demande de dépenser un point de récupération. Si un premier argument est ajouté, on enlève ce nombre aux PR au lieu de 1. Si un second argument est précisé, on enlève ce second argument aux PV quand le personnage n'a plus de PR.</li>
                     <li><code>--portee <i>id d</i></code> : impose aux cibles de l'effet d'être à moins de <i>d</i> mètres du token <i>id</i>. Si <code>--lanceur</code> est précisé, inutile de donner <i>id</i>.</li>
-                    <li><code>--puissant</code> : lance la version puissante de l'effet</li>
-                    <li><code>--puissant oui</code> : idem</li>
-                    <li><code>--puissant non</code> : lance la version non puissante (efface le dernier effet puissant)</li>
-                    <li><code>--puissant duree</code> : multiplie la durée par 2</li>
-                    <li><code>--puissant portee</code> : multiplie la portée par 2</li>
                     <li><code>--saveParTour <i>carac seuil</i></code> : la cible peut se sortir de l'effet chaque tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i>.</li>
                     <li><code>--saveActifParTour <i>carac seuil</i></code> : la cible peut se sortir de l'effet à tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i> (utilisation dans bouton dans la liste d'actions).</li>
                     <li><code>--save <i>carac seuil</i></code> : la cible peut faire un jet pour échapper à l'effet. Si on ajoute l'argument <code>demiDuree</code>, alors réussir la sauvegarde ne fait que diviser la durée.</li>
                     <li><code>--seulementVivant</code> : l'effet ne peut s'appliquer qu'aux personnages vivants.</li>
-                    <li><code>--tempeteDeMana <i>liste</i></code> : indique des effets de tempête de mana. La liste peut contenir un nombre (pour l'effet intense), <code>duree</code>, <code>rapide</code> et <code>portee</code>. Si le rang du sort est spécifié (par l'option <code>--rang</code>, un message est affichée si le coût en mana est supérieur au rang. Si la liste d'options est vide, le script affiche un menu dans le chat pour spécifier les options de tempête de mana.</li>
-                    <li><code>--magieEnArmure</code> : indique d'appliquer les règles pour la magie en armure pour un profil hybride. Il faut pour cela un lanceur défini. Par defaut, va faire test l'intelligence par un jet de difficulté 10 + rang + malus d'armure. Le rang est obtenu par l'option <code>--rang</code>. J'utilise le malus d'armure car il n'y a pas moyen de distinguer la DEF intrinsèque de l'armure de ses bonus de DEF dûs à un bonus magique. Enfin, on peut utiliser la règle de dépense supplémentaire de mana à la place du jet d'INT en utilisant l'option <code>--magieEnarmure mana</code>. Encore une fois, je prends le malus d'armure, divisé par 3 et arrondi au supérieur pour les règles de mana de base.</li> 
+                    <li><code>--dureeEnMinutes <i>duree</i></code> : indique une durée en minute pour les effets qui durent plus d'un combat</li>
                     <li><code>--accumuleDuree <i>n</i></code> : l'effet peut être accumulé : chaque fois qu'on applique à nouveau l'effet avec une durée donnée, on ajoute cette durée à la durée courante de l'effet sur la cible. On ne peut cumuler ainsi que <i>n</i> instances de l'effet.</li>
                     <li><code>--valeur <i>n</i></code> : pour certains effet, permet de spécifier une valeur qui remplace la valeur par défaut de l'effet.</li>
                     <li><code>--optionEffet <i>opt arg1 arg2 ...</i></code> : spécifie une option à l'effet. L'option <i>opt</i> doit être donnée sans le <code>--</code> et sera passée telle quelle à l'effet, par exemple pour les dégâts périodiques. Si on a besoin de plusieurs options, il faut utiliser plusieurs fois <code>--optionEffet</code>.</li>
@@ -735,7 +734,6 @@ tr {line-height: 25px;}
                   </ul>
                   <p> Il existe un effet temporaire générique sans message, pour avoir des timers associés à des personnages : <code>effetTempGenerique</code>. Vous pouvez décider du message à la création avec l'option <code>--activation</code>, du message de statut avec <code>--actif</code> et du message de fin avec <code>--fin</code>.</p>
                   <p><code>!cof-boire-alcool</code> et <code>!cof-desaouler</code> permettent de faire varier le niveau d'ébriété. Par exemple, pour tester si le niveau d'ébriété augmente après avoir bu un certain nombre de verres, on peut utiliser la macro <code>!cof-boire-alcool --save CON [[10+?{Nombre de verres}]]</code>.
-                -->
                 </div>
                 <h4 class="text-secondary">Effets retardés</h4>
                 <div class="decalage">
@@ -2549,6 +2547,23 @@ tr {line-height: 25px;}
                   <li><strong>protegerUnallie</strong> : donne la possibilité d'ajouter +2 en DEF à un allié une fois par tour lorsqu'on porte un bouclier.</li>
                   <li><strong>visionDansLeNoir</strong> : entier. Le personnage voit dans le noir jusqu'à cette distance.</li>
                 </ul>
+              </div>
+              <h2 class="text-primary" id="index_effets">10. Index des effets</h2>
+              <div class="decalage">
+              <h3 class="text-info" id="index_effets_temp">10.1 Effets à durée en tours</h3>
+              <div class="decalage">
+              </div>
+              <h3 class="text-info" id="index_effets_combat">10.2 Effets qui durent un combat</h3>
+              <div class="decalage">
+              </div>
+              <h3 class="text-info" id="index_effets_indetermines">10.1 Effets qui peuvent aussi s'appliquer en dehors des combats</h3>
+              <div class="decalage">
+                <p>Pour certains effets, on peut passer un paramètre entier non nul au moment de l'activation (<code>!cof2-effet <i>effe</i> <i>parametre</i></code>). C'est dans ce cas indiqué dans la description comme valeur d'activation.
+              <ul>
+                <li><strong>benediction</strong> : bonus à tous les tests, de valeur l'activation, ou 1 par défaut.</li>
+                <li><strong>bonusCouvert</strong> : bonus contre les attaques à distance, de valeur l'activation, ou 2 par défaut.</li>
+              </ul>
+              </div>
               </div>
             </div>
           </div>
