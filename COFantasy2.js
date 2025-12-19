@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 18 déc. 2025,  06:53
+//Dernière modification : ven. 19 déc. 2025,  12:35
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12146,6 +12146,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     eltPerso.pr = init2 - 1;
+    updateNextInit(perso);
     sendPerso(perso, " attend un peu avant d'agir...");
     setTurnOrder(to, evt);
   }
@@ -12817,15 +12818,15 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Pas de token sélectionné", playerId);
       return;
     }
-    iterSelected(selected, function(perso) {
-      if (liste) {
         const evt = {
           type: "liste d'actions"
         };
         addEvent(evt);
+    iterSelected(selected, function(perso) {
+      if (liste) {
         if (limiteRessources(perso, options, liste, liste, evt)) return;
       }
-      finDeplacementControle(perso);
+      finDeplacementControle(perso, evt);
       let actions = turnAction(perso, playerId, pageId, liste);
       if (!actions) {
         let l = liste || '';
@@ -12869,7 +12870,7 @@ var COFantasy2 = COFantasy2 || function() {
   function lockToken(perso, evt) {
     let lock = perso.token.get('lockMovement');
     if (!lock) {
-      affectToken(perso.token, 'lockMovement', false, evt);
+      if (evt) affectToken(perso.token, 'lockMovement', false, evt);
       perso.token.set('lockMovement', true);
     }
   }
@@ -29813,8 +29814,12 @@ var COFantasy2 = COFantasy2 || function() {
       return dt < (rayonPerso + rayonTok) * 0, 9;
     });
     if (dessus) {
-      dessus = persoOfId(dessus.id);
-      whisperChar(perso.charId, "Attention, position finale à cheval sur " + nomPerso(dessus));
+      let dessusPerso = persoOfToken(dessus);
+      if (dessusPerso) {
+        whisperChar(perso.charId, "Attention, position finale à cheval sur " + nomPerso(dessusPerso));
+      } else {
+        sendChat('COF2', "/w gm position final de "+nomPerso(perso)+" à cheval sur un obstactle ("+dessus.get('name')+")");
+      }
     }
     //On dessine le mouvement.
     let left = (pt1.x + x) / 2;
