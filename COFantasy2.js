@@ -1,4 +1,4 @@
-//Dernière modification : dim. 21 déc. 2025,  06:13
+//Dernière modification : dim. 21 déc. 2025,  06:43
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12511,7 +12511,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function vitessePerso(perso) {
-    let vitesse = predicateAsInt(perso, 'vitesse', 10);
+    let vitesse = ficheAttributeAsInt(perso, 'vitesse', 10);
     if (getState(perso, 'essoufle') || getState(perso, 'invalide'))
       vitesse = 5;
     return vitesse;
@@ -13182,7 +13182,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function demarreMouvement(perso, vitesse, degainerPossible, evt, playerId, pageId) {
-    //TODO: mettre une aura pour visualiser le mouvement restant.
+    finDeplacementControle(perso, evt);
     unlockToken(perso, evt);
     sendPlayer("Vous pouvez déplacer " + nomPerso(perso) + " de " + vitesse + " m.", playerId);
     if (degainerPossible) {
@@ -24331,7 +24331,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (mouvementEnCours) {
       for (const tid in mouvementEnCours) {
         deleteMouvementEnCours(mouvementEnCours[tid]);
-        let token = getObj(tid, 'graphic');
+        let token = getObj('graphic', tid);
         setToken(token, 'aura1_radius', '', evt);
       }
     }
@@ -29983,18 +29983,18 @@ var COFantasy2 = COFantasy2 || function() {
       statusMarkersChanged(perso, prev);
     } else {
       //On essaie de réparer les barres liées
-      let attrId = token.get('bar2_link');
-      if (!attrId) return;
-      let attr = getObj('attribute', attrId);
-      if (!attr) {
-        token.set('bar2_link', '');
-        return;
-      }
-      let v = attr.get('current');
-      if (prev && v == prev.bar2_value && v != token.get('bar2_value')) {
-        token.set('bar2_value', v);
-      }
-      return;
+      //let attrId = token.get('bar2_link');
+      //if (!attrId) return;
+      //let attr = getObj('attribute', attrId);
+      //if (!attr) {
+      //  token.set('bar2_link', '');
+      //  return;
+      //}
+      //let v = attr.get('current');
+      //if (prev && v == prev.bar2_value && v != token.get('bar2_value')) {
+      //  token.set('bar2_value', v);
+      //}
+      //return;
     }
   }
 
