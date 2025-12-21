@@ -1,4 +1,4 @@
-//Dernière modification : ven. 19 déc. 2025,  12:35
+//Dernière modification : dim. 21 déc. 2025,  06:13
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12818,10 +12818,10 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Pas de token sélectionné", playerId);
       return;
     }
-        const evt = {
-          type: "liste d'actions"
-        };
-        addEvent(evt);
+    const evt = {
+      type: "liste d'actions"
+    };
+    addEvent(evt);
     iterSelected(selected, function(perso) {
       if (liste) {
         if (limiteRessources(perso, options, liste, liste, evt)) return;
@@ -13166,6 +13166,21 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  //restant est une distance en pixels, pour l'aura il faut des mètres
+  function setAuraRayonDistanceRestante(token, restant, evt, pageId) {
+    if (restant > 0) {
+      pageId = pageId || token.get('pageid');
+      let r = tokenSizeAsCircle(token) / 2;
+      if (restant > r) {
+        setToken(token, 'aura1_radius', pixelsToMetres(restant - r, pageId), evt);
+      } else {
+        setToken(token, 'aura1_radius', '', evt);
+      }
+    } else {
+      setToken(token, 'aura1_radius', '', evt);
+    }
+  }
+
   function demarreMouvement(perso, vitesse, degainerPossible, evt, playerId, pageId) {
     //TODO: mettre une aura pour visualiser le mouvement restant.
     unlockToken(perso, evt);
@@ -13194,14 +13209,16 @@ var COFantasy2 = COFantasy2 || function() {
     if (combat) {
       evt.combat = evt.combat || deepCopy(combat);
       combat.mouvementEnCours = combat.mouvementEnCours || {};
+      let restant = metresToPixels(vitesse, pageId);
       combat.mouvementEnCours[perso.token.id] = {
-        restant: metresToPixels(vitesse, pageId),
+        restant,
         position: {
           x: perso.token.get('left'),
           y: perso.token.get('top')
         },
         path: []
       };
+      setAuraRayonDistanceRestante(perso.token, restant, evt, pageId);
     }
   }
 
@@ -17787,6 +17804,10 @@ var COFantasy2 = COFantasy2 || function() {
     return (distance * PIX_PER_UNIT) / computeScale(pageId);
   }
 
+  function pixelsToMetres(distance, pageId) {
+    return (distance * computeScale(pageId)) / PIX_PER_UNIT;
+  }
+
   // prend une distance en mètre et retourne une distance dans l'unité
   // utilisée sur la page du personnage
   function scaleDistance(perso, distance) {
@@ -17837,7 +17858,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   // si le token est plus grand que thresh, réduit la distance
-  function tokenSize(tok, thresh) {
+  function tokenSize(tok, thresh = 0) {
     let size = (tok.get('width') + tok.get('height')) / 2;
     if (size > thresh) return ((size - thresh) / 2);
     return 0;
@@ -24310,6 +24331,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (mouvementEnCours) {
       for (const tid in mouvementEnCours) {
         deleteMouvementEnCours(mouvementEnCours[tid]);
+        let token = getObj(tid, 'graphic');
+        setToken(token, 'aura1_radius', '', evt);
       }
     }
     // Fin des effets qui durent pour le combat
@@ -29690,6 +29713,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (!mvt) return;
     deleteMouvementEnCours(mvt);
     delete mouvementEnCours[perso.token.id];
+    setToken(perso.token, 'aura1_radius', '', evt);
     if (estControlleParJoueur(perso.charId, {
         saufMJ: true,
         online: true
@@ -29794,7 +29818,7 @@ var COFantasy2 = COFantasy2 || function() {
       });
     }
     //TODO: vérifier qu'on ne traverse pas des zones qui ralentissent, comme la proximité d'un ennemi, ou passer à travers un allié.
-    //TODO: vérifier que le dernier mouvement ne termine pas à moitié sur un autre token
+    //On vérifie que le dernier mouvement ne termine pas à moitié sur un autre token
     let rayonPerso = tokenSizeAsCircle(token) / 2;
     let allToks =
       findObjs({
@@ -29811,14 +29835,19 @@ var COFantasy2 = COFantasy2 || function() {
       if (rayonTok < restant && rayonPerso < restant) return false;
       let ptTok = pointOfToken(tok);
       let dt = distancePoints(pt2, ptTok);
-      return dt < (rayonPerso + rayonTok) * 0, 9;
+      return dt < (rayonPerso + rayonTok) * 0.9;
     });
     if (dessus) {
+      //TODO: empêcher le mouvement dans ce cas ?
       let dessusPerso = persoOfToken(dessus);
       if (dessusPerso) {
-        whisperChar(perso.charId, "Attention, position finale à cheval sur " + nomPerso(dessusPerso));
+        if (!getState(dessusPerso, 'invisible')) {
+          whisperChar(perso.charId, "Attention, position finale à cheval sur " + nomPerso(dessusPerso));
+        } else {
+          sendChat('COF2', "/w gm Attention, position finale à cheval sur " + nomPerso(dessusPerso));
+        }
       } else {
-        sendChat('COF2', "/w gm position final de "+nomPerso(perso)+" à cheval sur un obstactle ("+dessus.get('name')+")");
+        sendChat('COF2', "/w gm position finale de " + nomPerso(perso) + " à cheval sur un obstactle (" + dessus.get('name') + ")");
       }
     }
     //On dessine le mouvement.
@@ -29868,6 +29897,7 @@ var COFantasy2 = COFantasy2 || function() {
     mvt.position.x = x;
     mvt.position.y = y;
     mvt.restant -= d;
+    setAuraRayonDistanceRestante(perso.token, mvt.restant, evt, pageId);
     //On propose soit d'annuler, soit de finir le mouvement
     let rest = Math.floor((mvt.restant / PIX_PER_UNIT) * computeScale(pageId));
     let finir = '!cof2-terminer-mvt ' + perso.token.id;
@@ -29923,6 +29953,7 @@ var COFantasy2 = COFantasy2 || function() {
     mvt.position.x = last.x;
     mvt.position.y = last.y;
     mvt.restant = last.restant;
+    setAuraRayonDistanceRestante(perso.token, mvt.restant, evt, pageId);
     let typePath = jumpgate ? 'pathv2' : 'path';
     let path = getObj(typePath, last.line);
     if (path) path.remove();
