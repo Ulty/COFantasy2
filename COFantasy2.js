@@ -1,4 +1,4 @@
-//Dernière modification : dim. 21 déc. 2025,  06:43
+//Dernière modification : sam. 03 janv. 2026,  12:31
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5382,61 +5382,66 @@ var COFantasy2 = COFantasy2 || function() {
     // Les armes de jet
     if (weaponStats.armeDeJet && !estMook(attaquant)) {
       if (weaponStats.nbArmesDeJet < 1) {
-        sendPerso(attaquant, "plus de " + weaponName + " à lancer.");
+        if (options.distance)
+          sendPerso(attaquant, "plus de " + weaponName + " à lancer.");
+        else
+          sendPerso(attaquant, "plus de " + weaponName + ".");
         return;
       }
-      let attrName = weaponStats.prefixe + 'jet-dispo';
-      let attr = findObjs({
-        _type: 'attribute',
-        _characterid: attackingCharId,
-        name: attrName
-      }, {
-        caseInsensitive: true
-      });
-      let max = 1;
-      if (attr.length > 0) {
-        attr = attr[0];
-        if (attr.length > 1) {
-          error("Plus d'un attribut pour la quantité d'armes de jet", attr);
-          attr[1].remove();
-        }
-        max = parseInt(attr.get('max'));
-        if (isNaN(max) || max < 1) {
-          error("Maximum de " + weaponName + " mal formé, vérifier sur la fiche", attr);
-          max = 1;
-        }
-        addAttributeToEvt(attr, evt, weaponStats.nbArmesDeJet, max);
-      } else {
-        attr = createObj('attribute', {
-          characterid: attackingCharId,
-          name: attrName,
-          current: 1,
-          max: 1
+      if (!(options.armeDeContact && options.contact)) {
+        let attrName = weaponStats.prefixe + 'jet-dispo';
+        let attr = findObjs({
+          _type: 'attribute',
+          _characterid: attackingCharId,
+          name: attrName
+        }, {
+          caseInsensitive: true
         });
-        addCreatedAttributeToEvt(attr, evt);
-      }
-      //On cherche si l'arme de jet est empoisonée
-      let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_' + attackLabel);
-      effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
-      let restant = weaponStats.nbArmesDeJet;
-      if (randomInteger(100) < weaponStats.tauxDePerte) {
-        if (weaponStats.tauxDePerte < 100)
-          explications.push(weaponName + " n'est pas récupérable");
-        attr.set('max', max - 1);
-        options.armeDeJetPerdue = true;
-      }
-      restant--;
-      attr.set('current', restant);
-      if (!options.armeDeJetPerdue) { //prépare pour un éventuel retour en main
-        options.attrArmeDeJet = {
-          attribute: attr,
-          restant: restant
-        };
-      } else {
-        if (restant === 0) {
-          degainerArmeLancee(attaquant, attackLabel, evt);
+        let max = 1;
+        if (attr.length > 0) {
+          attr = attr[0];
+          if (attr.length > 1) {
+            error("Plus d'un attribut pour la quantité d'armes de jet", attr);
+            attr[1].remove();
+          }
+          max = parseInt(attr.get('max'));
+          if (isNaN(max) || max < 1) {
+            error("Maximum de " + weaponName + " mal formé, vérifier sur la fiche", attr);
+            max = 1;
+          }
+          addAttributeToEvt(attr, evt, weaponStats.nbArmesDeJet, max);
+        } else {
+          attr = createObj('attribute', {
+            characterid: attackingCharId,
+            name: attrName,
+            current: 1,
+            max: 1
+          });
+          addCreatedAttributeToEvt(attr, evt);
         }
-        explications.push("Il reste " + restant + " " + weaponName + " à " + attackerTokName);
+        //On cherche si l'arme de jet est empoisonée
+        let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_' + attackLabel);
+        effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
+        let restant = weaponStats.nbArmesDeJet;
+        if (randomInteger(100) < weaponStats.tauxDePerte) {
+          if (weaponStats.tauxDePerte < 100)
+            explications.push(weaponName + " n'est pas récupérable");
+          attr.set('max', max - 1);
+          options.armeDeJetPerdue = true;
+        }
+        restant--;
+        attr.set('current', restant);
+        if (!options.armeDeJetPerdue) { //prépare pour un éventuel retour en main
+          options.attrArmeDeJet = {
+            attribute: attr,
+            restant: restant
+          };
+        } else {
+          if (restant === 0) {
+            degainerArmeLancee(attaquant, attackLabel, evt);
+          }
+          explications.push("Il reste " + restant + " " + weaponName + " à " + attackerTokName);
+        }
       }
     }
     if (options.aussiArmeDeJet && !estMook(attaquant)) {
@@ -8676,6 +8681,22 @@ var COFantasy2 = COFantasy2 || function() {
       }
       return true;
     });
+    //On regarde si on a une ame de jet qui peut s'utiliser au contact
+    if (portee && options.armeDeContact) {
+      let contact = cibles.every(function(cible) {
+        return cible.distance === 0;
+      });
+      if (contact) {
+        portee = 0;
+        options.portee = 0;
+        weaponStats.portee = 0;
+        options.distance = false;
+        options.contact = true;
+        //On remplace la caractéristique pour toucher par la force, et on ajoute la force aux DM.
+        weaponStats.attSkill = 'atkcac';
+        weaponStats.attCarBonus = '@{for}';
+      }
+    }
     //Les conditions qui peuvent empêcher l'attaque
     if (options.conditionAttaque !== undefined) {
       if (!testCondition(options.conditionAttaque, attaquant, cibles)) {
@@ -11877,7 +11898,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function estArme(attaque) {
     let t = fieldAsString(attaque, 'arme-atktype', 'naturel');
-    return t == 'main' || t == 'trait';
+    return t == 'main' || t == 'trait' || t == 'jet';
   }
 
   function armeChargeeDeGrenaille(perso, arme) {
@@ -11966,6 +11987,7 @@ var COFantasy2 = COFantasy2 || function() {
             break;
           case 'main':
           case 'trait':
+          case 'jet':
             armes[label] = arme;
             armeVisible = true;
             break;
@@ -23608,6 +23630,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     barde: {
       uneMain: true,
+      dague: true,
     },
     rodeur: {
       contactUneMain: true,
@@ -28551,6 +28574,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     arbalete: boolDefaultOption,
     arc: boolDefaultOption,
+    armeDeContact: boolDefaultOption,
     artificiel: boolDefaultOption,
     asphyxie: boolDefaultOption,
     attackId: wordDefaultOption,
@@ -28722,6 +28746,9 @@ var COFantasy2 = COFantasy2 || function() {
     mortsVivants: boolDefaultOption,
     metal: boolDefaultOption,
     'multi-command': boolDefaultOption,
+    modifiePortee: {
+      fn: integerOption
+    },
     nature: boolDefaultOption,
     naturel: {
       fn: booleanOption,
@@ -28887,9 +28914,6 @@ var COFantasy2 = COFantasy2 || function() {
     nom: stringDefaultOption,
     special: stringDefaultOption,
     toucher: {
-      fn: integerOption
-    },
-    modifiePortee: {
       fn: integerOption
     },
     crit: {
