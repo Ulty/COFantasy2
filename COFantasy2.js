@@ -1,4 +1,4 @@
-//Dernière modification : sam. 03 janv. 2026,  12:31
+//Dernière modification : dim. 04 janv. 2026,  05:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -15,7 +15,8 @@ var COFantasy2 = COFantasy2 || function() {
   const BS_LABEL_INFO = 'background-color: #5bc0de;';
   const BS_LABEL_WARNING = 'background-color: #f0ad4e;';
   const BS_LABEL_DANGER = 'background-color: #d9534f;';
-  const BS_BUTTON = ' style="background-color:#996600; padding:1px 2px; border-radius:5px;"';
+  const BASIC_BUTTON_STYLE = ' padding:1px 2px; border-radius:5px;';
+  const BS_BUTTON = ' style="background-color:#996600;'+BASIC_BUTTON_STYLE+'"';
   const DEFAULT_DYNAMIC_INIT_IMG = 'https://s3.amazonaws.com/files.d20.io/images/4095816/086YSl3v0Kz3SlDAu245Vg/thumb.png?1400535580';
   const flashyInitMarkerScale = 1.6;
   const IMG_INVISIBLE = 'https://s3.amazonaws.com/files.d20.io/images/24377109/6L7tn91HZLAQfrLKQI7-Ew/thumb.png?1476950708';
@@ -628,6 +629,7 @@ var COFantasy2 = COFantasy2 || function() {
   //   - actionLimitee : vrai si le personnage actif a fait une action limitée ce tour
   //   - actionsAttaque : nombre d'actions d'attaque effectuées par le personnage actif
   //   - actionsMouvement : nombre d'actions de mouvement effectuées par le personnage actif
+  //   - tourRetarde : map de token id vers un struct avec actionLimitee, actionsAttaque et actionsMouvement
   //   - auras         : liste des auras actives
   //   - aurasCounts   : computeur pour id des auras
   //   - mouvementEnCours : map de token id vers
@@ -11154,6 +11156,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (!predicates.capacites && !persoEstPNJ(perso)) {
       let capacites = {};
       let armesMaitrisees = {};
+      let armes = ficheAttribute(perso, 'maitrises_armes', '');
+      if (armes) armesMaitrisees = predicateOfRaw(armes);
       let actions = [];
       let rangsParProfil = {};
       for (let numVoie = 1; numVoie < 10; numVoie++) {
@@ -11418,26 +11422,35 @@ var COFantasy2 = COFantasy2 || function() {
     if (remplacement) return replaceAction(action, perso, macros, abilities);
     return action;
   }
+  const PICTO_DEFENSE = {
+    picto: '<span style="font-family: \'Pictos Three\'">b</span> ',
+    style: 'background-color:#cc0000;'
+  };
 
-  function pictoOfAttack(attackStats, options) {
+  const PICTO_ATTENDRE = {
+    picto: '<span style="font-family: \'Pictos\'">t</span> ',
+    style: 'background-color:#999999;'
+  };
+
+  function pictoOfAttack(attackStats, options = {}) {
     let picto;
     let style;
     let portee = 0;
     let sortilege;
     //On cherche la portée dans les options (ça a la priorité)
-    if (options.portee !== undefined) portee = options.portee;
-    if (sortilege || options.sortilege) {
+    if (attackStats.portee !== undefined) portee = attackStats.portee;
+    if (sortilege || options.sortilege || attackStats.sortilege) {
       // attaque magique
       picto = '<span style="font-family: \'Pictos Three\'">g</span> ';
-      style = 'background-color:#9900ff';
+      style = 'background-color:#9900ff;';
     } else if (portee > 0) {
       // attaque distance
       picto = '<span style="font-family: \'Pictos Custom\'">[</span> ';
-      style = 'background-color:#48b92c';
+      style = 'background-color:#48b92c;';
     } else {
       // attaque contact
       picto = '<span style="font-family: \'Pictos Custom\'">t</span> ';
-      style = 'background-color:#cc0000';
+      style = 'background-color:#cc0000;';
     }
     return {
       picto,
@@ -11445,6 +11458,7 @@ var COFantasy2 = COFantasy2 || function() {
     };
   }
 
+  // options et attackStats sont optionnels
   function pictoOfAction(perso, cmd, options, attackStats) {
     let picto = '';
     let style = '';
@@ -11497,7 +11511,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'effet':
       case 'lumiere':
-        if (options.mana !== undefined) {
+        if (options && options.mana !== undefined) {
           picto = '<span style="font-family: \'Pictos Three\'">g</span> ';
           style = 'background-color:#9900ff';
         } else {
@@ -11526,18 +11540,15 @@ var COFantasy2 = COFantasy2 || function() {
         style = 'background-color:#e69138';
         break;
       case 'action-defensive':
-        picto = '<span style="font-family: \'Pictos Three\'">b</span> ';
-        style = 'background-color:#cc0000';
-        break;
+      case 'defense':
+        return PICTO_DEFENSE;
       case 'manoeuvre':
         picto = '<span style="font-family: \'Pictos Three\'">d</span> ';
         style = 'background-color:#cc0000';
         break;
       case 'attendre':
       case 'tour-suivant':
-        picto = '<span style="font-family: \'Pictos\'">t</span> ';
-        style = 'background-color:#999999';
-        break;
+        return PICTO_ATTENDRE;
       case 'dmg':
       case 'bouton-echec-total':
         picto = '<span style="font-family: \'Pictos\'">\'</span> ';
@@ -12135,6 +12146,10 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Pas en combat", playerId);
       return;
     }
+    if (!typeActionPossible(perso, 'M')) {
+      sendPlayer("Tour terminé, plus possible de le retarder.");
+      return;
+    }
     let cible = persoOfId(cmd[2], cmd[2], pageId);
     if (!cible) {
       sendPlayer("La cible n'est pas valide", playerId);
@@ -12170,6 +12185,14 @@ var COFantasy2 = COFantasy2 || function() {
     eltPerso.pr = init2 - 1;
     updateNextInit(perso);
     sendPerso(perso, " attend un peu avant d'agir...");
+    evt.combat = evt.combat || deepCopy(combat);
+    let actions = {
+      actionLimitee: combat.actionLimitee,
+      actionsAttaque: combat.actionsAttaque,
+      actionsMouvement: combat.actionsMouvement
+    };
+    combat.tourRetarde = combat.tourRetarde || {};
+    combat.tourRetarde[perso.token.id] = actions;
     setTurnOrder(to, evt);
   }
 
@@ -12209,6 +12232,17 @@ var COFantasy2 = COFantasy2 || function() {
     sendPerso(perso, "Soutient la prochaine attaque au contact de " + nomPerso(persoASoutenir) + " contre " + nomPerso(cible));
   }
 
+  function boutonRetarderTour(perso) {
+        let {
+          picto,
+          style
+        } = PICTO_ATTENDRE;
+    let b = picto + " Retarder son tour";
+    let c = "!cof2-retarder-tour " + perso.token.id + " @{target|Agir après|token_id}";
+        let buttonStyleAttendre = ' style="' + style + BASIC_BUTTON_STYLE + '"';
+    return boutonSimple(c, b, buttonStyleAttendre);
+  }
+
   function commandeOptionsTactiques(cmd, playerId, pageId, options) {
     let {
       selected
@@ -12223,41 +12257,61 @@ var COFantasy2 = COFantasy2 || function() {
     iterSelected(selected, function(perso) {
       let title = "Options tactiques";
       let arme = armesEnMain(perso);
-      if (arme) opt_display.action_right = arme.name;
+      //if (arme) opt_display.action_right = arme.name;
       let display = startFramedDisplay(playerId, title, perso, opt_display);
       if (typeActionPossible(perso), 'A') {
+        {
+        let picto = '';
+        let style = BS_BUTTON;
+        if (arme) {
+          let ps = pictoOfAttack(arme);
+          picto = ps.picto;
+          style = ' style="' + ps.style + BASIC_BUTTON_STYLE + '"';
+        }
+          let line = "<b>Attaque</b> ";
+          if (arme) line += "avec "+arme.name;
+          line += ' (A)<br/>&nbsp;&nbsp;';
         let att = "!cof2-attaque " + perso.token.id + " @{target|token_id} -1 --typeAction A";
-        let b = "Attaque assurée";
+        let b = picto+"assurée";
         let c = att + " --attaqueAssuree";
-        let line = boutonSimple(c, b, BS_BUTTON);
-        addLineToFramedDisplay(display, line);
-        b = "Attaque précise";
+        line += boutonSimple(c, b, style+' title="+5 en attaque et DM/2"') + "&emsp;";
+        b = picto+"précise";
         c = att + " --attaquePrecise";
-        line = boutonSimple(c, b, BS_BUTTON);
-        addLineToFramedDisplay(display, line);
-        b = "Attaque violente";
+        line += boutonSimple(c, b, style+' title="-3 en attaque et +1d4° DM"') + "&emsp;";
+        b = picto+"violente";
         c = att + " --attaqueViolente";
-        line = boutonSimple(c, b, BS_BUTTON);
+        line += boutonSimple(c, b, style+' title="-7 en attaque et +2d4° DM"')+'<br/>';
         addLineToFramedDisplay(display, line);
-        b = "Défense partielle";
-        c = "!cof2-effet optionTactiqueDefensePartielle 1 --typeAction A --select " + perso.token.id;
-        line = boutonSimple(c, b, BS_BUTTON);
-        addLineToFramedDisplay(display, line);
+        }
+        //Les actions de défense
+        let line = "<b>Défense</b> ";
+        let {
+          picto,
+          style
+        } = PICTO_DEFENSE;
+        let buttonStyleDefense = ' style="' + style + BASIC_BUTTON_STYLE + '"';
+        let b = picto + "partielle (A)";
+        let c = "!cof2-effet optionTactiqueDefensePartielle 1 --typeAction A --select " + perso.token.id;
+        line += boutonSimple(c, b, buttonStyleDefense+' title="+3 DEF et jets de résistance"');
+        if (typeActionPossible(perso), 'L') {
+          //On continue la ligne de défense
+          b = picto + "totale (L)";
+          c = "!cof2-effet optionTactiqueDefenseTotale 1 --typeAction L --select " + perso.token.id;
+          line += ' ' + boutonSimple(c, b, buttonStyleDefense+' title="+5 DEF et jets de résistance"');
+          addLineToFramedDisplay(display, line);
+    picto = '<span style="font-family: \'Pictos\'">&</span> ';
+          b = picto + "Soutenir (L)";
+          c = "!cof2-soutenir " + perso.token.id + " @{target|Personnage à soutenir|token_id} @{target|Cible|token_id} --typeAction L";
+          line = boutonSimple(c, b, BS_BUTTON+' title="+5 att. au contact à un allié"');
+          addLineToFramedDisplay(display, line);
+        } else {
+          //On termine la ligne de défense
+          addLineToFramedDisplay(display, line);
+        }
       }
-      if (typeActionPossible(perso), 'L') {
-        let b = "Défense totale";
-        let c = "!cof2-effet optionTactiqueDefenseTotale 1 --typeAction L --select " + perso.token.id;
-        let line = boutonSimple(c, b, BS_BUTTON);
-        addLineToFramedDisplay(display, line);
-        b = "Soutien";
-        c = "!cof2-soutenir " + perso.token.id + " @{target|Personnage à soutenir|token_id} @{target|Cible|token_id} --typeAction L";
-        line = boutonSimple(c, b, BS_BUTTON);
-        addLineToFramedDisplay(display, line);
+      if (typeActionPossible(perso, 'M')) {
+        addLineToFramedDisplay(display, boutonRetarderTour(perso));
       }
-      let b = "Retarder son tour";
-      let c = "!cof2-retarder-tour " + perso.token.id + " @{target|Agir après|token_id}";
-      let line = boutonSimple(c, b, BS_BUTTON);
-      addLineToFramedDisplay(display, line);
       sendFramedDisplay(display);
     });
   }
@@ -12781,8 +12835,13 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
-    let command = "!cof2-options-tactiques --select " + perso.token.id;
-    ligne += boutonSimple(command, "Options tactiques", BS_BUTTON) + '<br/>';
+    if (typeActionPossible(perso, 'A')) {
+      let command = "!cof2-options-tactiques --select " + perso.token.id;
+      ligne += boutonSimple(command, "Options tactiques", BS_BUTTON) + '<br/>';
+    } else if (typeActionPossible(perso, 'M')) {
+      //la seule action tactique possible est de retarder son tour
+      ligne += boutonRetarderTour(perso) + '<br/>';
+    }
     let onlyTitle = false;
     //TODO afficher les actions par défaut, manoeuvres, etc.
     if (!actionsAAfficher && actionsDuTour == 1 && isActiveTurnPerso(perso)) {
@@ -16543,28 +16602,19 @@ var COFantasy2 = COFantasy2 || function() {
   // - activation: message à afficher quand l'effet s'active
   // - fin : message à afficher à la fin de l'effet
   function setEffetTemporaire(target, ef, duree, evt, options = {}) {
-    if (!target.messages) ef.whisper = nomPerso(target) + ' ';
     if (estImmuniseAEffet(target, ef.effet)) {
-      if (ef.whisper !== undefined) {
-        if (ef.whisper === true) {
-          whisperChar(target.charId, "ne peut pas être affecté par l'effet de " + ef.effet);
-        } else {
-          sendChar(target.charId, ef.whisper + "ne peut pas être affecté par l'effet de " + ef.effet);
-        }
-      } else {
+      if (target.messages) {
         target.messages.push(nomPerso(target) + " ne peut pas être affecté par l'effet de " + ef.effet);
+      } else {
+          sendPerso(target, "ne peut pas être affecté par l'effet de " + ef.effet, ef.whisper);
       }
       return;
     }
     if (ef.effet == 'saignementsSang' && immuniseAuxSaignements(target)) {
-      if (ef.whisper !== undefined) {
-        if (ef.whisper === true) {
-          whisperChar(target.charId, "ne peut pas saigner");
-        } else {
-          sendChar(target.charId, ef.whisper + "ne peut pas saigner");
-        }
-      } else {
+      if (target.messages) {
         target.messages.push(nomPerso(target) + " ne peut pas saigner");
+      } else {
+          sendPerso(target, "ne peut pas saigner", ef.whisper);
       }
       return;
     }
@@ -16627,7 +16677,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (ef.message && !ef.pasDeMessageDActivation) {
         let msgAct = messageActivation(target, ef.message, ef.effet);
         if (ef.whisper === undefined) {
-          targetMsg = nomPerso(target) + " " + msgAct;
+          targetMsg = msgAct;
         } else if (ef.whisper !== true) {
           targetMsg = ef.whisper + msgAct;
         }
@@ -16639,7 +16689,7 @@ var COFantasy2 = COFantasy2 || function() {
           newLineimg += '</span>';
           targetMsg += newLineimg;
         }
-        if (ef.whisper === undefined) {
+        if (target.messages) {
           target.messages.push(targetMsg);
           targetMsg = undefined;
         }
@@ -20767,6 +20817,13 @@ var COFantasy2 = COFantasy2 || function() {
       bonus += 5;
       expliquer("Action libre => +5 pour résister aux entraves");
     }
+    if (attributeAsBool(target, 'optionTactiqueDefenseTotale')) {
+      bonus += 5;
+      expliquer("Défense totale => +5 au jet");
+    } else if (attributeAsBool(target, 'optionTactiqueDefensePartielle')) {
+      bonus += 3;
+      expliquer("Défense partielle => +3 au jet");
+    }
     let explications = [];
     explications.forEach(function(msg) {
       expliquer(nomPerso(target) + ' ' + msg);
@@ -22124,9 +22181,17 @@ var COFantasy2 = COFantasy2 || function() {
         removeDernieresCiblesAttaquees(perso, evt);
         if (combat.activeTokenId != tokenId) {
           //nouveau personnage actif, on remet les compteurs d'action à 0
-          combat.actionLimitee = false;
-          combat.actionsAttaque = 0;
-          combat.actionsMouvement = 0;
+          let actions = {
+            actionLimitee: false,
+            actionsAttaque: 0,
+            actionsMouvement: 0,
+          };
+          if (combat.tourRetarde) {
+            actions = combat.tourRetarde[tokenId] || actions;
+          }
+          combat.actionLimitee = actions.actionLimitee;
+          combat.actionsAttaque = actions.actionsAttaque;
+          combat.actionsMouvement = actions.actionsMouvement;
         }
         combat.activeTokenId = tokenId;
         combat.activeTokenName = perso.token.get('name');
@@ -23548,6 +23613,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     //Identification des catégories d'armes utilisées en jeu
     identifierArme(weaponStats, pred, 'arc', /\barc\b/i);
+    identifierArme(weaponStats, pred, 'arcCourt', /\barc court\b/i);
     identifierArme(weaponStats, pred, 'arbalete', /\barbal[eè]te\b/i);
     identifierArme(weaponStats, pred, 'baton', /\bb[aâ]ton\b/i);
     identifierArme(weaponStats, pred, 'dague', /\bdague\b/i);
@@ -23560,6 +23626,12 @@ var COFantasy2 = COFantasy2 || function() {
     identifierArme(weaponStats, pred, 'rapiere', /\brapi[eè]re\b/i);
     identifierArme(weaponStats, pred, 'poudre', /\bpoudre\b/i);
     identifierArme(weaponStats, pred, 'sabre', /\b(katana|wakizachi|boken|demi-lame|vivelame|sabre)\b/i);
+    if (!weaponStats.arcCourt) {
+      if (weaponStats.options.search(/\b--arcCourt\b/) || weaponStats.modificateurs.search(/\barcCourt\b/)) {
+        weaponStats.arcCourt = true;
+        weaponStats.arc = true;
+      }
+    }
     if (weaponStats.arc && predicateAsBool(perso, 'arcDeMaitre')) {
       weaponStats.portee += 20;
     }
@@ -23653,7 +23725,7 @@ var COFantasy2 = COFantasy2 || function() {
     ensorceleur: {
       dague: true,
       baton: true,
-      //Plus une autre à ajouter en prédicat
+      //Plus une autre à ajouter sur la fiche, attribut maitrises_armes
     },
     forgesort: {
       dague: true,
@@ -23673,13 +23745,13 @@ var COFantasy2 = COFantasy2 || function() {
       baton: true,
       epieu: true,
       javelot: true,
-      arc: true, //TODO: ajouter la limite à l'arc court
+      arcCourt: true,
     },
     moine: {
       toutes: true,
     },
     pretre: {
-      contactUneMain: true, //TODO ajouter la limite de contondant
+      contondantUneMain: true,
       baton: true,
     }
   };
@@ -23698,6 +23770,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (am.uneMain && !arme.deuxMains) return true;
     if (am.contactUneMain && arme.portee === 0 && !arme.deuxMains) return true;
     if (am.arbaleteLegere && arme.arbalete && arme.legere) return true;
+    if (am.contondantUneMain && !arme.deuxMains && arme.typeDegats == 'contondant') return true;
     for (const typeArme in am) {
       if (arme[typeArme]) return true;
     }
@@ -28574,6 +28647,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     arbalete: boolDefaultOption,
     arc: boolDefaultOption,
+    arcCourt: boolDefaultOption,
     armeDeContact: boolDefaultOption,
     artificiel: boolDefaultOption,
     asphyxie: boolDefaultOption,
@@ -30265,7 +30339,7 @@ var COFantasy2 = COFantasy2 || function() {
     attr.remove();
   }
 
-  const attributeQuiAffecteMaitriseArmes = new RegExp('^v[1-9]r2$|^v[1-9]profil$');
+  const attributeQuiAffecteMaitriseArmes = new RegExp('^v[1-9]r2$|^v[1-9]profil$|^maitrises_armes$');
 
   function attributeChanged(attr) {
     let n = attr.get('name');
