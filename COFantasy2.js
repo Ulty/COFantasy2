@@ -1,4 +1,4 @@
-//Dernière modification : dim. 04 janv. 2026,  05:12
+//Dernière modification : mar. 06 janv. 2026,  01:34
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -16,7 +16,7 @@ var COFantasy2 = COFantasy2 || function() {
   const BS_LABEL_WARNING = 'background-color: #f0ad4e;';
   const BS_LABEL_DANGER = 'background-color: #d9534f;';
   const BASIC_BUTTON_STYLE = ' padding:1px 2px; border-radius:5px;';
-  const BS_BUTTON = ' style="background-color:#996600;'+BASIC_BUTTON_STYLE+'"';
+  const BS_BUTTON = ' style="background-color:#996600;' + BASIC_BUTTON_STYLE + '"';
   const DEFAULT_DYNAMIC_INIT_IMG = 'https://s3.amazonaws.com/files.d20.io/images/4095816/086YSl3v0Kz3SlDAu245Vg/thumb.png?1400535580';
   const flashyInitMarkerScale = 1.6;
   const IMG_INVISIBLE = 'https://s3.amazonaws.com/files.d20.io/images/24377109/6L7tn91HZLAQfrLKQI7-Ew/thumb.png?1476950708';
@@ -636,6 +636,10 @@ var COFantasy2 = COFantasy2 || function() {
   //     - restant       : distance restant à parcourir, en pixel
   //     - position      : position actuelle en x, y
   //     - path          : liste de positions (x, y) et line
+  //     - pasDePlacement: distance de pas de placement restant avnt que ce soit un vrai mvt
+  //     - positionDepart: en x, y, pour savoir si on continue en ligne droite, ou pour le pas de placement
+  //     - ligneDroite   : si true on s'est toujours déplacé selon une ligne droite, si 'oblige' on doit continuer
+  //     - aDegaine      : pour savoir si on a déjà profité du dégaine gratuit (empêche le sprint)
   // - personnageCibleCree : pour savoir si on a créé un personnage cible (avec 0 PV pour centrer les aoe)
   // - gameMacros : la liste des macros créées par le script
   // - murs: map de pageId vers 
@@ -10323,6 +10327,22 @@ var COFantasy2 = COFantasy2 || function() {
     return combat.activeTokenId == perso.token.id;
   }
 
+  //Fait dépenser l'action pour le joueur actif du combat
+  function depenseAction(typeAction, combat, evt) {
+    evt.combat = evt.combat || deepCopy(combat);
+    switch (typeAction) {
+      case 'L':
+        combat.actionLimitee = true;
+        break;
+      case 'A':
+        combat.actionsAttaque++;
+        break;
+      case 'M':
+        combat.actionsMouvement++;
+        break;
+    }
+  }
+
   //Retourne true si il existe une limite qui empêche de faire l'action
   //N'ajoute pas l'événement à l'historique
   //perso et explications sont optionnels
@@ -10515,18 +10535,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (perso) {
       depenseMana(perso, depMana, msg, evt, explications, options);
       if (options.typeAction && isActiveTurnPerso(perso)) {
-        evt.combat = evt.combat || deepCopy(combat);
-        switch (options.typeAction) {
-          case 'L':
-            combat.actionLimitee = true;
-            break;
-          case 'A':
-            combat.actionsAttaque++;
-            break;
-          case 'M':
-            combat.actionsMouvement++;
-            break;
-        }
+        finDeplacementControle(perso, evt);
+        depenseAction(options.typeAction, combat, evt);
       }
     }
     return false;
@@ -12233,13 +12243,13 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function boutonRetarderTour(perso) {
-        let {
-          picto,
-          style
-        } = PICTO_ATTENDRE;
+    let {
+      picto,
+      style
+    } = PICTO_ATTENDRE;
     let b = picto + " Retarder son tour";
     let c = "!cof2-retarder-tour " + perso.token.id + " @{target|Agir après|token_id}";
-        let buttonStyleAttendre = ' style="' + style + BASIC_BUTTON_STYLE + '"';
+    let buttonStyleAttendre = ' style="' + style + BASIC_BUTTON_STYLE + '"';
     return boutonSimple(c, b, buttonStyleAttendre);
   }
 
@@ -12261,27 +12271,27 @@ var COFantasy2 = COFantasy2 || function() {
       let display = startFramedDisplay(playerId, title, perso, opt_display);
       if (typeActionPossible(perso), 'A') {
         {
-        let picto = '';
-        let style = BS_BUTTON;
-        if (arme) {
-          let ps = pictoOfAttack(arme);
-          picto = ps.picto;
-          style = ' style="' + ps.style + BASIC_BUTTON_STYLE + '"';
-        }
+          let picto = '';
+          let style = BS_BUTTON;
+          if (arme) {
+            let ps = pictoOfAttack(arme);
+            picto = ps.picto;
+            style = ' style="' + ps.style + BASIC_BUTTON_STYLE + '"';
+          }
           let line = "<b>Attaque</b> ";
-          if (arme) line += "avec "+arme.name;
+          if (arme) line += "avec " + arme.name;
           line += ' (A)<br/>&nbsp;&nbsp;';
-        let att = "!cof2-attaque " + perso.token.id + " @{target|token_id} -1 --typeAction A";
-        let b = picto+"assurée";
-        let c = att + " --attaqueAssuree";
-        line += boutonSimple(c, b, style+' title="+5 en attaque et DM/2"') + "&emsp;";
-        b = picto+"précise";
-        c = att + " --attaquePrecise";
-        line += boutonSimple(c, b, style+' title="-3 en attaque et +1d4° DM"') + "&emsp;";
-        b = picto+"violente";
-        c = att + " --attaqueViolente";
-        line += boutonSimple(c, b, style+' title="-7 en attaque et +2d4° DM"')+'<br/>';
-        addLineToFramedDisplay(display, line);
+          let att = "!cof2-attaque " + perso.token.id + " @{target|token_id} -1 --typeAction A";
+          let b = picto + "assurée";
+          let c = att + " --attaqueAssuree";
+          line += boutonSimple(c, b, style + ' title="+5 en attaque et DM/2"') + "&emsp;";
+          b = picto + "précise";
+          c = att + " --attaquePrecise";
+          line += boutonSimple(c, b, style + ' title="-3 en attaque et +1d4° DM"') + "&emsp;";
+          b = picto + "violente";
+          c = att + " --attaqueViolente";
+          line += boutonSimple(c, b, style + ' title="-7 en attaque et +2d4° DM"') + '<br/>';
+          addLineToFramedDisplay(display, line);
         }
         //Les actions de défense
         let line = "<b>Défense</b> ";
@@ -12292,17 +12302,17 @@ var COFantasy2 = COFantasy2 || function() {
         let buttonStyleDefense = ' style="' + style + BASIC_BUTTON_STYLE + '"';
         let b = picto + "partielle (A)";
         let c = "!cof2-effet optionTactiqueDefensePartielle 1 --typeAction A --select " + perso.token.id;
-        line += boutonSimple(c, b, buttonStyleDefense+' title="+3 DEF et jets de résistance"');
+        line += boutonSimple(c, b, buttonStyleDefense + ' title="+3 DEF et jets de résistance"');
         if (typeActionPossible(perso), 'L') {
           //On continue la ligne de défense
           b = picto + "totale (L)";
           c = "!cof2-effet optionTactiqueDefenseTotale 1 --typeAction L --select " + perso.token.id;
-          line += ' ' + boutonSimple(c, b, buttonStyleDefense+' title="+5 DEF et jets de résistance"');
+          line += ' ' + boutonSimple(c, b, buttonStyleDefense + ' title="+5 DEF et jets de résistance"');
           addLineToFramedDisplay(display, line);
-    picto = '<span style="font-family: \'Pictos\'">&</span> ';
+          picto = '<span style="font-family: \'Pictos\'">&</span> ';
           b = picto + "Soutenir (L)";
           c = "!cof2-soutenir " + perso.token.id + " @{target|Personnage à soutenir|token_id} @{target|Cible|token_id} --typeAction L";
-          line = boutonSimple(c, b, BS_BUTTON+' title="+5 att. au contact à un allié"');
+          line = boutonSimple(c, b, BS_BUTTON + ' title="+5 att. au contact à un allié"');
           addLineToFramedDisplay(display, line);
         } else {
           //On termine la ligne de défense
@@ -12721,7 +12731,7 @@ var COFantasy2 = COFantasy2 || function() {
               typeAction: 'A',
               actionPossible: true
             };
-            ligneArmePrincipale = boutonAttaque(perso, "Mains nues", bopt);
+            ligneArmePrincipale = boutonAttaque(perso, -1, bopt);
           }
         }
         if (perso.armeGauche && typeActionPossible(perso, 'A')) {
@@ -12848,7 +12858,7 @@ var COFantasy2 = COFantasy2 || function() {
       let command = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_BUTTON);
       let combat = stateCOF.combat;
       if (combat.actionLimitee || combat.actionsAttaque || combat.actionsMouvement) {
-        title = "Aucune autres action possible. " + command + " ?";
+        title = "Aucune autre action possible. " + command + " ?";
         onlyTitle = true;
       } else {
         title = "Aucune action possible. " + command + " ?";
@@ -12907,7 +12917,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (liste) {
         if (limiteRessources(perso, options, liste, liste, evt)) return;
       }
-      finDeplacementControle(perso, evt);
       let actions = turnAction(perso, playerId, pageId, liste);
       if (!actions) {
         let l = liste || '';
@@ -13262,44 +13271,64 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function demarreMouvement(perso, vitesse, degainerPossible, evt, playerId, pageId) {
-    finDeplacementControle(perso, evt);
-    unlockToken(perso, evt);
-    sendPlayer("Vous pouvez déplacer " + nomPerso(perso) + " de " + vitesse + " m.", playerId);
-    if (degainerPossible) {
-      //On propose de dégainer pendant le déplacement
-      let arme = armesEnMain(perso);
-      let labelArme;
-      if (arme) {
-        labelArme = arme.label;
-      }
-      let labelArmeGauche;
-      if (perso.armeGauche) labelArmeGauche = perso.armeGauche.label;
-      let {
-        armes,
-      } = listeDesArmes(perso);
-      let degainer = proposerDeDegainer(perso, armes, labelArme, arme, labelArmeGauche, '', '', true);
-      if (degainer) {
-        whisperChar(perso.chrId, degainer + " pendant le mouvement");
-      } else if (arme) { //faudrait-il proposer de rengainer aussi ?
-        let ligne = boutonSimple('!cof2-degainer --select ' + perso.token.id, '<span style="font-family:Pictos">}</span>', BS_BUTTON) + " Rengainer pendant le mouvement";
-        whisperChar(perso.charId, ligne);
-      }
+  //On propose de dégainer pendant le déplacement
+  function proposerDeDegainerPendantMouvement(perso) {
+    let arme = armesEnMain(perso);
+    let labelArme;
+    if (arme) {
+      labelArme = arme.label;
     }
+    let labelArmeGauche;
+    if (perso.armeGauche) labelArmeGauche = perso.armeGauche.label;
+    let {
+      armes,
+    } = listeDesArmes(perso);
+    let degainer = proposerDeDegainer(perso, armes, labelArme, arme, labelArmeGauche, '', '', true);
+    if (degainer) {
+      whisperChar(perso.charId, degainer + " pendant le mouvement");
+    } else if (arme) {
+      let ligne = boutonSimple('!cof2-degainer --select ' + perso.token.id, '<span style="font-family:Pictos">}</span>', BS_BUTTON) + " Rengainer pendant le mouvement";
+      whisperChar(perso.charId, ligne);
+    }
+  }
+
+  //options:
+  // - ligneDroite : pour forcer le déplacement en ligne droite
+  // - proposeDegainer : pour proposer de dégainer
+  // - playerId : pour afficher un message et une aura
+  // - pasDePlacement : nombre limite de pixels pour un pas de placement
+  function demarreMouvement(perso, vitesse, evt, pageId, options = {}) {
+    unlockToken(perso, evt);
     let combat = stateCOF.combat;
-    if (combat) {
-      evt.combat = evt.combat || deepCopy(combat);
-      combat.mouvementEnCours = combat.mouvementEnCours || {};
-      let restant = metresToPixels(vitesse, pageId);
-      combat.mouvementEnCours[perso.token.id] = {
-        restant,
-        position: {
-          x: perso.token.get('left'),
-          y: perso.token.get('top')
-        },
-        path: []
-      };
+    if (!combat) {
+      log("On ne contrôle le mouvement qu'en combat");
+      return;
+    }
+    evt.combat = evt.combat || deepCopy(combat);
+    combat.mouvementEnCours = combat.mouvementEnCours || {};
+    let restant = metresToPixels(vitesse, pageId);
+    let x = perso.token.get('left');
+    let y = perso.token.get('top');
+    combat.mouvementEnCours[perso.token.id] = {
+      restant,
+      position: {
+        x,
+        y,
+      },
+      path: [],
+      positionDepart: {
+        x,
+        y
+      },
+      ligneDroite: (options.ligneDroite) ? 'oblige' : true,
+      pasDePlacement: options.pasDePlacement,
+    };
+    if (options.playerId) {
+      sendPlayer("Vous pouvez déplacer " + nomPerso(perso) + " de " + vitesse + " m.", options.playerId);
       setAuraRayonDistanceRestante(perso.token, restant, evt, pageId);
+    }
+    if (options.proposeDegainer) {
+      proposerDeDegainerPendantMouvement(perso);
     }
   }
 
@@ -13319,13 +13348,36 @@ var COFantasy2 = COFantasy2 || function() {
     };
     addEvent(evt);
     if (limiteRessources(perso, options, 'mouvement', 'se déplacer', evt)) return;
-    demarreMouvement(perso, vitesse, true, evt, playerId, pageId);
+    let optMvt = {
+      proposeDegainer: true,
+      playerId,
+    };
+    demarreMouvement(perso, vitesse, evt, playerId, pageId, optMvt);
   }
 
   function commandeSprinter(cmd, playerId, pageId, options, perso) {
     if (!peutController(perso)) {
       sendPlayer("pas le droit d'utiliser ce bouton", playerId);
       return;
+    }
+    let mvt;
+    if (cmd.length > 2 && cmd[2] == 'mvt') { //on transforme un mouvement en sprint
+      let combat = stateCOF.combat;
+      if (combat && combat.mouvementEnCours) mvt = combat.mouvementEnCours[perso.token.id];
+      if (!mvt) log("Impossible de trouver le mouvement à transformer en sprint");
+      else if (!mvt.ligneDroite) {
+        sendPlayer("Le mouvement n'était pas en ligne droite, ce ne peut pas être le début d'un sprint", playerId);
+        return;
+      } else if (mvt.aDegainer) {
+        sendPlayer("On ne peut pas faire de sprint quand on a dégainé pendant le mouvement", playerId);
+        return;
+      } else if (!isActiveTurnPerso(perso)) {
+        sendPlayer("Ce n'est pas le tour de " + nomPerso(perso), playerId);
+        return;
+      } else if (!typeActionPossible(perso, 'M')) {
+        sendPlayer(nomPerso(perso) + " ne peut pas utiliser d'action L pour l'instant", playerId);
+        return;
+      }
     }
     let evt = {
       type: 'Sprint'
@@ -13337,6 +13389,21 @@ var COFantasy2 = COFantasy2 || function() {
     let testId = "Sprint_" + perso.token.id;
     let vitesse = vitessePerso(perso);
     let vitesseTotale = vitesse * 3;
+    if (mvt) { //On étend un mouvement en sprint
+      let combat = stateCOF.combat;
+      evt.combat = evt.combat || deepCopy(combat);
+      mvt.restant += metresToPixels(vitesse * 2, pageId);
+      mvt.ligneDroite = 'oblige';
+      if (combat.actionsMouvement) {
+        combat.actionsMouvement--;
+        combat.actionLimitee = true;
+      } else if (combat.actionsAttaque) {
+        combat.actionsAttaque--;
+        combat.actionLimitee = true;
+      } else {
+        combat.actionsMouvement++;
+      }
+    }
     let titre = "Jet d'AGI pour courir plus vite";
     let display = startFramedDisplay(playerId, titre, perso);
     let optTest = {
@@ -13349,8 +13416,12 @@ var COFantasy2 = COFantasy2 || function() {
           addLineToFramedDisplay(display, m, 80);
         });
         if (tr.reussite) {
-          let msgReussite = "C'est réussi, " + nomPerso + " peut se déplacer de " + vitesse + " m de plus.";
-          vitesseTotale += vitesse;
+          let msgReussite = "C'est réussi, " + nomPerso(perso) + " peut se déplacer de " + vitesse + " m de plus.";
+          if (mvt) {
+            mvt.restant += metresToPixels(vitesse, pageId);
+          } else {
+            vitesseTotale += vitesse;
+          }
           if (tr.reussiteAvecComplications) msgReussite += " Mais...";
           addLineToFramedDisplay(display, msgReussite + tr.modifiers);
         } else {
@@ -13364,7 +13435,13 @@ var COFantasy2 = COFantasy2 || function() {
           message: messageEffetTemp.sprint,
         };
         setEffetTemporaire(perso, ef, 1, evt);
-        demarreMouvement(perso, vitesseTotale, false, evt, playerId, pageId);
+        if (!mvt) {
+          let optMvt = {
+            ligneDroite: true,
+            playerId,
+          };
+          demarreMouvement(perso, vitesseTotale, evt, playerId, pageId, optMvt);
+        }
       });
   }
 
@@ -13702,7 +13779,13 @@ var COFantasy2 = COFantasy2 || function() {
     if (apiMsg && apiMsg.who) {
       playerId = playerId || getPlayerIdFromMsg();
       if (playerId == 'API' || playerIsGM(playerId)) dest = 'GM';
-      else dest = apiMsg.who;
+      else {
+        dest = apiMsg.who;
+        if (!dest) {
+          let player = getObj('player', playerId);
+          if (player) dest = player.get('displayname');
+        }
+      }
     }
     if (dest.includes('"')) {
       sendChat('COF', msg);
@@ -15928,6 +16011,7 @@ var COFantasy2 = COFantasy2 || function() {
     return oldSide;
   }
 
+  //TODO: changer whisper en secret pour envoyer au joueur.
   //Fin d'effet à durée indéterminée, connaissant le perso affecté
   // arguments d'options:
   // - messages pour y écrire les messages
@@ -16606,7 +16690,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (target.messages) {
         target.messages.push(nomPerso(target) + " ne peut pas être affecté par l'effet de " + ef.effet);
       } else {
-          sendPerso(target, "ne peut pas être affecté par l'effet de " + ef.effet, ef.whisper);
+        sendPerso(target, "ne peut pas être affecté par l'effet de " + ef.effet, ef.whisper);
       }
       return;
     }
@@ -16614,7 +16698,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (target.messages) {
         target.messages.push(nomPerso(target) + " ne peut pas saigner");
       } else {
-          sendPerso(target, "ne peut pas saigner", ef.whisper);
+        sendPerso(target, "ne peut pas saigner", ef.whisper);
       }
       return;
     }
@@ -17093,13 +17177,6 @@ var COFantasy2 = COFantasy2 || function() {
     };
     addEvent(evt);
     let lanceur = options.acteur;
-    let whisper = '';
-    if (options.secret && playerId) {
-      let player = getObj('player', playerId);
-      if (player !== undefined) {
-        whisper = '/w "' + player.get('displayname') + '" ';
-      }
-    }
     let mEffet = messageEffetCombat[effet];
     let extraImg = afficheOptionImage(options);
     if (activer) {
@@ -17116,7 +17193,8 @@ var COFantasy2 = COFantasy2 || function() {
         }
         let actMsg = messageActivation(perso, mEffet, effet) + extraImg;
         let effetAttr = setTokenAttr(perso, effet, true, evt, {
-          msg: whisper + actMsg
+          msg: actMsg,
+          secret: options.secret
         });
         if (options.acteur && options.mana !== undefined && mEffet.prejudiciable) {
           addEffetTemporaireLie(options.acteur, effetAttr, evt);
@@ -17149,7 +17227,8 @@ var COFantasy2 = COFantasy2 || function() {
       cibles.forEach(function(perso) {
         let actMsg = messageFin(perso, mEffet, effet) + extraImg;
         removeTokenAttr(perso, effet, evt, {
-          msg: whisper + actMsg
+          msg: actMsg,
+          secret: options.secret
         });
         removeTokenAttr(perso, effet + 'Valeur', evt);
         removeTokenAttr(perso, effet + 'Options', evt);
@@ -17203,13 +17282,6 @@ var COFantasy2 = COFantasy2 || function() {
     };
     addEvent(evt);
     let lanceur = options.acteur;
-    let whisper = '';
-    if (options.secret && playerId) {
-      let player = getObj('player', playerId);
-      if (player !== undefined) {
-        whisper = '/w "' + player.get('displayname') + '" ';
-      }
-    }
     let mEffet = messageEffetIndetermine[effet];
     if (activer) {
       if (limiteRessources(lanceur, options, effet, effet, evt)) {
@@ -17244,7 +17316,7 @@ var COFantasy2 = COFantasy2 || function() {
           }
           if (options.messages) {
             options.messages.forEach(function(m) {
-              sendChat('', whisper + m);
+              sendPlayer(m, playerId);
             });
           }
           if (options.messagesMJ) {
@@ -17280,6 +17352,13 @@ var COFantasy2 = COFantasy2 || function() {
         }
       });
     } else {
+      let whisper = '';
+      if (options.secret && playerId) {
+        let player = getObj('player', playerId);
+        if (player !== undefined) {
+          whisper = '/w "' + player.get('displayname') + '" ';
+        }
+      }
       options.whisper = whisper;
       cibles.forEach(function(perso) {
         finDEffetIndetermine(perso, effet, mEffet, pageId, evt, options);
@@ -18207,13 +18286,44 @@ var COFantasy2 = COFantasy2 || function() {
       murs = {...mursTotal.mursSeuls
       };
     } else {
+      //Il faut toujours collecter les murs legacy dans les parties Jumpgate, au cas où on importe des pages de legacy.
+      let mursLegacy = findObjs({
+        _type: 'path',
+        _pageid: pageId,
+        layer: 'walls'
+      });
+      murs = mursLegacy.map(function(path) {
+        let pa = path.get('_path');
+        if (!pa) return [];
+        try {
+          let chemin = JSON.parse(pa);
+          if (chemin.length < 2) return [];
+          if (chemin[1][0] != 'L') return [];
+          let p = {
+            angle: path.get('rotation') / 180 * Math.PI,
+            width: path.get('width'),
+            height: path.get('height'),
+            left: path.get('left'),
+            top: path.get('top'),
+            scaleX: path.get('scaleX'),
+            scaleY: path.get('scaleY'),
+          };
+          chemin = chemin.map(function(v) {
+            return translatePathCoordinates(v[1], v[2], p);
+          });
+          return chemin;
+        } catch (err) {
+          error("Erreur, chemin mal formé dans le calque d'éclairage dynamique (Legacy)", path);
+          log(err.name + ": " + err.message);
+        }
+      });
       if (jumpgate) {
-        murs = findObjs({
+        let mursJumpgate = findObjs({
           _type: 'pathv2',
           _pageid: pageId,
           layer: 'walls'
         });
-        murs = murs.map(function(path) {
+        mursJumpgate.forEach(function(path) {
           let x = parseFloat(path.get('x'));
           let y = parseFloat(path.get('y'));
           let angle = parseFloat(path.get('rotation'));
@@ -18239,10 +18349,11 @@ var COFantasy2 = COFantasy2 || function() {
                 chemin = chemin.map(function(v) {
                   return translatePath2Coordinates(v[0], v[1], p);
                 });
-                return chemin;
+                murs.push(chemin);
+                return;
               case 'rec':
                 {
-                  if (chemin.length < 2) return [];
+                  if (chemin.length < 2) return;
                   let p1 = {
                     x: chemin[0][0],
                     y: chemin[0][1],
@@ -18261,12 +18372,13 @@ var COFantasy2 = COFantasy2 || function() {
                   chemin = chemin.map(function(v) {
                     return translatePath2Coordinates(v.x, v.y, p);
                   });
-                  return chemin;
+                  murs.push(chemin);
+                  return;
                 }
               case 'eli':
                 //Pour l'instant, on approxime par un octogone
                 {
-                  if (chemin.length < 2) return [];
+                  if (chemin.length < 2) return;
                   let x1 = chemin[0][0];
                   let y1 = chemin[0][1];
                   let x2 = chemin[1][0];
@@ -18323,46 +18435,16 @@ var COFantasy2 = COFantasy2 || function() {
                   chemin = chemin.map(function(v) {
                     return translatePath2Coordinates(v.x, v.y, p);
                   });
-                  return chemin;
+                  murs.push(chemin);
+                  return;
                 }
               default: //free n'est pas possible sur le layer wall
-                return [];
+                return;
             }
           } catch (err) {
             error("Erreur, chemin mal formé dans le calque d'éclairage dynamique (Jumpgate)", path);
             log(err.name + ": " + err.message);
-            return [];
-          }
-        });
-      } else {
-        murs = findObjs({
-          _type: 'path',
-          _pageid: pageId,
-          layer: 'walls'
-        });
-        murs = murs.map(function(path) {
-          let pa = path.get('_path');
-          if (!pa) return [];
-          try {
-            let chemin = JSON.parse(pa);
-            if (chemin.length < 2) return [];
-            if (chemin[1][0] != 'L') return [];
-            let p = {
-              angle: path.get('rotation') / 180 * Math.PI,
-              width: path.get('width'),
-              height: path.get('height'),
-              left: path.get('left'),
-              top: path.get('top'),
-              scaleX: path.get('scaleX'),
-              scaleY: path.get('scaleY'),
-            };
-            chemin = chemin.map(function(v) {
-              return translatePathCoordinates(v[1], v[2], p);
-            });
-            return chemin;
-          } catch (err) {
-            error("Erreur, chemin mal formé dans le calque d'éclairage dynamique (Legacy)", path);
-            log(err.name + ": " + err.message);
+            return;
           }
         });
       }
@@ -22156,21 +22238,20 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function setActiveToken(combat, tokenId, evt) {
-    let pageId, activeTokenId;
-    if (combat) {
-      pageId = combat.pageId;
-      activeTokenId = combat.activeTokenId;
-    } else {
+    if (!combat) {
       combat = stateCOF.combat;
+      if (!combat) return;
     }
+    let activeTokenId = combat.activeTokenId;
     if (activeTokenId) {
-      if (tokenId == activeTokenId) return;
+      if (tokenId == activeTokenId) return; //on garde le même token actif, rien à faire
       if (!evt.combat) evt.combat = deepCopy(combat);
       let perso = persoOfId(activeTokenId);
       if (perso) finDeplacementControle(perso, evt);
       removeActiveStatus();
     }
     if (tokenId) {
+      //On sait qu'on a nouveau perso actif, c'est testé au-dessus
       let perso = persoOfId(tokenId, tokenId);
       if (perso) {
         if (stateCOF.options.affichage.val.init_dynamique.val) {
@@ -22179,19 +22260,27 @@ var COFantasy2 = COFantasy2 || function() {
         }
         //On remet à 0 la liste des cibles attaquées par le personnage
         removeDernieresCiblesAttaquees(perso, evt);
-        if (combat.activeTokenId != tokenId) {
-          //nouveau personnage actif, on remet les compteurs d'action à 0
-          let actions = {
-            actionLimitee: false,
-            actionsAttaque: 0,
-            actionsMouvement: 0,
+        //on remet les compteurs d'action à 0
+        let actions = {
+          actionLimitee: false,
+          actionsAttaque: 0,
+          actionsMouvement: 0,
+        };
+        if (combat.tourRetarde) {
+          actions = combat.tourRetarde[tokenId] || actions;
+        }
+        combat.actionLimitee = actions.actionLimitee;
+        combat.actionsAttaque = actions.actionsAttaque;
+        combat.actionsMouvement = actions.actionsMouvement;
+        //Si le personnage peut se déplacer, on le met en déplacement contrôlé.
+        if (estControlleParJoueur(perso.charId, {
+            saufMJ: true,
+            online: true
+          })) {
+          let optMvt = {
+            pasDePlacement: metresToPixels(1, combat.pageId)
           };
-          if (combat.tourRetarde) {
-            actions = combat.tourRetarde[tokenId] || actions;
-          }
-          combat.actionLimitee = actions.actionLimitee;
-          combat.actionsAttaque = actions.actionsAttaque;
-          combat.actionsMouvement = actions.actionsMouvement;
+          demarreMouvement(perso, vitessePerso(perso), evt, combat.pageId, optMvt);
         }
         combat.activeTokenId = tokenId;
         combat.activeTokenName = perso.token.get('name');
@@ -29809,6 +29898,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (!mouvementEnCours) return;
     let mvt = mouvementEnCours[perso.token.id];
     if (!mvt) return;
+    let pasDePlacement = mvt.pasDePlacement || 0;
     deleteMouvementEnCours(mvt);
     delete mouvementEnCours[perso.token.id];
     setToken(perso.token, 'aura1_radius', '', evt);
@@ -29816,7 +29906,14 @@ var COFantasy2 = COFantasy2 || function() {
         saufMJ: true,
         online: true
       })) {
-      lockToken(perso, evt);
+      if (isActiveTurnPerso(perso) && typeActionPossible(perso, 'M')) {
+        let optMvt = {
+          pasDePlacement
+        };
+        demarreMouvement(perso, vitessePerso(perso), evt, combat.pageId, optMvt);
+      } else {
+        lockToken(perso, evt);
+      }
     }
   }
 
@@ -29888,9 +29985,59 @@ var COFantasy2 = COFantasy2 || function() {
       x,
       y
     }; //La nouvelle position
-    //On vérifie si la distance est ok
+    //On vérifie qu'il n'y a pas de mur sur le trajet
     let d = distancePoints(pt1, pt2);
-    if (d > mvt.restant) {
+    let page = getObj('page', pageId);
+    let murs = getWalls(page, pageId);
+    let chemin = obstaclePresent(x, y, pt1, murs);
+    while (chemin) {
+      d = arreterAvantObstacle(pt1, pt2, d, chemin, murs);
+      x = pt2.x;
+      y = pt2.y;
+      token.set({
+        left: x,
+        top: y
+      });
+      chemin = obstaclePresent(x, y, pt1, murs);
+    }
+    if (mvt.pasDePlacement !== undefined) {
+      if (isActiveTurnPerso(perso)) {
+        //On commence un mouvement sans passer par la commande
+        if (d < mvt.pasDePlacement * 2 || !typeActionPossible(perso, 'M')) {
+          //Possible qu'on veuille juste faire un pas de placement
+          sendPerso(perso, "fait un petit mouvement sans dépenser d'action de mouvement.", true);
+          if (d > mvt.pasDePlacement) {
+            let f = mvt.pasDePlacement / d;
+            x = pt1.x + (x - pt1.x) * f;
+            y = pt1.y + (y - pt1.y) * f;
+            token.set({
+              left: x,
+              top: y
+            });
+            mvt.pasDePlacement = 0;
+            if (!typeActionPossible(perso, 'M') && estControlleParJoueur(perso.charId, {
+                saufMJ: true,
+                online: true
+              })) {
+              lockToken(perso, evt);
+            }
+          } else {
+            mvt.pasDePlacement -= d;
+          }
+          return;
+        }
+        //Vrai mouvement et action de mouvement possible
+        delete mvt.pasDePlacement;
+        depenseAction('M', combat, evt);
+        sendPerso(perso, "se déplace, action de mouvement dépensée.", true);
+        proposerDeDegainerPendantMouvement(perso);
+      } else {
+        delete mvt.pasDePlacement; //Pas de pas de placement en dehors du tour de jeu
+      }
+    }
+    //On vérifie si la distance est ok
+    let plusLoin = d > mvt.restant;
+    if (plusLoin) {
       let f = mvt.restant / d;
       x = pt1.x + (x - pt1.x) * f;
       y = pt1.y + (y - pt1.y) * f;
@@ -29901,19 +30048,28 @@ var COFantasy2 = COFantasy2 || function() {
       d = mvt.restant;
       pt2.x = x;
       pt2.y = y;
+      plusLoin = isActiveTurnPerso(perso) && typeActionPossible(perso, 'M');
     }
-    //On vérifie qu'il n'y a pas de mur sur le trajet
-    let page = getObj('page', pageId);
-    let murs = getWalls(page, pageId);
-    let chemin = obstaclePresent(x, y, pt1, murs);
-    if (chemin) {
-      d = arreterAvantObstacle(pt1, pt2, d, chemin, murs);
-      x = pt2.x;
-      y = pt2.y;
-      token.set({
-        left: x,
-        top: y
-      });
+    //On met à jour ligneDroite
+    if (mvt.ligneDroite && (pt1.x != mvt.positionDepart.x || pt1.y != mvt.positionDepart.y) && d > 0) {
+      let vec1 = vecteurUnitaire(mvt.positionDepart, pt1);
+      let vec2 = vecteurUnitaire(pt1, pt2);
+      //acos(0.99) est environ 8 degrés
+      let limite = 0.99;
+      //on impose une limite qui dépend de la distance parcourue
+      if (d < mvt.restant / 2) limite = 1 - (0.01 / (mvt.restant / d));
+      if (vec1.x * vec2.x + vec1.y * vec2.y < limite) {
+        if (mvt.ligneDroite == 'oblige') {
+          sendPerso(perso, "doit se déplacer en ligne droite", true);
+          token.set({
+            left: pt1.x,
+            top: pt1.y
+          });
+          return;
+        } else {
+          mvt.ligneDroite = false;
+        }
+      }
     }
     //TODO: vérifier qu'on ne traverse pas des zones qui ralentissent, comme la proximité d'un ennemi, ou passer à travers un allié.
     //On vérifie que le dernier mouvement ne termine pas à moitié sur un autre token
@@ -29996,16 +30152,23 @@ var COFantasy2 = COFantasy2 || function() {
     mvt.position.y = y;
     mvt.restant -= d;
     setAuraRayonDistanceRestante(perso.token, mvt.restant, evt, pageId);
-    //On propose soit d'annuler, soit de finir le mouvement
-    let rest = Math.floor((mvt.restant / PIX_PER_UNIT) * computeScale(pageId));
+    //On propose soit d'annuler, soit de finir le mouvement, soit de transformer en sprint
+    let rest = Math.floor(pixelsToMetres(mvt.restant, pageId));
     let finir = '!cof2-terminer-mvt ' + perso.token.id;
     let msg = '';
-    if (rest < 1) msg = "Mouvement terminé " + boutonSimple(finir, 'Confirmer', BS_BUTTON);
-    else {
+    if (rest < 1) {
+      msg = "Mouvement terminé " + boutonSimple(finir, 'Confirmer', BS_BUTTON);
+      if (plusLoin && mvt.ligneDroite && !mvt.aDegaine && !attributeAsBool(perso, 'sprint')) {
+        let commande = "!cof2-sprinter " + perso.token.id + " mvt"; //Pas de typeAction pour ne pas interrompre le mouvement
+        let picto = '<span style="font-family: \'Pictos\'">7</span> ';
+        let style = 'style="background-color:#272751" title="Sprinter"';
+        msg += " ou " + boutonSimple(commande, picto, style) + " pousser un sprint en ligne droite";
+      }
+    } else {
       msg = "Encore " + rest + " m." + boutonSimple(finir, 'Terminé', BS_BUTTON) + " ?";
     }
     msg += ' ' + boutonSimple('!cof2-undo-dernier-mvt ' + perso.token.id, UNDO);
-    whisperChar(perso.charId, msg, false);
+    whisperChar(perso.charId, msg);
   }
 
   function commandeUndoDernierMvt(cmd, playerId, pageId, options, perso) {
