@@ -1,4 +1,4 @@
-//Dernière modification : mar. 06 janv. 2026,  01:34
+//Dernière modification : mar. 06 janv. 2026,  02:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -857,7 +857,7 @@ var COFantasy2 = COFantasy2 || function() {
     };
     let prevAff = affectToken(token, 'statusmarkers', prev.statusmarkers, evt);
     let currentMarkers = [];
-    let markers = token.get("statusmarkers");
+    let markers = token.get('statusmarkers');
     if (markers !== '') {
       currentMarkers = markers.split(',');
     }
@@ -1652,6 +1652,7 @@ var COFantasy2 = COFantasy2 || function() {
     'degainer': degainerSiSave,
     'dmgDirects': dmgDirects,
     'jetPerso': jetPerso,
+    'Sprint': sprinterAvecRedo,
     'surprise': doSurprise,
     'saveEffet': doSaveEffet,
     'saveState': doSaveState,
@@ -2821,6 +2822,10 @@ var COFantasy2 = COFantasy2 || function() {
       if (bonus > 0) {
         defense += bonus;
       }
+    }
+    if (attributeAsBool(target, 'sprint')) {
+      defense -= 5;
+      explications.push("Sprint => -5 en DEF");
     }
     return defense;
   }
@@ -12026,7 +12031,8 @@ var COFantasy2 = COFantasy2 || function() {
     };
   }
 
-  function proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArme, cote, gratuit) {
+  //si enMouvement, alors il faut que cote === ''
+  function proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArme, cote, enMouvement) {
     let degainer = "!cof2-degainer ?{Arme?|";
     let armeADegainer;
     //Prise en compte des prédicats pour ce qu'on veut voir en premier
@@ -12132,8 +12138,9 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         degainer = degainer.substr(0, degainer.length - 1) + '}';
       }
+      if (enMouvement && cote === '') degainer += ' enMouvement';
+      else degainer += ' --montreActions --typeAction M';
       degainer += ' --select ' + perso.token.id;
-      if (!gratuit) degainer += ' --montreActions --typeAction M';
       if (ligneArme)
         ligneArme += boutonSimple(degainer, '<span style="font-family:Pictos">;</span>');
       else {
@@ -13355,34 +13362,15 @@ var COFantasy2 = COFantasy2 || function() {
     demarreMouvement(perso, vitesse, evt, playerId, pageId, optMvt);
   }
 
-  function commandeSprinter(cmd, playerId, pageId, options, perso) {
-    if (!peutController(perso)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
-    let mvt;
-    if (cmd.length > 2 && cmd[2] == 'mvt') { //on transforme un mouvement en sprint
-      let combat = stateCOF.combat;
-      if (combat && combat.mouvementEnCours) mvt = combat.mouvementEnCours[perso.token.id];
-      if (!mvt) log("Impossible de trouver le mouvement à transformer en sprint");
-      else if (!mvt.ligneDroite) {
-        sendPlayer("Le mouvement n'était pas en ligne droite, ce ne peut pas être le début d'un sprint", playerId);
-        return;
-      } else if (mvt.aDegainer) {
-        sendPlayer("On ne peut pas faire de sprint quand on a dégainé pendant le mouvement", playerId);
-        return;
-      } else if (!isActiveTurnPerso(perso)) {
-        sendPlayer("Ce n'est pas le tour de " + nomPerso(perso), playerId);
-        return;
-      } else if (!typeActionPossible(perso, 'M')) {
-        sendPlayer(nomPerso(perso) + " ne peut pas utiliser d'action L pour l'instant", playerId);
-        return;
-      }
-    }
-    let evt = {
-      type: 'Sprint'
-    };
-    addEvent(evt);
+  function sprinterAvecRedo(args) {
+    let {
+      playerId,
+      pageId,
+      perso,
+      options,
+      mvt
+    } = args;
+    const evt = evtAvecRedo('Sprint', args);
     if (limiteRessources(perso, options, 'sprint', 'sprinter', evt)) return;
     //D'abord le test d'AGI pour déterminer la distance parcourue
     let seuil = predicateAsInt(perso, 'jetSprint', 10);
@@ -13391,8 +13379,12 @@ var COFantasy2 = COFantasy2 || function() {
     let vitesseTotale = vitesse * 3;
     if (mvt) { //On étend un mouvement en sprint
       let combat = stateCOF.combat;
+      // on copie mvt pour pouvoir faire un undo
+      mvt = deepCopy(mvt);
+      combat.mouvementEnCours[perso.token.id] = mvt;
       evt.combat = evt.combat || deepCopy(combat);
       mvt.restant += metresToPixels(vitesse * 2, pageId);
+      mvt.sprint = true;
       mvt.ligneDroite = 'oblige';
       if (combat.actionsMouvement) {
         combat.actionsMouvement--;
@@ -13443,6 +13435,40 @@ var COFantasy2 = COFantasy2 || function() {
           demarreMouvement(perso, vitesseTotale, evt, playerId, pageId, optMvt);
         }
       });
+  }
+
+  function commandeSprinter(cmd, playerId, pageId, options, perso) {
+    if (!peutController(perso)) {
+      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+      return;
+    }
+    let mvt;
+    if (cmd.length > 2 && cmd[2] == 'mvt') { //on transforme un mouvement en sprint
+      let combat = stateCOF.combat;
+      if (combat && combat.mouvementEnCours) mvt = combat.mouvementEnCours[perso.token.id];
+      if (!mvt) log("Impossible de trouver le mouvement à transformer en sprint");
+      else if (!mvt.ligneDroite) {
+        sendPlayer("Le mouvement n'était pas en ligne droite, ce ne peut pas être le début d'un sprint", playerId);
+        return;
+      } else if (mvt.aDegainer) {
+        sendPlayer("On ne peut pas faire de sprint quand on a dégainé pendant le mouvement", playerId);
+        return;
+      } else if (!isActiveTurnPerso(perso)) {
+        sendPlayer("Ce n'est pas le tour de " + nomPerso(perso), playerId);
+        return;
+      } else if (!typeActionPossible(perso, 'M')) {
+        sendPlayer(nomPerso(perso) + " ne peut pas utiliser d'action L pour l'instant", playerId);
+        return;
+      }
+    }
+    let args = {
+      playerId,
+      pageId,
+      perso,
+      options,
+      mvt
+    };
+    sprinterAvecRedo(args);
   }
 
   function persoLockChanged(perso, prev) {
@@ -20492,6 +20518,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (perso) {
       if (estAffaibli(perso)) deMalus++;
       if (attributeAsBool(perso, 'malediction')) deMalus++;
+      if (attributeAsBool(perso, 'sprint')) deMalus++;
     }
     return deMalus;
   }
@@ -24065,6 +24092,7 @@ var COFantasy2 = COFantasy2 || function() {
   // options.armeGaucheLabel permet de dégainer à la fois labelArme en main principale et ce label en arme gauche. On doit pouvoir l'abuser pour dégainer d'un coté et rengainer de l'autre.
   // Ces 4 options sont mutuellement exclusives
   // options.weaponStats permet de donner les stats de l'arme. On ignore alors l'argument labelArme
+  // options.enMouvement indique qu'il faut mettre aDegaine dans le mouvement contrôlé
   //TODO: gérer aussi le fait de rengainer une torche
   function degainerArme(perso, labelArme, evt, options = {}) {
     if (options.gauche && options.seulementDroite) {
@@ -24230,6 +24258,17 @@ var COFantasy2 = COFantasy2 || function() {
     } else { //Pas d'arme en main gauche
       rengainerArmeGauche = false;
     }
+    if (options.enMouvement) {
+      //Mise à jour du mouvement
+      let combat = stateCOF.combat;
+      if (combat && combat.mouvementEnCours) {
+        let mvt = combat.mouvementEnCours[perso.token.id];
+        if (mvt) {
+          evt.combat = evt.combat || deepCopy(combat);
+          mvt.aDegaine = true;
+        }
+      }
+    }
     //Puis on dégaine
     //mais on vérifie que l'arme existe, sinon c'est juste un ordre de rengainer
     if (nouvelleArme === undefined) {
@@ -24354,6 +24393,8 @@ var COFantasy2 = COFantasy2 || function() {
     const evt = evtAvecRedo('degainer', args);
     if (options.son) playSound(options.son);
     persos.forEach(function(perso) {
+      if (limiteRessources(perso, options, 'degaine', 'dégainer', evt)) return;
+
       function afterSave() {
         let nomArme = degainerArme(perso, armeLabel, evt, options);
         if (nomArme) sendPerso(perso, "a déjà " + nomArme + " en main");
@@ -24387,6 +24428,7 @@ var COFantasy2 = COFantasy2 || function() {
   function commandeDegainer(cmd, playerId, pageId, options) {
     let armeLabel = '';
     if (cmd.length > 1) armeLabel = cmd[1];
+    let mouvementEnCours;
     if (cmd.length > 2) {
       switch (cmd[2]) {
         case 'faible':
@@ -24403,6 +24445,17 @@ var COFantasy2 = COFantasy2 || function() {
         case '2mains':
           options.deuxMains = true;
           break;
+        case 'enMouvement':
+          options.enMouvement = true;
+          let combat = stateCOF.combat;
+          if (combat) {
+            mouvementEnCours = combat.mouvementEnCours;
+            if (!mouvementEnCours) {
+              sendPlayer("Le mouvement est terminé, trop tard pour dégainer en mouvement", playerId);
+              return;
+            }
+          }
+          break;
         default:
           options.armeGaucheLabel = cmd[2];
       }
@@ -24416,6 +24469,17 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     iterSelected(selected, function(perso) {
+      if (mouvementEnCours) {
+        let mvt = mouvementEnCours[perso.token.id];
+        if (!mvt || mvt.pasDePlacement !== undefined) {
+          sendPlayer("Le mouvement de " + nomPerso(perso) + " est terminé, trop tard pour dégainer en mouvement", playerId);
+          return;
+        }
+        if (mvt.sprint) {
+          sendPlayer("On ne peut pas dégainer pendant un sprint", playerId);
+          return;
+        }
+      }
       persos.push(perso);
     });
     if (persos.length === 1) options.acteur = persos[0];
@@ -30226,12 +30290,8 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function tokenChanged(token, prev) {
-    const charId = token.get('represents');
-    if (!charId) return; //On ne réagit qu'aux tokens liés
-    let perso = {
-      token,
-      charId
-    };
+    let perso = persoOfToken(token);
+    if (!perso) return; //On ne réagit qu'aux tokens liés
     let x = token.get('left');
     let y = token.get('top');
     let deplacement = prev && (prev.left != x || prev.top != y);
