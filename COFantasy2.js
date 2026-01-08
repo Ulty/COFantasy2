@@ -1,4 +1,4 @@
-//Dernière modification : mer. 07 janv. 2026,  06:10
+//Dernière modification : jeu. 08 janv. 2026,  05:25
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -467,9 +467,11 @@ var COFantasy2 = COFantasy2 || function() {
   const CHANCE = String.fromCharCode(0x2618);
   const STATUT = 'Statut'; //String.fromCharCode(0x2BD1);
   const ACTIONS = 'A' + String.fromCharCode(0x2A67);
-  const CONSOMMABLES = String.fromCharCode(0x2615);
+  const SUIVRE = 'Suivre';
+  const TORCHE = 'Torche'; //String.fromCharCode(0x1F525);
+  const CONSOMMABLES = String.fromCharCode(0x26B1);
   const PASSER_TEMPS = String.fromCharCode(0x23F1);
-  const PREMIERS_SOINS = String.fromCharCode(0x26E8);
+  const PREMIERS_SOINS = String.fromCharCode(0x26E8); //0x26D1
 
   //Crée les macros utiles au jeu
   const gameMacros = [{
@@ -577,7 +579,7 @@ var COFantasy2 = COFantasy2 || function() {
     istokenaction: false,
     inBar: true
   }, {
-    name: 'Torche',
+    name: TORCHE,
     action: "!cof2-torche @{selected|token_id}",
     visibleto: 'all',
     istokenaction: true,
@@ -598,7 +600,7 @@ var COFantasy2 = COFantasy2 || function() {
     visibleto: '',
     istokenaction: false,
   }, {
-    name: 'Suivre',
+    name: SUIVRE,
     action: "!cof2-suivre @{selected|token_id} @{target|token_id}",
     visibleto: 'all',
     istokenaction: true
@@ -4862,7 +4864,7 @@ var COFantasy2 = COFantasy2 || function() {
           paralyse = true;
           if (!options.attaqueAssuree)
             target.messages.push("Cible paralysée => réussite critique automatique");
-        } else if (getState(target, 'mort')) {
+        } else if (getState(target, 'mort') || getState(target, 'endormi')) {
           paralyse = true;
           if (!options.attaqueAssuree)
             target.messages.push("Cible inconsciente => réussite critique automatique");
@@ -10928,6 +10930,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'familier': {
       //TODO: utiliser le paramètre de la capacité pour le nom du familier
+      //TODO: donner les bonus de familier seulement s'il est présent
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des végétaux
@@ -12157,10 +12160,10 @@ var COFantasy2 = COFantasy2 || function() {
         degainer = degainer.substr(0, degainer.length - 1) + '}';
       }
       if (enMouvement && cote === '') degainer += ' enMouvement';
-      else degainer += ' --montreActions --typeAction M';
+      else if (stateCOF.combat) degainer += ' --montreActions --typeAction M';
       degainer += ' --select ' + perso.token.id;
       if (ligneArme)
-        ligneArme += boutonSimple(degainer, '<span style="font-family:Pictos">;</span>');
+        ligneArme += boutonSimple(degainer, '<span style="font-family:Pictos">;</span>', ' title="Dégainer";');
       else {
         let b = 'Dégainer';
         if (cote) b += ' à' + cote;
@@ -12170,7 +12173,7 @@ var COFantasy2 = COFantasy2 || function() {
         ligneArme += armeADegainer.nom;
     } else {
       if (ligneArme)
-        ligneArme += boutonSimple('!cof2-degainer --montreActions --select ' + perso.token.id + " --typeAction M", '<span style="font-family:Pictos">}</span>');
+        ligneArme += boutonSimple('!cof2-degainer --montreActions --select ' + perso.token.id + " --typeAction M", '<span style="font-family:Pictos">}</span>', ' title="Rengainer";');
     }
     return ligneArme;
   }
@@ -12343,6 +12346,7 @@ var COFantasy2 = COFantasy2 || function() {
           c = "!cof2-soutenir " + perso.token.id + " @{target|Personnage à soutenir|token_id} @{target|Cible|token_id} --typeAction L";
           line = boutonSimple(c, b, BS_BUTTON + ' title="+5 att. au contact à un allié"');
           addLineToFramedDisplay(display, line);
+          addLineToFramedDisplay(display, "<b>Manoeuvre</b> (demander au MJ)");
         } else {
           //On termine la ligne de défense
           addLineToFramedDisplay(display, line);
@@ -12691,6 +12695,9 @@ var COFantasy2 = COFantasy2 || function() {
         if (!persoImmobilise(perso)) {
           if (!typeActionPossible(perso, 'A')) {
             //Il est possible que la seule action à afficher soit le mouvement
+            let command = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_BUTTON);
+            ligne += "Il est encore possible de se déplacer. " + command + '<br/>';
+            /*
             let vitesse = vitessePerso(perso);
             let picto = '<span style="font-family: \'Pictos\'">4</span> ';
             let style = 'style="background-color:#272751"';
@@ -12704,7 +12711,11 @@ var COFantasy2 = COFantasy2 || function() {
               ligne += " (" + boutonSimple(commande, picto, style) + " L) ";
             }
             ligne += "<br/>";
+            */
           }
+        } else if (!typeActionPossible(perso, 'A')) {
+          let command = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_BUTTON);
+          ligne += command + ' ? <br/>';
         }
       }
       if (typeActionPossible(perso, 'A')) {
@@ -24385,7 +24396,7 @@ var COFantasy2 = COFantasy2 || function() {
           return;
         }
         let m = "rengaine " + ancienneArme.name;
-        if (nouvelleArme && stateCOF.combat) {
+        if (nouvelleArme && stateCOF.combat && ancienneArme.label) {
           //Alors on lache l'ancienne arme, plutôt que de la rengainer.
           m = "lache " + ancienneArme.nom;
           lacherArme(perso, ancienneArme, evt);
