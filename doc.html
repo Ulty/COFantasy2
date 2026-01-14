@@ -326,14 +326,16 @@ tr {line-height: 25px;}
                 Toutes les options sans arguments peuvent être directement utilisées comme modificateurs dans le liste des modifcateurs d'une attaque. À noter que cette commande n'utilise pas les options de sélection ordinaires des autres commandes.
                 <ul>
                   <li><code>--nom <i>txt</i></code> : nom de l'attaque à afficher. Remplace le nom dans la ligne d'attaque si on a donné un label en argument. Le nom ne doit pas comporte de blanc suivi de 2 tirets (<code> --</code>).</li>
-                  <li><code>--toucher <i>n</i></code> : bonus de base de l'attaque. Remplace les valeurs dans la ligne d'attaque si on a donné un label en argument. Pour référence, sur les fiches de PJ, l'attaque au contact est <code>[[@{selected|ATKCAC}]]</code>, l'attaque à distance <code>[[@{selected|ATKTIR}]]</code>, et l'attaque magique <code>[[@{selected|ATKMAG}]]</code>.</li>
+                  <li><code>--toucher <i>n</i></code> : bonus de base de l'attaque. Remplace les valeurs dans la ligne d'attaque si on a donné un label en argument. Pour référence, sur les fiches de PJ, l'attaque au contact est <code>@{selected|atkcac}</code>, l'attaque à distance <code>@{selected|atktir}</code>, et l'attaque magique <code>@{selected|atkmag}</code>.</li>
                   <li><code>--crit <i>n</i></code> : valeur à partir de laquelle le jet de dé est un critique. Remplace les valeurs dans la ligne d'attaque si on a donné un label en argument.</li>
                   <li><code>--dm <i>expr</i></code> : Dégâts de base de l'attaque. Remplace les valeurs dans la ligne d'attaque si on a donné un label en argument. <i>expr</i> peut être un entier ou bien une expression du type <code><i>a</i>d<i>b</i>+<i>c</i></code>. La partie constante de cette expression est optionnelle et peut être négative.</li>
                   <li><code>--portee <i>n</i></code> : la portée de l'attaque exprimée en mètres. Remplace les valeurs dans la ligne d'attaque si on a donné un label en argument.</li>
                   <li><code>--special <i>txt</i></code> : remplace le champ spécial de l'attaque sur la fiche.</li>
                   <li><code>--tempDmg</code> : l'attaque fait des dégâts temporaires (tient compte de la force de l'adversaire, utilise la barre 2 pour les dmg temp, sauf si le token a des PM, auquel cas on utilisera un attribut temporaire).</li>
                   <li><code>--pasDeDmg</code> : l'attaque ne fait pas de DM.</li>
+                  <li><code>--attaqueContactOpposee</code> : la difficulté du jet d'attaque est un jet d'attaque au contact de la cible.</li>
                   <li><code>--attaqueMagiqueOpposee</code> : la difficulté du jet d'attaque est un jet d'attaque magique de la cible.</li>
+                  <li><code>--manoeuvre <i>nom</i></code> : l'attaque est une man&oelig;uvre de nom <i>nom</i>. En soit, affecte juste le rendement décroissant. Les autres effets doivent être spécifiés en option.</li>
                   <li><code>--poudre</code> : l'arme est une arme à poudre, utilisation d'un dé de poudre. Une arme est aussi considérée comme une arme à poudre si elle contient <code>poudre</code> dans le nom de l'arme ou dans le champ modifcateur ou de prédicats.</li>
                   <li><code>--epieu</code> : l'arme est un épieu. À noter que l'arme est aussi considérée comme un épieu si elle contient <code>épieu</code> dans son nom ou <code>epieu</code> dans son champs modificateurs ou prédicats. Cette option augmente de 1 le nombre de dés contre un adversaire sans armure.</li>
                   <li><code>--hache</code> : l'arme est une hache. À noter que l'arme est aussi considérée comme une hache si elle contient <code>hache</code> dans son nom ou dans son champs modificateurs ou prédicats. Cette option permet de passer la RD/hache (pour les sylvaniens, par exemple).</li>
@@ -1012,14 +1014,14 @@ tr {line-height: 25px;}
                   <li><strong>Attaque sonore</strong> :
                     <ul>
                       <li>Sort : Ajouter une attaque sur la fiche utilisant l'attaque magique, DM 1d6+CHA, de portée 10, type Sortilège, dégâts soniques, options <code>--mana 0 --cone --fx breath-smoke</code>.</li>
-                      <li>Objet de sort : <code>#Attaque Attaque sonore --toucher [[@{selected|ATKMAG}]] --dm 1d6+[[@{selected|CHA}]] --portee 10 --sortilege --sonique --cone --fx breath-smoke</code></li>
+                      <li>Objet de sort : <code>#Attaque Attaque sonore --toucher @{selected|atkmag} --dm 1d6+[[@{selected|CHA}]] --portee 10 --sortilege --sonique --cone --fx breath-smoke</code></li>
                     </ul>
                   </li>
                   <li><strong>Zone de silence</strong> : <code>!cof-effet-temp zoneDeSilence [[1d6+@{selected|CHA}]] --lanceur @{selected|token_id} --portee 35 --disque @{target|token_id} 3 --mana 1</code>. Le script ne gère pas le moment où les cibles sortent de la zone. Si cela arrive, le MJ doit enlever à la main l'attribut <code>zoneDeSilence</code> créé par le script pour le personnage concerné.</li>
                   <li><strong>Danse irrésisitible</strong> :
                     <ul>
                       <li>Sort : Ajouter une attaque sur la fiche utilisant l'attaque magique, portée 20, type Sortilège, modificateur <code>pasDeDmg</code>, options <code>--mana 2 --effet danseIrresistible [[1d4+@{selected|CHA]]</code>.</li>
-                      <li>Objet de sort : <code>#Attaque Danse irrésisitible --toucher [[@{selected|ATKMAG}]] --pasDeDmg --portee 20 --sortilege --effet danseIrresistible [[1d4+@{selected|CHA]]</code></li>
+                      <li>Objet de sort : <code>#Attaque Danse irrésisitible --toucher @{selected|atkmag} --pasDeDmg --portee 20 --sortilege --effet danseIrresistible [[1d4+@{selected|CHA]]</code></li>
                     </ul>
                   </li>
                   <li><strong>Musique fascinante</strong> : <code>!cof-lancer-sort joue une musique fascinante qui contrôle toutes les créatures de son choix de moins de [[5+@{selected|CHA}]] PV --mana 3</code></li>
@@ -1040,7 +1042,7 @@ tr {line-height: 25px;}
                   <li><strong>Suggestion</strong> :
                     <ul>
                       <li>Sort : Ajouter une attaque sur la fiche utilisant l'attaque magique, portée 20, type Sortilège, modificateurs <code>pasDeDmg</code>, options <code>--mana 2 --difficultePVmax --attaqueMentale --if touche --message la cible doit faire l'action suggérée --endif</code>.</li>
-                      <li>Objet de sort : <code>#Attaque Suggestion --toucher [[@{selected|ATKMAG}]] --portee 20 --pasDeDmg --difficultePVmax --sortilege --attaqueMentale --if touche --message la cible doit faire l'action suggérée --endif</code></li>
+                      <li>Objet de sort : <code>#Attaque Suggestion --toucher @{selected|atkmag} --portee 20 --pasDeDmg --difficultePVmax --sortilege --attaqueMentale --if touche --message la cible doit faire l'action suggérée --endif</code></li>
                     </ul>
                   </li>
                   <li><strong>Charisme héroïque</strong> : Reporter le bonus sur la fiche.</li>
@@ -1122,7 +1124,7 @@ tr {line-height: 25px;}
                   <li><strong>Nuée d'insectes</strong> : Pas de support particulier pour les DM de zone qui détruisent la nuée (enlever l'attribut <code>nueeDInsecte</code> sur la cible dans ce cas).
                     <ul>
                       <li>Sort : Ajouter une attaque sur la fiche utilisant l'attaque magique, portée 20, type Sortilège, modificateur <code>pasDeDmg</code>, options <code>--mana 0 --effet nueeDInsectes [[5+@{selected|SAG}]]</code>.</li>
-                      <li>Objet de sort : <code>#Attaque Nuée d'insectes --toucher [[@{selected|ATKMAG}]] --pasDeDmg --portee 20 --sortilege --effet nueeDInsectes [[5+@{selected|SAG}]]</code></li>
+                      <li>Objet de sort : <code>#Attaque Nuée d'insectes --toucher @{selected|atkmag} --pasDeDmg --portee 20 --sortilege --effet nueeDInsectes [[5+@{selected|SAG}]]</code></li>
                     </ul>
                   </li>
                   <li><strong>Le guetteur</strong> : Si elle n'est pas déjà présente dans votre handout de compétences, ajouter au druide une compétence <code>perception</code> (valeur 0 pour le moment). Créer un personnage et un token pour l'oiseau. Ajouter au druide un <a href=#predicats>prédicat</a> <code>guetteur</code> de valeur le nom exact de l'oiseau (sur la fiche, attention à utiliser la symtaxe avec <code>::</code> si le nom comporte des espaces). Ajouter de même un <a href=#predicats>prédicat</a> <code>PVPartagesAvec</code> de valeur le nom de l'oiseau. Ajouter aussi à l'oiseau un <a href=#predicats>prédicat</a> <code>PVPartagesAvec</code> de valeur le nom du druide. Pour le faire agir en même temps que le druide, ajoutez aussi à l'oiseau un prédicat <code>initiativeDeriveeDe</code> de valeur le nom du druide. Pour l'attaque, ajouter sur la fiche une attaque de contact faisant 1d4 DM, avec dans les options <code>--attaqueMagiqueDe <i>nom de personnage du druide</i></code>. Si vous souhaitez que le guetteur rentre en combat en même temps que le druide, ajoutez au druide un prédicat nommé <code>entrerEnCombatAvec</code>, de valeur le nom du token de l'oiseau.</li>
@@ -1384,7 +1386,7 @@ tr {line-height: 25px;}
                     <ul>
                       <li><code>!cof-effet-temp mutationOffensive [[5+@{selected|CHA}]] --mana 0</code> pour lancer le sort</li>
                       <li>Ajouter une attaque sur la fiche utilisant l'attaque au contact, dommages 1d6+FOR+3, type Naturel, dégâts magiques, options <code>--si etat mutationOffensive</code></li>
-                      <li>Pour un objet de sort, vous pouvez utiliser une action avec le code <code>#Attaque Mutation offensive --toucher [[@{selected|ATKCAC}]] --dm 1d6+[[3+@{selected|FOR}]] --magique --naturel --si etat mutationOffensive</code></li>
+                      <li>Pour un objet de sort, vous pouvez utiliser une action avec le code <code>#Attaque Mutation offensive --toucher @{selected|atkcac} --dm 1d6+[[3+@{selected|FOR}]] --magique --naturel --si etat mutationOffensive</code></li>
                     </ul>
                   </li>
                   <li><strong>Mutation protectrice</strong> : <code>!cof-effet ?{Mutation protectrice|Cuirasse,mutationCuirasse|Écailles rouges,mutationEcaillesRouges|Fourrure violette,mutationFourrureViolette|Ouïes,mutationOuies|Sang noir,mutationSangNoir} true --classeEffet mutationProtectrice --mana 0</code>. Pour la valeur de protection de la cuirasse, vous pouvez soit utiliser un <a href=#predicats>prédicat</a> <code>voieDesMutations</code>, de valeur le rang dans la voie, soit remplacer <code>mutationCuirasse</code> par <code>mutationCuirasse --valeur <i>rang</i></code>. Pour enlever la mutation, le MJ peut ensuite simplement sélectionner le personnage et utiliser <code>!cof-fin-classe-effet mutationProtectrice</code>.</li>
