@@ -343,6 +343,7 @@ tr {line-height: 25px;}
                   <li><code>--arcCourt</code> : l'arme est un arc court. À noter que l'arme est aussi considérée comme un marteau si elle contient <code>arc court</code> dans son nom.</li>
                   <li><code>--auto</code> : l'attaque réussit automatiquement</li>
                   <li><code>--bonusAttaque <i>n</i></code> : ajoute <i>n</i> au jet d'attaque</li>
+                  <li><code>--bonusCategorieDeTaille </code> : ajoute +5 au jet d'attaque par différence de catgéroie de taille entre l'attaquant et sa cible. Le bonus est négatif si la cible et plus grande que l'attaquant.</li>
                   <li><code>--bonusCritique <i>n</i></code> : augmente <i>n</i> à la plage de coups critiques</li>
                   <li><code>--modifiePortee <i>n</i></code> : ajoute <i>n</i> à la portée de l'attaque.</li>
                   <li><code>--divisePortee <i>n</i></code> : divise la portée de base par <i>n</i>. C'est appliqué avant toute modification de portée.</li>
@@ -459,6 +460,7 @@ tr {line-height: 25px;}
                   <li><code>--imgAttackSucces <i>img</i></code> : Affiche dans le chat l'image (.jpg/.png/.gif) <i>img</i> lorque l'arme fait un succès</li>
                   <li><code>--terrainDifficile <i>duree</i></code> : si l'attaque affecte une zone en forme de disque, cette zone sera considérée comme du terrain difficile pendant <i>duree</i> tours. En deuxième argument, on peut mettre le nom de la zone, et en troisième argument une image à afficher sur la carte.</li>
                   <li><code>--deplaceDe <i>dmax</i></code> : l'attaquant se déplacer de <i>dmax</i> mètres maximum pour arriver à portée de sa cible. Le déplacement (et l'attaque) n'a lieu que si il existe une position libre, sans aucun token sur le trajet. On peut spécifier une distance minimum avec <code>--deplaceDe <i>min</i> <i>max</i></code>. On peut aussi ajouter le mot-clé <code>saut</code> pour ignorer les tokens sur le trajet.</li>
+                  <li><code>--repousseCible <i>d</i></code> : l'attaque fait reculer la cible de <i>d</i> mètres. Un bouton propose de déplacer la cible, et l'attaquant suit automatiquement. Si la cible ne peut pas se déplacer de toute la distance, elle subit un malus en DEF égal à la distance restante.</li>
                   <li><code>--suceLeSang <i>valOpt</i></code>; garde le compte des DM jusqu'à atteindre <i>valOpt</i> (7 par défaut).</li>
                 </ul>
               </div>
