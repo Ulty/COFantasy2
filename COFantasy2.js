@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 15 janv. 2026,  06:17
+//Dernière modification : dim. 18 janv. 2026,  10:02
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2872,6 +2872,10 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push("Acculé => -" + accule + " en DEF");
       defense -= accule;
     }
+    if (compagnonEnVue(target, 'familierMage')) {
+      explications.push("Familier en vue => +2 en DEF");
+      defense += 2;
+    }
     return defense;
   }
 
@@ -4098,66 +4102,6 @@ var COFantasy2 = COFantasy2 || function() {
         error("Condition non reconnue", cond);
     }
     return false;
-  }
-
-  //On enlève les doublons de cibles qui partagent leurs PVs;
-  function enleveDoublonsPartagePV(cibles) {
-    let ciblesAvecPVsPartages = new Set();
-    //va aussi peupler le champ name des cibles
-    cibles = cibles.filter(function(target, index) {
-      if (target.name === undefined) {
-        let targetChar = getObj('character', target.charId);
-        if (targetChar === undefined) return false;
-        target.name = targetChar.get('name');
-      }
-      if (ciblesAvecPVsPartages.has(target.name)) return false;
-      let ciblePartagee = predicatesNamed(target, 'PVPartagesAvec');
-      if (ciblePartagee.length > 0) {
-        if (predicateAsBool(target, 'familier') || predicateAsBool(target, 'guetteur')) {
-          //c'est le personnage qui a un familier, on le garde en cible prioritaire
-          ciblePartagee.forEach(function(cp) {
-            ciblesAvecPVsPartages.add(cp);
-          });
-        } else if (persoEstPNJ(target)) {
-          //cible la moins prioritaire, on l'enlève si on trouve un autre représentant
-          let representantPresent = cibles.find(function(target2, index2) {
-            if (index2 <= index) return false; //déjà traité
-            if (target2.name === undefined) {
-              let target2Char = getObj('character', target2.charId);
-              if (target2Char === undefined) return false;
-              target2.name = target2Char.get('name');
-            }
-            return ciblePartagee.find(function(cp) {
-              return cp == target2.name;
-            });
-          });
-          if (representantPresent) return false;
-        } else {
-          //N'a pas de familier mais n'est pas un PNJ
-          //On cherche si il existe un autre perso plus prioritaire.
-          let representantFamilier = cibles.find(function(target2, index2) {
-            if (index2 < index) return false; //déjà traité
-            if (target2.name === undefined) {
-              let target2Char = getObj('character', target2.charId);
-              if (target2Char === undefined) return false;
-              target2.name = target2Char.get('name');
-            }
-            let estPartagee = ciblePartagee.find(function(cn) {
-              return cn == target2.name;
-            });
-            if (!estPartagee) return false;
-            return predicateAsBool(target2, 'familier') ||
-              predicateAsBool(target2, 'guetteur');
-          });
-          if (representantFamilier) return false;
-          ciblePartagee.forEach(function(cp) {
-            ciblesAvecPVsPartages.add(cp);
-          });
-        }
-      }
-      return true;
-    });
-    return cibles;
   }
 
   //On copie les champs de scope dans options ou dans target
@@ -8532,7 +8476,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (pc.y > height) pc.y = height;
           murs = getWalls(page, pageId, murs);
           if (murs) {
-            if (obstaclePresent(left, top, pc, murs)) {
+            if (obstaclePresentCoord(left, top, pc.x, pc.y, murs)) {
               angle = Math.random() * 2 * Math.PI;
               distance = metresToPixels(Math.random() * 1, pageId) / 2;
               pc.x = Math.round(left + Math.cos(angle) * distance);
@@ -8541,7 +8485,7 @@ var COFantasy2 = COFantasy2 || function() {
               if (pc.y < 0) pc.y = 0;
               if (pc.x > width) pc.y = width;
               if (pc.y > height) pc.y = height;
-              if (obstaclePresent(left, top, pc, murs)) {
+              if (obstaclePresentCoord(left, top, pc.x, pc.y, murs)) {
                 pc.x = left;
                 pc.y = top;
               }
@@ -8685,7 +8629,7 @@ var COFantasy2 = COFantasy2 || function() {
               let objChar = getObj('character', objCharId);
               if (objChar === undefined) return;
               if (murs) {
-                if (obstaclePresent(obj.get('left'), obj.get('top'), ptt, murs)) return;
+                if (obstaclePresentPoint(pointOfToken(obj), ptt, murs)) return;
               }
               if (options.aoe.souffleDeMort) {
                 if (!options.aoe.souffleDeMort.allies.has(objCharId)) return;
@@ -8744,7 +8688,7 @@ var COFantasy2 = COFantasy2 || function() {
               let objChar = getObj('character', objCharId);
               if (objChar === undefined) return;
               if (murs) {
-                if (obstaclePresent(pt.x, pt.y, pta, murs)) return;
+                if (obstaclePresentPoint(pt, pta, murs)) return;
               }
               cible.name = objChar.get('name');
               cible.tokName = obj.get('name');
@@ -8988,8 +8932,6 @@ var COFantasy2 = COFantasy2 || function() {
       }
       return;
     }
-    //On enlève les doublons de cibles qui partagent leurs PVs;
-    cibles = enleveDoublonsPartagePV(cibles);
     //On vérifie si le déplacement est possible
     if (options.deplaceDe && cibles.length == 1) {
       let target = cibles[0];
@@ -9172,7 +9114,6 @@ var COFantasy2 = COFantasy2 || function() {
     iterSelected(selected, function(perso) {
       cibles.push(perso);
     });
-    cibles = enleveDoublonsPartagePV(cibles);
     if (options.return) return;
     let dmgRollExpr = cmd.slice(1).join(' ');
     let dmgType = options.type || 'normal';
@@ -11088,8 +11029,23 @@ var COFantasy2 = COFantasy2 || function() {
       }],
     },
     'familier': {
-      //TODO: utiliser le paramètre de la capacité pour le nom du familier
-      //TODO: donner les bonus de familier seulement s'il est présent
+      familierMage: 'PARAM', //Le nom du familier.
+      compagnon: {
+        id: 'familierMageId',
+        name: 'PARAM',
+        taille: 'Très petite',
+        agi: 3,
+        agi_sup: 'S',
+        for: -4,
+        per: 2,
+        cha: -2,
+        int: -2,
+        vol: 2,
+        comp_def: '13+[rang_voieNUMEROVOIE]',
+        comp_pv_max: '[niveau]',
+        comp_init: '[init]',
+        predicats_script: 'aucuneActionCombat'
+      }
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des végétaux
@@ -11257,6 +11213,65 @@ var COFantasy2 = COFantasy2 || function() {
       });
       delete preds.buffsSurFiche;
     }
+    //Si il y a un compagnon, le créer si non présent
+    if (preds.compagnon) {
+      let compagnon = preds.compagnon;
+      let charPerso = getObj('character', perso.charId);
+      let nom = charPerso.get('name');
+      let idName = compagnon.id;
+      delete compagnon.id;
+      let charId = attributeAsString(perso, idName);
+      let character;
+      if (charId) character = getObj('character', charId);
+      if (character) {
+        let persoCompagnon = {
+          charId
+        };
+        if (ficheAttribute(persoCompagnon, 'compagnon', '') != nom) {
+          setFicheAttr(persoCompagnon, 'compagnon', nom, {});
+        }
+      } else {
+        let nomCompagnon = compagnon.name;
+        delete compagnon.name;
+        if (nomCompagnon == 'PARAM') {
+          nomCompagnon = ficheAttribute(perso, 'v' + numVoie + 'r' + rang + '_param', '');
+        }
+        if (nomCompagnon == '') {
+          log("Il manque le paramètre de la capacité " + capacite + " pour " + nomPerso(perso));
+        } else {
+          //On commence par chercher si le compagnon n'a pas déjà été crée
+          let chars = findObjs({
+            _type: 'character',
+            name: nomCompagnon,
+          });
+          character = chars.find(function(c) {
+            let persoCompagnon = {
+              charId: c.id
+            };
+            return (ficheAttribute(persoCompagnon, 'compagnon', '') == nom);
+          });
+          if (!character) {
+            character = createObj('character', {
+              name: nomCompagnon,
+              controlledby: charPerso.get('controlledby'),
+              inplayerjournals: charPerso.get('inplayerjournals'),
+            });
+          }
+          charId = character.id;
+          setTokenAttr(perso, idName, charId);
+          for (const attrName in compagnon) {
+            let val = compagnon[attrName].replace(/NUMEROVOIE/g, numVoie);
+            let persoCompagnon = {
+              charId
+            };
+            setFicheAttr(persoCompagnon, attrName, val, {});
+          }
+          sendPerso(perso, "Il faut maintenant ajouter un token à " + nomCompagnon, true);
+        }
+      }
+      preds[idName] = charId;
+      delete preds.compagnon;
+    }
     for (const p in preds) {
       if (p.startsWith('bonusTestEvolutif_')) {
         if (rmax > 5) preds[p] = 7;
@@ -11283,7 +11298,7 @@ var COFantasy2 = COFantasy2 || function() {
           let actionsDeCapa = [];
           predicatsDeCapacite(perso, preds[p], numVoie, rang, {}, actionsDeCapa, {});
           if (actionsDeCapa.length === 0) {
-            log("Imssible de trouver le sort pour " + preds[p] + "(paramètre de " + capacite + " de " + nomPerso(perso));
+            log("Impossible de trouver le sort pour " + preds[p] + "(paramètre de " + capacite + " de " + nomPerso(perso));
           } else {
             for (let i = 0; i < actionsDeCapa.length; i++) {
               if (actionsDeCapa[i].mana) actions.push(actionsDeCapa[i]);
@@ -13328,6 +13343,43 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Le mouvement des tokens -------------------------------------------------
 
+  //retourne le personnage du compagnon s'il est présent et actif
+  function compagnonPresent(perso, nomCompagnon) {
+    let compagnon = predicateAsBool(perso, nomCompagnon);
+    if (compagnon) {
+      let compToken = findObjs({
+        _type: 'graphic',
+        _subtype: 'token',
+        _pageid: perso.token.get('pageid'),
+        layer: 'objects',
+        name: compagnon
+      });
+      let res;
+      compToken.forEach(function(tok) {
+        if (res) return;
+        let compagnon = persoOfToken(tok);
+        if (!compagnon) return;
+        if (isActive(compagnon)) res = compagnon;
+      });
+      return res;
+    }
+    return;
+  }
+
+  function compagnonEnVue(perso, nomCompagnon, pageId) {
+    let compagnon = compagnonPresent(perso, nomCompagnon);
+    if (!compagnon) return false;
+    pageId = pageId || perso.token.get('pageid');
+    let page = getObj('page', pageId);
+    if (!page) {
+      log("Impossible de trouver la page d'id " + pageId);
+      return true;
+    }
+    let murs = getWalls(page, pageId);
+    if (!murs) return true;
+    return !(obstaclePresentPerso(compagnon, perso, murs));
+  }
+
   //cof2-centrer-sur-token tid (ou nom de token)
   function commandeCentrerSurToken(cmd, playerId, pageId, options) {
     let tid = cmd[1];
@@ -14668,7 +14720,7 @@ var COFantasy2 = COFantasy2 || function() {
               if (prioriteSiphon.length > 0) {
                 let pvMax = parseInt(perso.token.get('bar1_max'));
                 if (isNaN(pvMax) || pvMax < 1) pvMax = 1;
-                if (estPJ(perso) || predicateAsBool(perso, 'PVPartagesAvec')) {
+                if (estPJ(perso)) {
                   let siphoneur = prioriteSiphon[0].perso;
                   let bonus = predicateAsInt(siphoneur, 'siphonDesAmes', 0);
                   let jetSiphon = "(1d6";
@@ -18925,14 +18977,10 @@ var COFantasy2 = COFantasy2 || function() {
     delete m.mursSeuls;
   }
 
-  //vérifie si un mur est entre (nsx, msy) et pt
-  function obstaclePresent(nsx, nsy, pt, murs) {
+  //vérifie si un mur est entre ps et pt
+  function obstaclePresentPoint(ps, pt, murs) {
     if (!murs) return false;
-    if (nsx == pt.x && nsy == pt.y) return false;
-    let ps = {
-      x: nsx,
-      y: nsy
-    };
+    if (ps.x == pt.x && ps.y == pt.y) return false;
     let obstacle = murs.find(function(path) {
       if (path.length === 0) return false;
       let pc = path[0];
@@ -18945,6 +18993,22 @@ var COFantasy2 = COFantasy2 || function() {
       });
     });
     return obstacle;
+  }
+
+  function obstaclePresentCoord(x1, y1, x2, y2, murs) {
+    let p1 = {
+      x: x1,
+      y: y1
+    };
+    let p2 = {
+      x: x2,
+      y: y2
+    };
+    return obstaclePresentPoint(p1, p2, murs);
+  }
+
+  function obstaclePresentPerso(perso1, perso2, murs) {
+    return obstaclePresentPoint(pointOfToken(perso1.token), pointOfToken(perso2.token), murs);
   }
 
   function tokenOccupeEspace(token) {
@@ -18974,7 +19038,7 @@ var COFantasy2 = COFantasy2 || function() {
   function tokensSurTrajet(token, ptCible, rayonToken, allToks, murs, saut) {
     let pt = pointOfToken(token);
     if (murs) {
-      if (obstaclePresent(pt.x, pt.y, ptCible, murs)) return ["mur"];
+      if (obstaclePresentPoint(pt, ptCible, murs)) return ["mur"];
     }
     let dp = distancePoints(pt, ptCible);
     let liste_obstacles = [];
@@ -19624,7 +19688,7 @@ var COFantasy2 = COFantasy2 || function() {
             });
             if (distanceCentre > rayon) return;
             if (murs) {
-              if (obstaclePresent(obj.get('left'), obj.get('top'), pc, murs)) return;
+              if (obstaclePresentPoint(pointOfToken(obj), pc, murs)) return;
             }
             selectedSet.add(obj.id);
           });
@@ -19677,7 +19741,7 @@ var COFantasy2 = COFantasy2 || function() {
               let visible = false;
               observateurs.forEach(function(pt) {
                 if (visible) return;
-                visible = !(obstaclePresent(obj.get('left'), obj.get('top'), pt, murs));
+                visible = !(obstaclePresentPoint(pointOfToken(obj), pt, murs));
               });
               if (visible) selectedSet.add(obj.id);
             });
@@ -19716,7 +19780,7 @@ var COFantasy2 = COFantasy2 || function() {
             let objChar = getObj('character', objCharId);
             if (objChar === undefined) return;
             if (murs) {
-              if (obstaclePresent(obj.get('left'), obj.get('top'), pt, murs)) return;
+              if (obstaclePresentPoint(pointOfToken(obj), pt, murs)) return;
             }
             selectedSet.add(obj.id);
           });
@@ -19784,16 +19848,6 @@ var COFantasy2 = COFantasy2 || function() {
         return attr.get('name') == 'predicats_script';
       });
     }
-    cache.attrsWithCharNames.forEach(function(attr) {
-      let predicats = attr.get('current');
-      let i = predicats.indexOf('PVPartagesAvec::' + ancienNom + '\n');
-      if (i < 0) return;
-      addAttributeToEvt(attr, evt, predicats);
-      predicats = predicats.replace('PVPartagesAvec::' + ancienNom + '\n',
-        'PVPartagesAvec::' + nouveauNom + '\n',
-      );
-      attr.set('current', predicats);
-    });
     let traitementEnCours;
     character.get('_defaulttoken', function(defaultToken) {
       if (traitementEnCours) return;
@@ -22509,6 +22563,8 @@ var COFantasy2 = COFantasy2 || function() {
       }); //fin iterTokensOfAttribute
   }
 
+  // ------------------------- Initiative et tours de jeu ---------------------------------
+
   function getInit() {
     let combat = stateCOF.combat;
     if (!combat) return 1000;
@@ -22572,6 +22628,8 @@ var COFantasy2 = COFantasy2 || function() {
     init = ficheAttributeAsInt(perso, 'init', 10, optTransforme);
     if (getState(perso, 'aveugle')) init -= 5;
     init += predicateAsInt(perso, 'bonusInitiative', 0);
+    // Familier du mage
+    if (compagnonEnVue(perso, 'familierMage')) init += 2;
     return init;
   }
 
@@ -26980,7 +27038,6 @@ var COFantasy2 = COFantasy2 || function() {
     };
     let limiteATester = true;
     let soinImpossible = false;
-    let pvsPartages = new Set();
     let limiteSoinsAtteinte;
     iterCibles(function(cible) {
       if (cible.name === undefined) {
@@ -26991,14 +27048,6 @@ var COFantasy2 = COFantasy2 || function() {
         }
         cible.name = cibleChar.get('name');
       }
-      if (pvsPartages.has(cible.name)) {
-        finSoin();
-        return;
-      }
-      let ciblePartagee = predicatesNamed(cible, 'PVPartagesAvec');
-      ciblePartagee.forEach(function(cp) {
-        pvsPartages.add(cp);
-      });
       if (ressourceLimiteCibleParJour) {
         let utilisations =
           attributeAsInt(cible, ressourceLimiteCibleParJour, options.limiteCibleParJour);
@@ -30384,7 +30433,7 @@ var COFantasy2 = COFantasy2 || function() {
               if (nsx + sw / 2 > width) nsx = Math.floor(width - sw / 2);
               if (nsy + sh / 2 > height) nsy = Math.floor(height - sh / 2);
               //vérifie si de la nouvelle position on peut voir le suivi
-              if (obstaclePresent(nsx, nsy, pt, murs)) {
+              if (obstaclePresentCoord(nsx, nsy, pt.x, pt.y, murs)) {
                 //On essaie de suivre le chemin du token, à la place
                 //D'abord se déplacer vers l'ancienne position de perso, au maximum de distance pixels
                 let distLoc = distance;
@@ -30395,7 +30444,7 @@ var COFantasy2 = COFantasy2 || function() {
                   if (dp > distLoc) {
                     nsx = sx + (prev.left - sx) * distLoc / dp;
                     nsy = sy + (prev.top - sy) * distLoc / dp;
-                    if (obstaclePresent(nsx, nsy, pt, murs)) {
+                    if (obstaclePresentCoord(nsx, nsy, pt.x, pt.y, murs)) {
                       sendPerso(suivant, "ne peut plus suivre " + nomPerso(perso) + " car " + onGenre(suivant, 'il', 'elle') + " ne " + onGenre(perso, 'le', 'la') + " voit plus");
                       removeTokenAttr(suivant, 'suit');
                       removedSuivant = true;
@@ -30406,7 +30455,7 @@ var COFantasy2 = COFantasy2 || function() {
                     distLoc -= dp;
                     nsx = prev.left + (x - prev.left) * distLoc / distance;
                     nsy = prev.top + (y - prev.top) * distLoc / distance;
-                    if (obstaclePresent(nsx, nsy, pt, murs)) {
+                    if (obstaclePresentCoord(nsx, nsy, pt.x, pt.y, murs)) {
                       nsx = prev.left;
                       nsy = prev.top;
                     }
@@ -30605,7 +30654,7 @@ var COFantasy2 = COFantasy2 || function() {
     d2 -= EPSILON;
     pt2.x = pt1.x + d2 * (pt2.x - pt1.x) / d;
     pt2.y = pt1.y + d2 * (pt2.y - pt1.y) / d;
-    chemin = obstaclePresent(pt2.x, pt2.y, pt1, murs);
+    chemin = obstaclePresentPoint(pt2, pt1, murs);
     if (chemin) return arreterAvantObstacle(pt1, pt2, d2, chemin, murs);
     return d2;
   }
@@ -30643,7 +30692,7 @@ var COFantasy2 = COFantasy2 || function() {
     let d = distancePoints(pt1, pt2);
     let page = getObj('page', pageId);
     let murs = getWalls(page, pageId);
-    let chemin = obstaclePresent(x, y, pt1, murs);
+    let chemin = obstaclePresentPoint(pt2, pt1, murs);
     while (chemin) {
       d = arreterAvantObstacle(pt1, pt2, d, chemin, murs);
       x = pt2.x;
@@ -30652,7 +30701,7 @@ var COFantasy2 = COFantasy2 || function() {
         left: x,
         top: y
       });
-      chemin = obstaclePresent(x, y, pt1, murs);
+      chemin = obstaclePresentPoint(pt2, pt1, murs);
     }
     if (mvt.pasDePlacement !== undefined) {
       if (isActiveTurnPerso(perso)) {
