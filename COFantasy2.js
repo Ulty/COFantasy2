@@ -1,4 +1,4 @@
-//Dernière modification : dim. 18 janv. 2026,  10:02
+//Dernière modification : mar. 20 janv. 2026,  05:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -157,7 +157,7 @@ var COFantasy2 = COFantasy2 || function() {
     chef: 'status_black-flag',
     //encombre: 'status_frozen-orb',
     endormi: 'status_sleepy',
-    essoufle: 'status_half_haze',
+    essouffle: 'status_half_haze',
     etourdi: 'status_half-haze',
     invalide: 'status_tread',
     invisible: 'status_ninja-mask',
@@ -815,7 +815,7 @@ var COFantasy2 = COFantasy2 || function() {
         chef: 'status_cof-chef',
         //encombre: 'status_cof-encombre',
         endormi: 'status_cof-endormi',
-        essoufle: 'status_cof-essoufle',
+        essouffle: 'status_cof-essouffle',
         etourdi: 'status_cof-etourdi',
         immobilise: 'status_cof-immobilise',
         invalide: 'status_cof-invalide',
@@ -2825,9 +2825,6 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push("Protégé par une arme de l'été => +25 en DEF");
       defense += 25;
     }
-    if (predicateAsBool(target, 'petiteTaille') && !attributeAsBool(target, 'agrandissement')) {
-      defense += 1;
-    }
     //Bonus au défi duelliste
     let defiDuellisteAttr = tokenAttribute(target, 'defiDuelliste');
     if (defiDuellisteAttr.length > 0) {
@@ -3206,7 +3203,6 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   // bonus d'attaque d'un token, indépendament des options
-  // Mise en commun pour attack et attaque-magique
   // options pour modifier éventuellement l'affichage si pas de DM et pour mettre à jour options.bonusDM si présent
   // TODO: revoir tous ces effets
   function bonusDAttaque(personnage, explications, evt, options) {
@@ -10883,7 +10879,13 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   const voiesDePeuple = {
+    'demi-orc': ['impressionant', 'talent pour la violence', 'critique brutal', 'attaque sanglante', 'colosse'],
+    'elfe haut': ['lumiere interieure', 'force d\'ame', 'talent pour la magie', 'immortel', 'superiorite elfique'],
+    'elfe sylvain': ['lumiere des etoiles', 'enfant de la foret', 'archer emerite', 'fleche sanglante', 'superiorite elfique'],
     gnome: ['don etrange', 'petit pote', 'insignifiant', 'merveille technologique', 'bonne nature'],
+    halfelin: ['petite taille', 'resistance legendaire', 'bon pour le moral', 'petit veinard', 'vif et bien nourri'],
+    humain: ['diversite', 'instinct de survie', 'touche-a-tout', 'loup parmi les loups', 'polyvalence'],
+    nain: ['habitant des tunnels', 'haches et marteaux', 'resistance a la magie', 'fils du roc', 'tenacite']
   };
 
   const descriptionBonus = {
@@ -10922,10 +10924,43 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     Peuple: {
+      elfeHaut: {
+        nom: "Érudition et art",
+        description: "érudition (INT) et tests artistiques (CHA)",
+      },
       elfeSylvain: {
         nom: "Elfe sylvain",
         description: "survie en forêt (escalade, discrétion, chasse, etc.)",
         competences: ['survie', 'escalade', 'discrétion', 'vigilance'],
+      },
+      petiteTaille: {
+        nom:"Petite taille",
+        description: "discrétion et tous les tests pour subtiliser quelque chose",
+        competences: ['discrétion', 'pickpocket'],
+      },
+      montagnard: {
+        nom: "Montagnard",
+        description: "escalade et résistance au froid naturel"
+      },
+      citadin: {
+        nom: "Citadin",
+        description: "commerce et résistance aux maladies naturelles"
+      },
+      campgnard: {
+        nom: "Campagnard",
+        description: "météorologie et équitation"
+      },
+      riverain: {
+        nom: "Riverain",
+        description: "natation et navigation",
+      },
+      sauvage: {
+        nom: "Sauvage",
+        description: "chasser et pister",
+      },
+      nomade: {
+        nom: "Nomade",
+        description: "orientation et résistance à la chaleur"
       },
       nain: {
         nom: "Habitant des tunnels",
@@ -10941,6 +10976,10 @@ var COFantasy2 = COFantasy2 || function() {
 
   const predicatsParCapacite = {
     //Voies de peuple /////////////////////////////////////////////////
+    //Voie de l'elfe haut
+    'lumiere interieure': {
+      bonusTestPeuple_elfeHaut: true,
+    },
     //Voie de l'elfe sylvain
     'lumiere des etoiles': {
       bonusTestPeuple_elfeSylvain: true,
@@ -10950,6 +10989,24 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestPeuple_science: true,
       visionDansLeNoir: 10,
       sortDeCapacite: 'PARAM',
+    },
+    //Voie du halfelin
+    'petite taille': {
+      buffsSurFiche: [{
+        nom: 'Petite taille',
+        attrib: 'def',
+        value: '1',
+      }],
+      bonusTestPeuple_petiteTaille: true
+    },
+    //Voie de l'humain
+    'diversite': {
+      buffsSurFiche: [{
+        nom: 'Diversité',
+        attrib: 'pc',
+        value: '1',
+      }],
+      //TODO: utiliser le choix de l'origine dans les paramètres de la capacité
     },
     //Voie du nain
     'habitant des tunnels': {
@@ -11789,10 +11846,8 @@ var COFantasy2 = COFantasy2 || function() {
         picto = '<span style="font-family: \'Pictos Custom\'">]</span> ';
         style = 'background-color:#cc0000';
         break;
-      case 'lancer-sort':
       case 'injonction':
       case 'injonction-mortelle':
-      case 'attaque-magique':
       case 'tueur-fantasmagorique':
       case 'mot-de-pouvoir-immobilise':
       case 'immunite-guerisseur':
@@ -11810,6 +11865,7 @@ var COFantasy2 = COFantasy2 || function() {
         picto = '<span style="font-family: \'Pictos\'">k</span> ';
         style = 'background-color:#ffe599;color:#333';
         break;
+      case 'action':
       case 'effet':
       case 'lumiere':
         if (options && options.mana !== undefined) {
@@ -12032,13 +12088,12 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       act = selectedToValue(act, 'selected', perso);
-      if ((typeAction == 'lancer-sort' || typeAction == 'immunite-guerisseur ' || typeAction == 'lumiere' || typeAction == 'peur') &&
+      if ((typeAction == 'immunite-guerisseur ' || typeAction == 'lumiere' || typeAction == 'peur') &&
         act.indexOf('--acteur') == -1) {
         act += " --acteur " + tid;
       }
       if (act.indexOf('@{target|') == -1 &&
         !commandes[typeAction].acteur &&
-        typeAction != 'lancer-sort' &&
         typeAction != 'surprise' &&
         act.indexOf('--equipe') == -1 &&
         act.indexOf('--enVue') == -1 &&
@@ -12984,7 +13039,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function vitessePerso(perso) {
     let vitesse = ficheAttributeAsInt(perso, 'vitesse', 10);
-    if (getState(perso, 'essoufle') || getState(perso, 'invalide'))
+    if (getState(perso, 'essouffle') || getState(perso, 'invalide'))
       vitesse = 5;
     return vitesse;
   }
@@ -14302,7 +14357,7 @@ var COFantasy2 = COFantasy2 || function() {
     switch (etat) {
       case 'affaibli':
       case 'aveugle':
-      case 'essoufle':
+      case 'essouffle':
       case 'etourdi':
       case 'immobilise':
       case 'invalide':
@@ -14359,7 +14414,7 @@ var COFantasy2 = COFantasy2 || function() {
       switch (etat) {
         case 'affaibli':
         case 'aveugle':
-        case 'essoufle':
+        case 'essouffle':
         case 'etourdi':
         case 'immobilise':
         case 'invalide':
@@ -15060,7 +15115,7 @@ var COFantasy2 = COFantasy2 || function() {
         return 7;
       default: //On passe à la méthode suivante
     }
-    if (predicateAsBool(perso, 'petiteTaille')) return 3;
+    if (predicateAsBool(perso, 'bonusTestPeuple_petiteTaille')) return 3;
     switch (getRace(perso)) {
       case 'lutin':
       case 'fee':
@@ -15920,10 +15975,10 @@ var COFantasy2 = COFantasy2 || function() {
       prejudiciable: true,
       visible: true
     },
-    essoufleTemp: {
-      activation: "s'essoufle",
-      actif: "est essouflé",
-      actifF: "est essouflée",
+    essouffleTemp: {
+      activation: "s'essouffle",
+      actif: "est essoufflé",
+      actifF: "est essoufflée",
       fin: "reprend son souffle",
       msgSave: "garder son souffle",
       prejudiciable: true,
@@ -20576,9 +20631,6 @@ var COFantasy2 = COFantasy2 || function() {
         if (predicateAsBool(perso, 'toutPetit')) {
           expliquer("Tout petit : +5 en discrétion");
           bonus += 5;
-        } else if (predicateAsBool(perso, 'petiteTaille')) {
-          expliquer("Petite taille : +2 en discrétion");
-          bonus += 2;
         }
         let rapideCommeSonOmbre = predicateAsInt(perso, 'rapideCommeSonOmbre', 0, 3);
         if (rapideCommeSonOmbre > 0) {
@@ -29934,7 +29986,7 @@ var COFantasy2 = COFantasy2 || function() {
       switch (etat) {
         case 'affaibli':
         case 'aveugle':
-        case 'essoufle':
+        case 'essouffle':
         case 'etourdi':
         case 'immobilise':
         case 'invalide':
