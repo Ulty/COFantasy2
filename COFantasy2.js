@@ -1,4 +1,4 @@
-//Dernière modification : mar. 20 janv. 2026,  05:53
+//Dernière modification : mer. 21 janv. 2026,  06:13
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -10924,6 +10924,10 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     Peuple: {
+      intimidation: {
+        nom: "Intimidation",
+        description: "tests d'intimidation"
+      },
       elfeHaut: {
         nom: "Érudition et art",
         description: "érudition (INT) et tests artistiques (CHA)",
@@ -10974,8 +10978,15 @@ var COFantasy2 = COFantasy2 || function() {
     Prestige: {}
   };
 
+//TODO: gérer les limtations d'armure, en particulier utile pour les profils hybrides.
+
   const predicatsParCapacite = {
     //Voies de peuple /////////////////////////////////////////////////
+    //Voie du demi-orc
+    'impressionant': {
+      bonusTestPeuple_intimidation: true,
+      visionDansLeNoir: 30,
+    },
     //Voie de l'elfe haut
     'lumiere interieure': {
       bonusTestPeuple_elfeHaut: true,
@@ -10998,6 +11009,7 @@ var COFantasy2 = COFantasy2 || function() {
         value: '1',
       }],
       bonusTestPeuple_petiteTaille: true
+      //TODO: limitation des armes ?
     },
     //Voie de l'humain
     'diversite': {
@@ -11006,7 +11018,8 @@ var COFantasy2 = COFantasy2 || function() {
         attrib: 'pc',
         value: '1',
       }],
-      //TODO: utiliser le choix de l'origine dans les paramètres de la capacité
+      bonusTestPeuple_humain: true,
+      descriptionTestPeuple_humain: 'PARAM',
     },
     //Voie du nain
     'habitant des tunnels': {
@@ -11018,7 +11031,7 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_occultisme: true,
       rang1DePeuple: true,
     },
-    //Voies d'artificier //////////////////////////////////////////
+    //Voies d'arquebusier //////////////////////////////////////////
     //Voie de l'artilleur
     mecanismes: {
       bonusTestEvolutif_mecanismes: true,
@@ -20527,10 +20540,18 @@ var COFantasy2 = COFantasy2 || function() {
   function expliquerBonus(perso, typeBonus, capacite, res, expliquer) {
     let desc = descriptionBonus[typeBonus][capacite];
     let nom = predicateAsBool(perso, 'nomTest' + typeBonus + '_' + capacite);
+    if (!desc && nom) desc =  descriptionBonus[typeBonus][removeAccents(nom).toLowerCase()];
+    let description = predicateAsBool(perso, 'descriptionTest' + typeBonus + '_' + capacite);
+    if (!desc && !nom && description) {//Principalement pour les humains
+      desc = descriptionBonus[typeBonus][removeAccents(description).toLowerCase()];
+      if (desc) {
+        description = desc.desscription;
+        nom = desc.nom;
+      }
+    }
+    if (!description && desc) description = desc.description;
     if (!nom && desc) nom = desc.nom;
     if (!nom) nom = capacite;
-    let description = predicateAsBool(perso, 'descriptionTest' + typeBonus + '_' + capacite);
-    if (!description && desc) description = desc.description;
     if (res > 0) res = '+' + res;
     if (description) expliquer('<span title="' + description + '">' + nom + '</span> : ' + res);
   }

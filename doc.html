@@ -88,20 +88,20 @@ tr {line-height: 25px;}
               </ul>
               <li data-toggle="collapse" data-target="#profils"><a href="#VoiesProfils">Voies de profils</a></li>
               <ul id="profils" class="collapse">
-                <li><a class="text-info" href="#Arquebusier">Arquebusier</a></li>
-                <li><a class="text-info" href="#Barbare">Barbare</a></li>
-                <li><a class="text-info" href="#Barde">Barde</a></li>
-                <li><a class="text-info" href="#Chevalier">Chevalier</a></li>
-                <li><a class="text-info" href="#Druide">Druide</a></li>
-                <li><a class="text-info" href="#Ensorceleur">Ensorceleur</a></li>
-                <li><a class="text-info" href="#Forgesort">Forgesort</a></li>
-                <li><a class="text-info" href="#Guerrier">Guerrier</a></li>
-                <li><a class="text-info" href="#Magicien">Magicien</a></li>
-                <li><a class="text-info" href="#Moine">Moine</a></li>
-                <li><a class="text-info" href="#Pretre">Prêtre</a></li>
-                <li><a class="text-info" href="#Rôdeur">Rôdeur</a></li>
-                <li><a class="text-info" href="#Sorcier">Sorcier</a></li>
-                <li><a class="text-info" href="#Voleur">Voleur</a></li>
+                <li><a class="text-info" href="#arquebusier">Arquebusier</a></li>
+                <li><a class="text-info" href="#barbare">Barbare</a></li>
+                <li><a class="text-info" href="#barde">Barde</a></li>
+                <li><a class="text-info" href="#chevalier">Chevalier</a></li>
+                <li><a class="text-info" href="#druide">Druide</a></li>
+                <li><a class="text-info" href="#ensorceleur">Ensorceleur</a></li>
+                <li><a class="text-info" href="#forgesort">Forgesort</a></li>
+                <li><a class="text-info" href="#guerrier">Guerrier</a></li>
+                <li><a class="text-info" href="#magicien">Magicien</a></li>
+                <li><a class="text-info" href="#moine">Moine</a></li>
+                <li><a class="text-info" href="#pretre">Prêtre</a></li>
+                <li><a class="text-info" href="#rodeur">Rôdeur</a></li>
+                <li><a class="text-info" href="#sorcier">Sorcier</a></li>
+                <li><a class="text-info" href="#voleur">Voleur</a></li>
               </ul>
               <li data-toggle="collapse" data-target="#prestige"><a href="#VoiesPrestige">Voies de prestige</a></li>
               <ul id="profils" class="collapse">
@@ -895,11 +895,15 @@ tr {line-height: 25px;}
               </div>
               <h3 class="text-info" id="demi-orc">Demi-orc</h3>
               <div class="decalage">
-                Aucun support pour l'instant.
+                <ol>
+                  <li><strong>Intimidation :</strong> il y a une compétence de peuple <code>intimidation</code>. La vision dans le noir est automatiquement gérée.</li>
+                </ol>
               </div>
               <h3 class="text-info" id="elfe-haut">Elfe haut</h3>
               <div class="decalage">
-                Aucun support pour l'instant.
+                <ol>
+                  <li><strong>Lumière intérieure :</strong> il y a une compétence de peuple <code>elfeHaut</code>. La partie vision comme de la pénombre sous un ciel étoilé doit être géré à la main par le MJ.</li>
+                </ol>
               </div>
               <h3 class="text-info" id="elfe-sylvain">Elfe sylvain</h3>
               <div class="decalage">
@@ -909,24 +913,120 @@ tr {line-height: 25px;}
               </div>
               <h3 class="text-info" id="gnome">Gnome</h3>
               <div class="decalage">
+                <ol>
                 <li><strong>Don étrange :</strong> il y a une compétence de peuple <code>science</code>. La vision dans le noir est automatiquement gérée par le script, et pour le sort, il faut préciser le nom de la capacité du sort dans le champ paramètre (accessible en cliquant sur ).</li>
+                </ol>
               </div>
               <h3 class="text-info" id="halfelin">Halfelin</h3>
               <div class="decalage">
-                Aucun support pour l'instant.
+                <ol>
+                  <li><strong>Petite taille :</strong> il y a une compétence de peuple <code>petiteTaille</code>, et le script ajoute automatiquement un buff de DEF sur la fiche. En revanche, rien n'est fait pour vérifier si les armes son t utilisables, il faut que le MJ soit vigilant.</li>
+                </ol>
               </div>
               <h3 class="text-info" id="humain">Humain</h3>
               <div class="decalage">
-                Aucun support pour l'instant.
+                <ol>
+                  <li><strong>Diversité :</strong> le script rajoute un buff de points de chance sur la fiche, et l'origine peut être précisée en paramètre. Si c'est une des 6 origines proposées dans le livre on peut juste mettre le nom de l'origine (<code>montagnard</code>, etc.), sinon il faut mettre une description des champs d'application du bonus.</li>
+                </ol>
               </div>
               <h3 class="text-info" id="nain">Nain</h3>
               <div class="decalage">
+                <ol>
                 <li><strong>Habitant des tunnels :</strong> il y a une compétence de peuple <code>nain</code>. La vision dans le noir est automatiquement gérée.</li>
+                </ol>
               </div>
               <h3 class="text-info" id="mage">Mage</h3>
               <div class="decalage">
+                <ol>
                 <li><strong>Capacité de peuple + occultisme :</strong> il y a une compétence évolutive <code>occultisme</code>. La capacité de peuple est inférée à partir du nom du peuple du personnage. Si cette capacité a besoin d'un paramètre, utiliser le paramètre de la capacité de mage.</li>
+                </ol>
               </div>
+              <h2 class="text-primary" id="profils">4. Voies de profils</h2>
+              <h3 class="text-info" id="arquebusier">Arquebusier</h3>
+              <div class="decalage">
+                <h4 class="text-secondary">Voie de l'artilleur</h4>
+                <ol>
+                  <li><strong>Mécanismes :</strong> il y a une compétence évolutive nommée <code>mecanismes</code>. le reste n'est pas encore implémenté.</li>
+                </ol>
+              </div>
+                <h3 class="text-info" id="barbare">Barbare</h3>
+              <div class="decalage">
+              </div>
+                <h3 class="text-info" id="barde">Barde</h3>
+              <div class="decalage">
+              </div>
+                <h3 class="text-info" id="chevalier">Chevalier</h3>
+              <div class="decalage">
+              </div>
+                <h3 class="text-info" id="druide">Druide</h3>
+              <div class="decalage">
+                <h4 class="text-secondary">Voie des végétaux</h4>
+                <ol>
+                  <li><strong>Peau d’écorce :</strong> il y a une compétence évolutive nommée <code>plantes</code>. Le script fait apparaître le sort dans la liste d'actions du druide.</li>
+                </ol>
+              </div>
+                <h3 class="text-info" id="ensorceleur">Ensorceleur</h3>
+              <div class="decalage">
+                <h4 class="text-secondary">Voie de l'envouteur</h4>
+                <ol>
+                  <li><strong>Injonction :</strong> il y a une compétence évolutive nommée <code>injonction</code>. Le script ajoute aussi automatiquement le sort à lancer dans la liste des actions du tour (pas sur la fiche).</li>
+                </ol>
+              </div>
+                <h3 class="text-info" id="forgesort">Forgesort</h3>
+              <div class="decalage">
+              </div>
+                <h3 class="text-info" id="guerrier">Guerrier</h3>
+              <div class="decalage">
+                <h4 class="text-secondary">Voie du bouclier</h4>
+                <ol>
+                  <li><strong>Protéger un allié :</strong> il y a une compétence évolutive appelée <code>vigilance</code>. Le reste est aussi géré par le script.</li>
+                </ol>
+                <h4 class="text-secondary">Voie de la résistance</h4>
+                <ol>
+                  <li><strong>Robustesse :</strong> il y a une compétence évolutive appelée <code>robustesse</code>. Le script ajoute aussi un buff sur la fiche pour les PV. Pour que tout ce passe bien, pensez à activer le calcul automatique des PV max sur la fiche.</li>
+                </ol>
+              </div>
+                <h3 class="text-info" id="magicien">Magicien</h3>
+              <div class="decalage">
+                <h4 class="text-secondary">Voie de la magie destructrice</h4>
+                <ol>
+                  <li><strong>Arc de feu :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
+                </ol>
+                <h4 class="text-secondary">Voie de la magie universelle</h4>
+                <ol>
+                  <li><strong>Lumière :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
+                  <li><strong>Familier :</strong> il faut indiquer en paramètre de la capacité le nom du familier. Le script crée alors automatiquement le personnage du familier. Le joueur ou le MJ doivent quand même lui ajouter un token, avec les PV liés au personnage. Le script gère automatiquement les bonus associés.</li>
+                </ol>
+              </div>
+                <h3 class="text-info" id="moine">Moine</h3>
+              <div class="decalage">
+              </div>
+                <h3 class="text-info" id="pretre">Prêtre</h3>
+              <div class="decalage">
+                <h4 class="text-secondary">Voie de la prière</h4>
+                <ol>
+                  <li><strong>Bénédiction :</strong> il y a une compétence évolutive nommée <code>theologie</code>. Le script fait apparaître le sort dans la liste des actions du tour.</li>
+                </ol>
+                <h4 class="text-secondary">Voie des soins</h4>
+                <ol>
+                  <li><strong>Récupération mineure :</strong> il y a  une compétence évolutive nommée <code>medecine</code>. Le sort apparaît dans la liste d'actions, si la limite du nombre de lancements journaliers n'est pas atteinte.</li>
+                </ol>
+              </div>
+                <h3 class="text-info" id="rodeur">Rôdeur</h3>
+              <div class="decalage">
+                <h4 class="text-secondary">Voie de l'archer</h4>
+                <ol>
+                  <li><strong>Archer émérite :</strong> ajoute automatiquement le buff d'initiative sur la fiche, ainsi que les dommages aux dégâts des arcs. Attention, il faut bien penser à ajouter <code>arc</code> dans la partie modificateurs de l'attaque, si un arc ne contient pas le mot <code>arc</code> dans son nom.</li>
+                </ol>
+              </div>
+                <h3 class="text-info" id="sorcier">Sorcier</h3>
+              <div class="decalage">
+              </div>
+                <h3 class="text-info" id="voleur">Voleur</h3>
+              <div class="decalage">
+              </div>
+              <h2 class="text-primary" id="prestige">5. Voies de prestige</h2>
+              <h2 class="text-primary" id="autres_capacites">6. Autres capacités</h2>
               <h2 class="text-primary" id="Markers_personnalisés">7. Markers Personnalisés</h2>
               <h3 class="text-info" id="Markers_presentation">7.1 Présentation</h3>
               <div class="decalage">
@@ -1009,8 +1109,9 @@ tr {line-height: 25px;}
                   <li><strong>bonusTestPeuple_<i>competence</i></strong>: bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 3.</li>
                   <li><strong>bonusTestPrestige_<i>competence</i></strong> : bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 5.</li>
                   <li><strong>descriptionTestEvolutif_<i>nom</i></strong> : description des actions et circonstances correspondant au bonus évolutif nommé <i>nom</i></li>
-                  <li><strong>descriptionTestPeuple<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de peuple nommé <i>nom</i></li>
-                  <li><strong>descriptionTestPrestige<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de voie de prestige nommé <i>nom</i></li>
+                  <li><strong>descriptionTestPeuple_<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de peuple nommé <i>nom</i></li>
+                  <li><strong>descriptionTestPrestige_<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de voie de prestige nommé <i>nom</i></li>
+                  <li><strong>familierMage</strong> : un nom de familier. Quand le familier est visible du personnage, donne un bonus de +2 en initiative et en défense.</li>
                   <li><strong>nomTestEvolutif_<i>nom</i></strong> : le nom à afficher pour bonus évolutif nommé <i>nom</i></li>
                   <li><strong>nomTestPeuple<i>nom</i></strong> : le nom à afficher pour bonus de peuple nommé <i>nom</i></li>
                   <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
@@ -1032,6 +1133,7 @@ tr {line-height: 25px;}
               <ul>
                 <li><strong>benediction</strong> : bonus à tous les tests, de valeur l'activation, ou 1 par défaut.</li>
                 <li><strong>bonusCouvert</strong> : bonus contre les attaques à distance, de valeur l'activation, ou 2 par défaut.</li>
+                <li><strong>peauDEcorce</strong> : bonus en DEF.</li>
               </ul>
               </div>
               </div>
