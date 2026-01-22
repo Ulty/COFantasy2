@@ -1,4 +1,4 @@
-//Dernière modification : mer. 21 janv. 2026,  06:13
+//Dernière modification : jeu. 22 janv. 2026,  01:40
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -9869,6 +9869,7 @@ var COFantasy2 = COFantasy2 || function() {
   // charAttr: si présent, on utilise un attribut de personnage
   // copy: créée une copie du l'attribut si déjà présent, ne modifie pas.
   // renvoie l'attribut créé ou mis à jour
+  //evt est optionnel
   function setTokenAttr(personnage, attribute, value, evt, options = {}) {
     let charId = personnage.charId;
     let token = personnage.token;
@@ -9905,11 +9906,11 @@ var COFantasy2 = COFantasy2 || function() {
         current: value,
         max: maxval
       });
-      addCreatedAttributeToEvt(attr, evt);
+      if (evt) addCreatedAttributeToEvt(attr, evt);
       return attr;
     }
     attr = attr[0];
-    addAttributeToEvt(attr, evt, attr.get('current'), attr.get('max'));
+    if (evt) addAttributeToEvt(attr, evt, attr.get('current'), attr.get('max'));
     attr.set('current', value);
     if (options.maxVal !== undefined) attr.set('max', maxval);
     return attr;
@@ -13415,13 +13416,20 @@ var COFantasy2 = COFantasy2 || function() {
   function compagnonPresent(perso, nomCompagnon) {
     let compagnon = predicateAsBool(perso, nomCompagnon);
     if (compagnon) {
-      let compToken = findObjs({
+      let pageId = perso.token.get('pageid');
+      let compTokenSearch = {
         _type: 'graphic',
         _subtype: 'token',
-        _pageid: perso.token.get('pageid'),
-        layer: 'objects',
-        name: compagnon
-      });
+        _pageid: pageId,
+        layer: 'objects', //perso.token.get('layer') ?
+      };
+      let cid = predicateAsBool(perso, nomCompagnon+'Id');
+      if (cid) {
+        compTokenSearch.represents = cid;
+      } else {
+        compTokenSearch.name = compagnon;
+      }
+      let compToken = findObjs(compTokenSearch);
       let res;
       compToken.forEach(function(tok) {
         if (res) return;
