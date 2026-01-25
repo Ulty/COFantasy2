@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 22 janv. 2026,  01:40
+//Dernière modification : dim. 25 janv. 2026,  04:04
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -10523,6 +10523,14 @@ var COFantasy2 = COFantasy2 || function() {
           error("Type d'action " + options.typeAction + " inconnu.", options);
       }
     }
+    if (perso && combat && options.potion && !options.typeAction) {
+      if (!typeActionPossible(perso, 'M')) {
+        sendPerso(perso, "ne peut pas boire de potion pendant ce tour");
+        return true;
+      }
+      options.typeAction = 'M';
+      //TODO: regarder si le personnage a une action L et une main libre, ou bien la potion en main
+    }
     depMana = testLimitePar(perso, 'Jour', options, depMana, defResource, msg, evt, explications);
     if (!depMana) return true;
     depMana = testLimitePar(perso, 'Combat', options, depMana, defResource, msg, evt, explications);
@@ -10939,7 +10947,7 @@ var COFantasy2 = COFantasy2 || function() {
         competences: ['survie', 'escalade', 'discrétion', 'vigilance'],
       },
       petiteTaille: {
-        nom:"Petite taille",
+        nom: "Petite taille",
         description: "discrétion et tous les tests pour subtiliser quelque chose",
         competences: ['discrétion', 'pickpocket'],
       },
@@ -10979,7 +10987,7 @@ var COFantasy2 = COFantasy2 || function() {
     Prestige: {}
   };
 
-//TODO: gérer les limtations d'armure, en particulier utile pour les profils hybrides.
+  //TODO: gérer les limtations d'armure, en particulier utile pour les profils hybrides.
 
   const predicatsParCapacite = {
     //Voies de peuple /////////////////////////////////////////////////
@@ -11010,7 +11018,7 @@ var COFantasy2 = COFantasy2 || function() {
         value: '1',
       }],
       bonusTestPeuple_petiteTaille: true
-      //TODO: limitation des armes ?
+        //TODO: limitation des armes ?
     },
     //Voie de l'humain
     'diversite': {
@@ -13423,7 +13431,7 @@ var COFantasy2 = COFantasy2 || function() {
         _pageid: pageId,
         layer: 'objects', //perso.token.get('layer') ?
       };
-      let cid = predicateAsBool(perso, nomCompagnon+'Id');
+      let cid = predicateAsBool(perso, nomCompagnon + 'Id');
       if (cid) {
         compTokenSearch.represents = cid;
       } else {
@@ -13799,17 +13807,19 @@ var COFantasy2 = COFantasy2 || function() {
     if (arme) {
       labelArme = arme.label;
     }
-    let labelArmeGauche;
-    if (perso.armeGauche) labelArmeGauche = perso.armeGauche.label;
-    let {
-      armes,
-    } = listeDesArmes(perso);
-    let degainer = proposerDeDegainer(perso, armes, labelArme, arme, labelArmeGauche, '', '', true);
-    if (degainer) {
-      whisperChar(perso.charId, degainer + " pendant le mouvement");
-    } else if (arme) {
+    if (arme) {
       let ligne = boutonSimple('!cof2-degainer --select ' + perso.token.id, '<span style="font-family:Pictos">}</span>', BS_BUTTON) + " Rengainer pendant le mouvement";
       whisperChar(perso.charId, ligne);
+    } else {
+      let labelArmeGauche;
+      if (perso.armeGauche) labelArmeGauche = perso.armeGauche.label;
+      let {
+        armes,
+      } = listeDesArmes(perso);
+      let degainer = proposerDeDegainer(perso, armes, labelArme, arme, labelArmeGauche, '', '', true);
+      if (degainer) {
+        whisperChar(perso.charId, degainer + " pendant le mouvement");
+      }
     }
   }
 
@@ -20548,9 +20558,9 @@ var COFantasy2 = COFantasy2 || function() {
   function expliquerBonus(perso, typeBonus, capacite, res, expliquer) {
     let desc = descriptionBonus[typeBonus][capacite];
     let nom = predicateAsBool(perso, 'nomTest' + typeBonus + '_' + capacite);
-    if (!desc && nom) desc =  descriptionBonus[typeBonus][removeAccents(nom).toLowerCase()];
+    if (!desc && nom) desc = descriptionBonus[typeBonus][removeAccents(nom).toLowerCase()];
     let description = predicateAsBool(perso, 'descriptionTest' + typeBonus + '_' + capacite);
-    if (!desc && !nom && description) {//Principalement pour les humains
+    if (!desc && !nom && description) { //Principalement pour les humains
       desc = descriptionBonus[typeBonus][removeAccents(description).toLowerCase()];
       if (desc) {
         description = desc.desscription;
@@ -29684,6 +29694,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: additionalDmgOption,
       optName: 'additionalCritDmg',
     },
+    potion: boolDefaultOption,
     predicat: {
       fn: wordOption,
       optName: 'bonusPreds',
@@ -29757,6 +29768,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: selectionOption
     },
     tranchant: boolDefaultOption,
+    tueurDe: wordDefaultOption,
     typeAction: wordDefaultOption,
     valeur: {
       fn: effetSubOption,
@@ -29888,7 +29900,6 @@ var COFantasy2 = COFantasy2 || function() {
       fn: integerOption,
       min: 0,
     },
-    tueurDe: wordDefaultOption,
   };
   //TODO: munitions
 
