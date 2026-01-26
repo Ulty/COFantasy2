@@ -1,4 +1,4 @@
-//Dernière modification : dim. 25 janv. 2026,  04:04
+//Dernière modification : lun. 26 janv. 2026,  06:04
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2576,25 +2576,11 @@ var COFantasy2 = COFantasy2 || function() {
         if (tok.id == target.token.id) return false;
         return distanceCombat(target.token, tok, pageId) === 0;
       });
-      let tokensAllies = [];
-      let tokensEnnemis = [];
-      let allies = alliesParPerso[target.charId] || new Set();
-      tokensContact.forEach(function(tok) {
-        let ci = tok.get('represents');
-        if (ci === '') return; //next token au contact
-        if (!isActive({
-            token: tok,
-            charId: ci
-          })) return;
-        if (allies.has(ci)) tokensAllies.push(tok);
-        else tokensEnnemis.push(tok);
-      });
-      target.ennemisAuContact = tokensEnnemis;
-      target.alliesAuContact = tokensAllies;
+  let tokensEnnemis = ennemisAuContact(target, pageId, tokensContact);
       if (combatEnPhalange) {
         let defensePhalange = 0;
         tokensEnnemis.forEach(function(tokE) {
-          let alliesAuContact = tokensAllies.filter(function(tokA) {
+          let alliesAuContact = target.alliesAuContact.filter(function(tokA) {
             return distanceCombat(tokE, tokA, pageId) === 0;
           });
           if (alliesAuContact.length > defensePhalange)
@@ -5607,21 +5593,14 @@ var COFantasy2 = COFantasy2 || function() {
     }
     // Armes chargées
     if ((!options.semonce || attributeAsInt(attaquant, 'attaqueADistanceRatee', 0) != 1) && !options.tirDeBarrage) {
-      if (attackLabel && weaponStats && weaponStats.charge) {
-        let currentCharge = 0;
-        let chargesArme = findObjs({
-          _type: 'attribute',
-          _characterid: attackingCharId,
-          name: 'charge_' + attackLabel
-        });
-        if (chargesArme.length > 0) {
-          currentCharge = parseInt(chargesArme[0].get('current'));
-        }
+      if (attackLabel && options.recharge) {
+        let nomCharges = 'attributDeCombat_charge_' + attackLabel;
+        let currentCharge = attributeAsInt(attaquant, nomCharges, 1);
         if (isNaN(currentCharge) || currentCharge < 1) {
           sendPerso(attaquant, "ne peut pas attaquer avec " + weaponName + " car elle n'est pas chargée");
           return;
         }
-        if (attackLabel && options.grenaille) {
+        if (attackLabel && options.grenaille) { //TODO: à revoir complètement
           let chargesGrenaille = tokenAttribute(attaquant, 'chargeGrenaille_' + attackLabel);
           if (chargesGrenaille.length > 0) {
             let currentChargeGrenaille = parseInt(chargesGrenaille[0].get('current'));
@@ -5634,14 +5613,13 @@ var COFantasy2 = COFantasy2 || function() {
             chargesGrenaille[0].set('current', currentChargeGrenaille);
           }
         }
-        addAttributeToEvt(chargesArme[0], evt, currentCharge);
         currentCharge -= 1;
         //Si l'arme n'est plus chargée, on peut perdre le bonus d'initiative
         if (currentCharge === 0 &&
           bonusPlusViteQueSonOmbre(attaquant, weaponStats)) {
           updateNextInit(attaquant);
         }
-        chargesArme[0].set('current', currentCharge);
+        setTokenAttr(attaquant, nomCharges, currentCharge, evt);
       }
     }
     // Effets quand on rentre en combat
@@ -8089,31 +8067,7 @@ var COFantasy2 = COFantasy2 || function() {
           return target.pvPerdus && target.token.get('bar1_value') == 0;
         });
         if (cibleMorte) {
-          if (attaquant.ennemisAuContact === undefined) {
-            let tokensContact = findObjs({
-              _type: 'graphic',
-              _subtype: "token",
-              _pageid: pageId,
-              layer: 'objects'
-            });
-            tokensContact = tokensContact.filter(function(tok) {
-              if (tok.id == attaquant.token.id) return false;
-              return distanceCombat(attaquant.token, tok, pageId) === 0;
-            });
-            let tokensEnnemis = [];
-            let allies = alliesParPerso[attaquant.charId] || new Set();
-            tokensContact.forEach(function(tok) {
-              let ci = tok.get('represents');
-              if (ci === '') return; //next token au contact
-              if (!isActive({
-                  token: tok,
-                  charId: ci
-                })) return;
-              if (!allies.has(ci)) tokensEnnemis.push(tok);
-            });
-            attaquant.ennemisAuContact = tokensEnnemis;
-          }
-          if (attaquant.ennemisAuContact.length > 0) {
+          if (ennemisAuContact(attaquant, pageId).length > 0) {
             let msgEnchainement = nomPerso(attaquant) + " a droit à une attaque au contact gratuite contre ";
             let sep = '';
             let armeEnMain = armesEnMain(attaquant);
@@ -8374,6 +8328,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     //Pour l'option grenaille implicite, il faut vérifier que toutes les charges de l'arme sont des charges de grenaille
+    //TODO: revoir ça avec la nouvelle gestion des charges
     if (attackLabel && weaponStats.charge && !options.grenaille) {
       let currentCharges = attributeAsInt(attaquant, 'charge_' + attackLabel, weaponStats.charge);
       if (currentCharges > 0)
@@ -9642,10 +9597,18 @@ var COFantasy2 = COFantasy2 || function() {
   // perso peut ne pas avoir de token
   function fullAttributeName(perso, attribute, options) {
     if (perso.token && (!options || !options.charAttr)) {
-      let link = perso.token.get('bar1_link');
-      if (link === '') return attribute + '_MOOK_' + perso.token.get('name');
+      if (estMook(perso)) return attribute + '_MOOK_' + perso.token.get('name');
     }
     return attribute;
+  }
+
+  function isAttrNameOfPerso(perso, attrName) {
+    let indexMook = attrName.indexOf('_MOOK_');
+    if (estMook(perso)) {
+      if (indexMook < 1) return false;
+      return attrName.substring(indexMook + 6) == perso.token.get('name');
+    }
+    return indexMook < 0;
   }
 
   //À partir d'un nom d'attribut de mook ou perso, retourne
@@ -11812,6 +11775,11 @@ var COFantasy2 = COFantasy2 || function() {
     style: 'background-color:#cc0000;'
   };
 
+  const PICTO_RECHARGER = {
+    picto: '<span style="font-family: \'Pictos\'">0</span> ',
+    style: 'background-color:#e69138;',
+  };
+
   function pictoOfAttack(attackStats, options = {}) {
     let picto;
     let style;
@@ -11915,9 +11883,7 @@ var COFantasy2 = COFantasy2 || function() {
         style = 'background-color:#4a86e8';
         break;
       case 'recharger':
-        picto = '<span style="font-family: \'Pictos\'">0</span> ';
-        style = 'background-color:#e69138';
-        break;
+        return PICTO_RECHARGER;
       case 'action-defensive':
       case 'defense':
         return PICTO_DEFENSE;
@@ -12082,9 +12048,9 @@ var COFantasy2 = COFantasy2 || function() {
                 if (cmd.length > 1) {
                   let attackLabel = cmd[1];
                   let arme = getWeaponStats(perso, attackLabel);
-                  if (arme !== undefined && arme.charge) {
-                    let currentCharge = attributeAsInt(perso, 'charge_' + arme.label, arme.charge);
-                    if (currentCharge >= arme.charge)
+                  if (arme !== undefined) {
+                    let currentCharge = attributeAsInt(perso, 'attributDeComat_charge_' + arme.label, 1);
+                    if (currentCharge >= 1)
                       options.actionImpossible = true;
                   }
                 }
@@ -12470,8 +12436,7 @@ var COFantasy2 = COFantasy2 || function() {
         } else if (cote == ' gauche' && !a.armeLegere) {
           continue;
         }
-        if (a.charge && attributeAsInt(perso, 'charge_' + l, 1) === 0)
-          degainer += ' (vide)';
+        if (armeDechargee(perso, a)) degainer += ' (vide)';
         else if (a.poudre && attributeAsInt(perso, 'chargeGrenaille_' + l, 0) > 0)
           degainer += ' (grenaille)';
         degainer += "," + l + cote + "|";
@@ -12503,7 +12468,7 @@ var COFantasy2 = COFantasy2 || function() {
       else if (stateCOF.combat) degainer += ' --montreActions --typeAction M';
       degainer += ' --select ' + perso.token.id;
       if (ligneArme)
-        ligneArme += boutonSimple(degainer, '<span style="font-family:Pictos">;</span>', ' title="Dégainer";');
+        ligneArme += boutonSimple(degainer, '<span style="font-family:Pictos">;</span>', BS_BUTTON + ' title="Dégainer";');
       else {
         let b = 'Dégainer';
         if (cote) b += ' à' + cote;
@@ -12513,7 +12478,7 @@ var COFantasy2 = COFantasy2 || function() {
         ligneArme += armeADegainer.nom;
     } else {
       if (ligneArme)
-        ligneArme += boutonSimple('!cof2-degainer --montreActions --select ' + perso.token.id + " --typeAction M", '<span style="font-family:Pictos">}</span>', ' title="Rengainer";');
+        ligneArme += boutonSimple('!cof2-degainer --montreActions --select ' + perso.token.id + " --typeAction M", '<span style="font-family:Pictos">}</span>', BS_BUTTON + ' title="Rengainer";');
     }
     return ligneArme;
   }
@@ -13248,6 +13213,66 @@ var COFantasy2 = COFantasy2 || function() {
         nePasAfficherArmes: true
       };
       ligne += listeAttaquesVisibles(perso, pageId, attackOptions);
+      //Proposer de recharger les armes déchargées
+      if (ennemisAuContact(perso, pageId).length === 0) {
+      let attributs_perso = findObjs({
+        _type: 'attribute',
+        _characterid: perso.charId,
+      });
+      let recharges = [];
+      attributs_perso.forEach(function(attr) {
+        let name = attr.get('name');
+        if (!name.startsWith('attributDeCombat_charge_')) return;
+        if (isAttrNameOfPerso(perso, name)) {
+          let label = name.substring(24);
+          if (estMook(perso)) {
+            let i = label.indexOf('_MOOK_');
+            label = label.substring(0, i);
+          }
+          const armes = listAllAttacks(perso);
+          let arme = armes[label];
+          if (!arme) {
+            log("Impossible de trouver l'arme de label " + label + " auquel on référence dans l'attribut " + name);
+            attr.remove();
+            return;
+          }
+          if (!arme['arme-options']) {
+            log("Pas d'option pour l'arme de label " + label + " auquel on référence dans l'attribut " + name);
+            attr.remove();
+            return;
+          }
+          let optionsArme = parseOptions(arme['arme-options'], pageId);
+          if (!typeActionPossible(perso, optionsArme.recharge)) return;
+          recharges.push({
+            nom: arme['arme-nom'],
+            label,
+            typeAction: optionsArme.recharge
+          });
+        }
+      });
+      if (recharges.length > 0) {
+        let {
+          picto,
+          style
+        } = PICTO_RECHARGER;
+        let buttonStyleRecharger = ' style="' + style + BASIC_BUTTON_STYLE + '"';
+        let command = "!cof2-recharger " + perso.token.id + ' ';
+        let additional = '';
+        if (recharges.length == 1) {
+          command += recharges[0].label + ' --typeAction ' + recharges[0].typeAction;
+          additional = recharges[0].nom + ' (' + recharges[0].typeAction + ')';
+        } else {
+          command += "?{Arme?";
+          recharges.forEach(function(r) {
+            //TODO: escape les caractères gênants du nom de l'arme
+            command += '|' + r.nom + "," + r.label + ' -typeAction ' + r.typeAction;
+          });
+          command += '}';
+        }
+        let b = boutonSimple(command, picto + 'Recharger', buttonStyleRecharger);
+        ligne += b + additional + '<br />';
+      }
+      }
     }
     //La liste d'action proprement dite
     treatActions(perso, actionsDuTour, function(command, text, macros, attackStats) {
@@ -19559,6 +19584,36 @@ var COFantasy2 = COFantasy2 || function() {
     commandeGererEquipe(cmd, playerId, pageId, options);
   }
 
+  //Renvoie un tableau de tokens.
+  //Remplis les champs ennemisAuContact et alliesAuContact
+  function ennemisAuContact(perso, pageId, tokensContact) {
+    if (perso.ennemisAuContact) return perso.ennemisAuContact;
+    if (!tokensContact) {
+            tokensContact = findObjs({
+              _type: 'graphic',
+              _subtype: "token",
+              _pageid: pageId,
+              layer: 'objects'
+            });
+            tokensContact = tokensContact.filter(function(tok) {
+              if (tok.id == perso.token.id) return false;
+              return distanceCombat(perso.token, tok, pageId) === 0;
+            });
+    }
+            let tokensEnnemis = [];
+      let tokensAllies = [];
+            let allies = alliesParPerso[perso.charId] || new Set();
+            tokensContact.forEach(function(token) {
+              let ennemi = persoOfToken(token);
+              if (!ennemi || !isActive(ennemi)) return;
+              if (allies.has(ennemi.charId)) tokensAllies.push(token);
+                else tokensEnnemis.push(token);
+            });
+            perso.ennemisAuContact = tokensEnnemis;
+      perso.alliesAuContact = tokensAllies;
+    return tokensEnnemis;
+  }
+
   // renvoie {selected, aoe}
   //  selected est une liste de token ids
   //  aoe est un booléen qui indique si on a une aoe.
@@ -21902,7 +21957,6 @@ var COFantasy2 = COFantasy2 || function() {
           if (!rt.chanceUtilisee) {
             let pc = pointsDeChance(perso);
             if (pc > 0) {
-              //TODO: tester si la chance est utilisée
               boutonsReroll +=
                 '<br/>' + boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
                 " (reste " + pc + " PC)";
@@ -24381,9 +24435,9 @@ var COFantasy2 = COFantasy2 || function() {
       champDivers += '\n' + weaponStats.predicats;
     let pred = predicateOfRaw(champDivers);
     //On transfert les prédicats connus dans weaponStats
-    if (pred.charge) weaponStats.charge = toInt(pred.charge, 1);
     if (pred.legere || (weaponStats.attNbDices <= 1 && weaponStats.attDice <= 6))
       weaponStats.armeLegere = true;
+    weaponStats.recharge = weaponStats.options.search(/--recharge\b/) > -1;
     weaponStats.eclaire = toInt(pred.eclaire);
     weaponStats.eclaireFaible = toInt(pred.eclaireFaible);
     if (exprBatarde !== undefined) weaponStats.batarde = exprBatarde;
@@ -24658,10 +24712,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  //arm doit être le résultat de getWeaponStats
+  //arme doit être le résultat de getWeaponStats
   function armeDechargee(perso, arme) {
-    if (!arme.charge) return false;
-    let currentCharge = attributeAsInt(perso, 'charge_' + arme.label, arme.charge);
+    if (!arme.recharge) return false;
+    let currentCharge = attributeAsInt(perso, 'attributDeCombat_charge_' + arme.label, 1);
     return currentCharge === 0;
   }
 
@@ -25218,6 +25272,31 @@ var COFantasy2 = COFantasy2 || function() {
     sendPerso(perso, "Ramasse " + arme.name);
   }
 
+  function commandeRecharger(cmd, playerId, pageId, options, perso) {
+    let label = cmd[2];
+    const listeAttaques = listAllAttacks(perso);
+    let arme = listeAttaques[label];
+    if (!arme) {
+      sendPlayer("Pas d'arme de label " + label + " dans la fiche de " + nomPerso(perso), playerId);
+      return;
+    }
+    let attrName = 'attributDeCombat_charge_' + label;
+    let charges = attributeAsInt(perso, attrName, 1);
+    if (charges >= 1) {
+      sendPlayer("L'arme est déjà chargée", playerId);
+      return;
+    }
+    const evt = {
+      type: 'recharger'
+    };
+    addEvent(evt);
+    if (limiteRessources(perso, options, 'recharger', 'recharger', evt)) return;
+    setTokenAttr(perso, attrName, charges + 1, evt);
+    let nomArme = arme['arme-nom'];
+    sendPerso(perso, "recharge " + nomArme, options.secret);
+    montrerActions(playerId, pageId, options);
+  }
+
   function sortirDuCombat(evt) {
     let combat = stateCOF.combat;
     if (!combat) {
@@ -25310,30 +25389,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (arme === undefined || arme === false) return;
       if (arme === true) degainerArme(perso, '', evt);
       else degainerArme(perso, arme, evt);
-    });
-    // On recharge les armes
-    let charges = {};
-    persosDuCombat.forEach(function(perso) {
-      let persoTest = persoParCharId[perso.charId];
-      if (charges[persoTest.charId] === undefined) {
-        charges[persoTest.charId] = {};
-        let attaques = listAllAttacks(perso);
-        for (let label in attaques) {
-          let att = attaques[label];
-          let rawArme = fieldAsString(att, 'armepredicats', '');
-          if (rawArme) {
-            let predicats = predicateOfRaw(rawArme);
-            if (predicats.charge) {
-              let chargeMax = predicats.charge;
-              if (chargeMax === true) chargeMax = 1;
-              charges[persoTest.charId][label] = chargeMax;
-            }
-          }
-        }
-      }
-      for (let label in charges[persoTest.charId]) {
-        setTokenAttr(perso, 'charge_' + label, charges[persoTest.charId][label], evt);
-      }
     });
     //Remise à zéro des options de combat
     let def0 = {
@@ -27681,8 +27736,8 @@ var COFantasy2 = COFantasy2 || function() {
       if (armeEnMainGauche) armeEnMainGaucheLabel = armeEnMainGauche.label;
       _.forEach(attaques, function(att, armeLabel) {
         let nomArme = att['arme-nom'];
-        if (att.armespec && predicateOfRaw(att.armespec).charge) {
-          let charge = attributeAsInt(perso, 'charge_' + armeLabel, 0);
+        if (att['arme-options'] && att['arme-options'].search(/--recharge\b/) > -1) {
+          let charge = attributeAsInt(perso, 'attributDeCombat_charge_' + armeLabel, 1);
           if (charge === 0) {
             line = nomArme + " n'est pas chargé";
           } else {
@@ -29694,6 +29749,10 @@ var COFantasy2 = COFantasy2 || function() {
       fn: additionalDmgOption,
       optName: 'additionalCritDmg',
     },
+    portee: {
+      fn: integerOption,
+      min: 0,
+    },
     potion: boolDefaultOption,
     predicat: {
       fn: wordOption,
@@ -29710,6 +29769,7 @@ var COFantasy2 = COFantasy2 || function() {
     rate: {
       fn: tricheOption
     },
+    recharge: wordDefaultOption,
     repousseCible: {
       fn: integerOption,
       min: 0,
@@ -29895,10 +29955,6 @@ var COFantasy2 = COFantasy2 || function() {
     },
     attaquant: {
       fn: persoOption
-    },
-    portee: {
-      fn: integerOption,
-      min: 0,
     },
   };
   //TODO: munitions
@@ -31570,6 +31626,11 @@ var COFantasy2 = COFantasy2 || function() {
     'ramasser-arme': {
       fn: commandeRamasserArme,
       minArgs: 2
+    },
+    'recharger': {
+      fn: commandeRecharger,
+      minArgs: 2,
+      acteur: 1,
     },
     'recuperation': {
       fn: commandeRecuperation,
