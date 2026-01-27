@@ -1,4 +1,4 @@
-//Dernière modification : lun. 26 janv. 2026,  06:04
+//Dernière modification : mar. 27 janv. 2026,  09:44
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2576,7 +2576,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (tok.id == target.token.id) return false;
         return distanceCombat(target.token, tok, pageId) === 0;
       });
-  let tokensEnnemis = ennemisAuContact(target, pageId, tokensContact);
+      let tokensEnnemis = ennemisAuContact(target, pageId, tokensContact);
       if (combatEnPhalange) {
         let defensePhalange = 0;
         tokensEnnemis.forEach(function(tokE) {
@@ -13215,63 +13215,63 @@ var COFantasy2 = COFantasy2 || function() {
       ligne += listeAttaquesVisibles(perso, pageId, attackOptions);
       //Proposer de recharger les armes déchargées
       if (ennemisAuContact(perso, pageId).length === 0) {
-      let attributs_perso = findObjs({
-        _type: 'attribute',
-        _characterid: perso.charId,
-      });
-      let recharges = [];
-      attributs_perso.forEach(function(attr) {
-        let name = attr.get('name');
-        if (!name.startsWith('attributDeCombat_charge_')) return;
-        if (isAttrNameOfPerso(perso, name)) {
-          let label = name.substring(24);
-          if (estMook(perso)) {
-            let i = label.indexOf('_MOOK_');
-            label = label.substring(0, i);
+        let attributs_perso = findObjs({
+          _type: 'attribute',
+          _characterid: perso.charId,
+        });
+        let recharges = [];
+        attributs_perso.forEach(function(attr) {
+          let name = attr.get('name');
+          if (!name.startsWith('attributDeCombat_charge_')) return;
+          if (isAttrNameOfPerso(perso, name)) {
+            let label = name.substring(24);
+            if (estMook(perso)) {
+              let i = label.indexOf('_MOOK_');
+              label = label.substring(0, i);
+            }
+            const armes = listAllAttacks(perso);
+            let arme = armes[label];
+            if (!arme) {
+              log("Impossible de trouver l'arme de label " + label + " auquel on référence dans l'attribut " + name);
+              attr.remove();
+              return;
+            }
+            if (!arme['arme-options']) {
+              log("Pas d'option pour l'arme de label " + label + " auquel on référence dans l'attribut " + name);
+              attr.remove();
+              return;
+            }
+            let optionsArme = parseOptions(arme['arme-options'], pageId);
+            if (!typeActionPossible(perso, optionsArme.recharge)) return;
+            recharges.push({
+              nom: arme['arme-nom'],
+              label,
+              typeAction: optionsArme.recharge
+            });
           }
-          const armes = listAllAttacks(perso);
-          let arme = armes[label];
-          if (!arme) {
-            log("Impossible de trouver l'arme de label " + label + " auquel on référence dans l'attribut " + name);
-            attr.remove();
-            return;
+        });
+        if (recharges.length > 0) {
+          let {
+            picto,
+            style
+          } = PICTO_RECHARGER;
+          let buttonStyleRecharger = ' style="' + style + BASIC_BUTTON_STYLE + '"';
+          let command = "!cof2-recharger " + perso.token.id + ' ';
+          let additional = '';
+          if (recharges.length == 1) {
+            command += recharges[0].label + ' --typeAction ' + recharges[0].typeAction;
+            additional = recharges[0].nom + ' (' + recharges[0].typeAction + ')';
+          } else {
+            command += "?{Arme?";
+            recharges.forEach(function(r) {
+              //TODO: escape les caractères gênants du nom de l'arme
+              command += '|' + r.nom + "," + r.label + ' -typeAction ' + r.typeAction;
+            });
+            command += '}';
           }
-          if (!arme['arme-options']) {
-            log("Pas d'option pour l'arme de label " + label + " auquel on référence dans l'attribut " + name);
-            attr.remove();
-            return;
-          }
-          let optionsArme = parseOptions(arme['arme-options'], pageId);
-          if (!typeActionPossible(perso, optionsArme.recharge)) return;
-          recharges.push({
-            nom: arme['arme-nom'],
-            label,
-            typeAction: optionsArme.recharge
-          });
+          let b = boutonSimple(command, picto + 'Recharger', buttonStyleRecharger);
+          ligne += b + additional + '<br />';
         }
-      });
-      if (recharges.length > 0) {
-        let {
-          picto,
-          style
-        } = PICTO_RECHARGER;
-        let buttonStyleRecharger = ' style="' + style + BASIC_BUTTON_STYLE + '"';
-        let command = "!cof2-recharger " + perso.token.id + ' ';
-        let additional = '';
-        if (recharges.length == 1) {
-          command += recharges[0].label + ' --typeAction ' + recharges[0].typeAction;
-          additional = recharges[0].nom + ' (' + recharges[0].typeAction + ')';
-        } else {
-          command += "?{Arme?";
-          recharges.forEach(function(r) {
-            //TODO: escape les caractères gênants du nom de l'arme
-            command += '|' + r.nom + "," + r.label + ' -typeAction ' + r.typeAction;
-          });
-          command += '}';
-        }
-        let b = boutonSimple(command, picto + 'Recharger', buttonStyleRecharger);
-        ligne += b + additional + '<br />';
-      }
       }
     }
     //La liste d'action proprement dite
@@ -19225,7 +19225,7 @@ var COFantasy2 = COFantasy2 || function() {
       };
       characters.forEach(function(c) {
         if (c.get('controlledby').length === 0) return;
-        if (c.get('name' == 'Cible')) return;
+        if (c.get('name') == 'Cible') return;
         ajouterMembre(c.id, equipePJ, true);
       });
     }
@@ -19589,28 +19589,28 @@ var COFantasy2 = COFantasy2 || function() {
   function ennemisAuContact(perso, pageId, tokensContact) {
     if (perso.ennemisAuContact) return perso.ennemisAuContact;
     if (!tokensContact) {
-            tokensContact = findObjs({
-              _type: 'graphic',
-              _subtype: "token",
-              _pageid: pageId,
-              layer: 'objects'
-            });
-            tokensContact = tokensContact.filter(function(tok) {
-              if (tok.id == perso.token.id) return false;
-              return distanceCombat(perso.token, tok, pageId) === 0;
-            });
+      tokensContact = findObjs({
+        _type: 'graphic',
+        _subtype: "token",
+        _pageid: pageId,
+        layer: 'objects'
+      });
+      tokensContact = tokensContact.filter(function(tok) {
+        if (tok.id == perso.token.id) return false;
+        return distanceCombat(perso.token, tok, pageId) === 0;
+      });
     }
-            let tokensEnnemis = [];
-      let tokensAllies = [];
-            let allies = alliesParPerso[perso.charId] || new Set();
-            tokensContact.forEach(function(token) {
-              let ennemi = persoOfToken(token);
-              if (!ennemi || !isActive(ennemi)) return;
-              if (allies.has(ennemi.charId)) tokensAllies.push(token);
-                else tokensEnnemis.push(token);
-            });
-            perso.ennemisAuContact = tokensEnnemis;
-      perso.alliesAuContact = tokensAllies;
+    let tokensEnnemis = [];
+    let tokensAllies = [];
+    let allies = alliesParPerso[perso.charId] || new Set();
+    tokensContact.forEach(function(token) {
+      let ennemi = persoOfToken(token);
+      if (!ennemi || !isActive(ennemi)) return;
+      if (allies.has(ennemi.charId)) tokensAllies.push(token);
+      else tokensEnnemis.push(token);
+    });
+    perso.ennemisAuContact = tokensEnnemis;
+    perso.alliesAuContact = tokensAllies;
     return tokensEnnemis;
   }
 
