@@ -1,4 +1,4 @@
-//Dernière modification : mar. 27 janv. 2026,  09:44
+//Dernière modification : mar. 27 janv. 2026,  02:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -563,7 +563,7 @@ var COFantasy2 = COFantasy2 || function() {
   }, {
     name: PREMIERS_SOINS,
     action: "!cof2-premiers-soins @{selected|token_id} @{target|token_id}",
-    visibleto: '',
+    visibleto: 'all',
     istokenaction: true,
     inBar: false
   }, {
