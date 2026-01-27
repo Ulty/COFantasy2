@@ -472,7 +472,8 @@ tr {line-height: 25px;}
               </div>
               <h4 class="text-secondary" id="couvert">Couvert :<code>!cof2-effet bonusCouvert <i>b</i></code></h4>
               <div class="decalage">
-              Pour donner un bonus en DEF contre toutes les attaques à distance, on peut utiliser <code>!cof2-effet bonusCouvert ?{Bonus du couvert?}</code> en sélectionnant les tokens bénéficiant du couvert. La commande accepte un argument <code>--secret</code> permettant de ne pas faire connaître l'action du personnage à tous les joueurs. Pour ne plus être à couvert, il suffit de lancer la commande <code>!cof2-effet bonusCouvert fin</code> ou d'utiliser le statut des personnages, qui va proposer un bouton pour mettre fin à l'effet.
+                <p>Le script détermine automatiquement un malus de couverture pour les attaques à distance qui dépend des tokens présents sur le layer object entre le tireur et sa cible. Si vous ne voulez pas mettre des tokens en plus pour représenter les obstacles inertes, vous pouvez aussi associer un bonus de couvert à un personnage, qui s'appliquera contre toute les attaques à distance, avec <code>!cof2-effet bonusCouvert ?{Bonus du couvert?}</code> en sélectionnant les tokens bénéficiant du couvert. La commande accepte un argument <code>--secret</code> permettant de ne pas faire connaître l'action du personnage à tous les joueurs. Pour ne plus être à couvert, il suffit de lancer la commande <code>!cof2-effet bonusCouvert fin</code> ou d'utiliser le statut des personnages, qui va proposer un bouton pour mettre fin à l'effet.
+                </p>
               </div>
               <h4 class="text-secondary">Réduction des dégâts</h4>
               <div class="decalage">
@@ -1015,6 +1016,7 @@ tr {line-height: 25px;}
                 <h4 class="text-secondary">Voie de l'archer</h4>
                 <ol>
                   <li><strong>Archer émérite :</strong> ajoute automatiquement le buff d'initiative sur la fiche, ainsi que les dommages aux dégâts des arcs. Attention, il faut bien penser à ajouter <code>arc</code> dans la partie modificateurs de l'attaque, si un arc ne contient pas le mot <code>arc</code> dans son nom.</li>
+                  <li><strong>Tir chirurgical :</strong> pris en compte.</li>
                 </ol>
               </div>
                 <h3 class="text-info" id="sorcier">Sorcier</h3>
@@ -1114,6 +1116,7 @@ tr {line-height: 25px;}
                   <li><strong>nomTestPeuple<i>nom</i></strong> : le nom à afficher pour bonus de peuple nommé <i>nom</i></li>
                   <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
                   <li><strong>protegerUnallie</strong> : donne la possibilité d'ajouter +2 en DEF à un allié une fois par tour lorsqu'on porte un bouclier.</li>
+                  <li><strong>tirIgnoreCibleEngagee</strong>: les attaques à distance igorent les pénalités liées aux cible aux contact avec des alliés.</li>
                   <li><strong>visionDansLeNoir</strong> : entier. Le personnage voit dans le noir jusqu'à cette distance.</li>
                 </ul>
               </div>

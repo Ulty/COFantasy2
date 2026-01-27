@@ -1,4 +1,4 @@
-//Dernière modification : mar. 27 janv. 2026,  02:47
+//Dernière modification : mar. 27 janv. 2026,  04:40
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2620,25 +2620,6 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push("Suite à une attaque risquée, -4 en DEF");
     }
     let armeTarget = armesEnMain(target); //peuple target.arme et armeGauche
-    if (options.distance) {
-      let bonusCouvert = attributeAsInt(target, 'bonusCouvert', 0, 2);
-      if (bonusCouvert) {
-        if (attaquant && predicateAsBool(attaquant, 'joliCoup')) {
-          explications.push("Cible à couvert, mais " + nomPerso(attaquant) + " sait bien viser");
-        } else {
-          defense += bonusCouvert;
-          explications.push("Cible à couvert => +" + bonusCouvert + " DEF");
-        }
-      }
-      if (attributeAsBool(target, 'progresserACouvert')) {
-        if (attaquant && predicateAsBool(attaquant, 'joliCoup')) {
-          explications.push("Cible à couvert de bouclier, mais " + nomPerso(attaquant) + " sait bien viser");
-        } else {
-          defense += 5;
-          explications.push("Cible à couvert de bouclier => +5 DEF");
-        }
-      }
-    }
     //Chair à canon
     if (capaciteDisponible(target, 'chairACanon', 'tour')) {
       let tokensChairACanon = findObjs({
@@ -3420,7 +3401,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.aoe === undefined && options.auto === undefined && portee > 0) {
       attBonus -=
-        malusDistance(attaquant, target.token, target.distance, portee, pageId,
+        malusDistance(attaquant, target, target.distance, portee, pageId,
           explications, options.ignoreObstacles || options.sortilege);
     }
     let chasseurEmerite =
@@ -11018,6 +10999,9 @@ var COFantasy2 = COFantasy2 || function() {
         attrib: 'init',
         value: '[rang voie NUMEROVOIE]'
       }]
+    },
+    'tir chirurgical': {
+      tirIgnoreCibleEngagee: true
     },
     //Voies de guerrier ////////////////////////////////////////////
     //Voie du bouclier
@@ -18716,77 +18700,121 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //TODO; ajuster selon que les obstacles sont des alliés ou non
-  function malusDistance(perso1, tok2, distance, portee, pageId, explications, ignoreObstacles) {
+  function malusDistance(attaquant, cible, distance, portee, pageId, explications, ignoreObstacles) {
     if (distance === 0 || ignoreObstacles) return 0;
-    let tok1 = perso1.token;
-    // Maintenant, on cherche les tokens entre tok1 et tok2
-    let allToks =
-      findObjs({
-        _type: 'graphic',
-        _pageid: pageId,
-        _subtype: 'token',
-        layer: 'objects'
-      });
-    let mObstacle = 0;
+    let bonusCouvert = attributeAsInt(cible, 'bonusCouvert', 0, 2);
+    if (bonusCouvert > 5) bonusCouvert = 5;
+    if (bonusCouvert) explications.push("Cible à couvert => -" + bonusCouvert + " en attaque");
+    let allies = alliesParPerso[attaquant.charId] || new Set();
+    let mAlliersContact = 0;
+    let tok1 = attaquant.token;
+    let tok2 = cible.token;
     let dp = distancePixToken(tok1, tok2);
-    let liste_obstacles = [];
-    let pt1 = pointOfToken(tok1);
-    let pt2 = pointOfToken(tok2);
-    allToks.forEach(function(obj) {
-      if (obj.id == tok1.id || obj.id == tok2.id) return;
-      let objCharId = obj.get('represents');
-      let perso = {
-        token: obj,
-        charId: objCharId
-      };
-      if (objCharId !== '' &&
-        (getState(perso, 'mort') ||
-          getState(perso, 'assomme') || getState(perso, 'endormi') ||
-          (attributeAsBool(perso, 'intangible') && attributeAsInt(perso, 'intangibleValeur', 1)) ||
-          (attributeAsBool(perso, 'intangibleInvisible') && attributeAsInt(perso, 'intangibleInvisibleValeur', 1)) ||
-          attributeAsBool(perso, 'estGobePar') ||
-          attributeAsBool(perso, 'enveloppePar')
+    let sz2 = tokenSizeAsCircle(tok2);
+    if (bonusCouvert < 5) {
+      // On cherche les tokens entre tok1 et tok2
+      let allToks =
+        findObjs({
+          _type: 'graphic',
+          _pageid: pageId,
+          _subtype: 'token',
+          layer: 'objects'
+        });
+      let mObstacle = 0;
+      let liste_obstacles = [];
+      let pt1 = pointOfToken(tok1);
+      let pt2 = pointOfToken(tok2);
+      allToks.forEach(function(obj) {
+        if (obj.id == tok1.id || obj.id == tok2.id) return;
+        let objCharId = obj.get('represents');
+        let perso = {
+          token: obj,
+          charId: objCharId
+        };
+        if (objCharId !== '' &&
+          (getState(perso, 'mort') ||
+            getState(perso, 'assomme') || getState(perso, 'endormi') ||
+            (attributeAsBool(perso, 'intangible') && attributeAsInt(perso, 'intangibleValeur', 1)) ||
+            (attributeAsBool(perso, 'intangibleInvisible') && attributeAsInt(perso, 'intangibleInvisibleValeur', 1)) ||
+            attributeAsBool(perso, 'estGobePar') ||
+            attributeAsBool(perso, 'enveloppePar')
+          )
         )
-      )
-        return;
-      //On regarde si le token est une monture d'un des personnages
-      let attrMonte = tokenAttribute(perso, 'estMontePar');
-      let estMonture = attrMonte.find(function(a) {
-        let sp = splitIdName(a.get('current'));
-        if (sp === undefined) return false;
-        return sp.id == tok1.id || sp.id == tok2.id;
+          return;
+        //On regarde si le token est une monture d'un des personnages
+        let attrMonte = tokenAttribute(perso, 'estMontePar');
+        let estMonture = attrMonte.find(function(a) {
+          let sp = splitIdName(a.get('current'));
+          if (sp === undefined) return false;
+          return sp.id == tok1.id || sp.id == tok2.id;
+        });
+        if (estMonture) return;
+        let obj_dist = distancePixToken(tok1, obj);
+        if (obj_dist > dp) return;
+        obj_dist = distancePixToken(tok2, obj);
+        if (obj_dist > dp) return;
+        let distToTrajectory = distancePixTokenSegment(obj, pt1, pt2);
+        // On modélise le token comme un disque
+        let rayonObj = tokenSizeAsCircle(obj) / 2;
+        if (distToTrajectory > rayonObj) return;
+        liste_obstacles.push(obj.get("name"));
+        // On calcule un malus proportionnel à l'arc à traverser
+        // Pour l'instant, malus = 1 si distance = PIX_PER_UNIT
+        let longueurArc = 2 * Math.sqrt(rayonObj * rayonObj - distToTrajectory * distToTrajectory);
+        let mToken = longueurArc / PIX_PER_UNIT;
+        //malus plus important si l'obstacle est au contact de la cible
+        if (distanceCombat(tok2, obj, pageId) === 0) {
+          //Si c'est un allié, on compte à part.
+          let perso = persoOfToken(obj);
+          if (perso && allies.has(perso.charId) && !predicateAsBool(attaquant, 'tirIgnoreCibleEngagee')) {
+            mAlliersContact += mToken * 3;
+            mToken = 0;
+          } else {
+            mToken *= 5;
+          }
+        } else {
+          mToken *= 3;
+        }
+        mObstacle += mToken;
       });
-      if (estMonture) return;
-      let obj_dist = distancePixToken(tok1, obj);
-      if (obj_dist > dp) return;
-      obj_dist = distancePixToken(tok2, obj);
-      if (obj_dist > dp) return;
-      let distToTrajectory = distancePixTokenSegment(obj, pt1, pt2);
-      // On modélise le token comme un disque
-      let rayonObj = tokenSizeAsCircle(obj) / 2;
-      if (distToTrajectory > rayonObj) return;
-      liste_obstacles.push(obj.get("name"));
-      // On calcule un malus proportionnel à l'arc à traverser
-      // Pour l'instant, malus = 1 si distance = PIX_PER_UNIT
-      let longueurArc = 2 * Math.sqrt(rayonObj * rayonObj - distToTrajectory * distToTrajectory);
-      let mToken = longueurArc / PIX_PER_UNIT;
-      //malus plus important si l'obstacle est au contact de la cible
-      if (distanceCombat(tok2, obj, pageId) === 0) mToken *= 5;
-      else mToken *= 3;
-      mObstacle += mToken;
-    });
-    // On ajuste aussi en fonction de la taille de la cible
-    mObstacle = mObstacle / (tokenSizeAsCircle(tok2) / PIX_PER_UNIT);
-    if (mObstacle > 5) mObstacle = 5;
-    else mObstacle = Math.round(mObstacle);
-    if (mObstacle > 0) {
-      log("Obstacle" + ((liste_obstacles.length > 1) ? "s" : "") + " trouvé : " + liste_obstacles.join(', '));
-      let msgObstacles = 'Obstacle' + ((liste_obstacles.length > 1) ? 's' : '') + ' sur le trajet => -' + mObstacle + ' en Attaque<br />';
-      if (liste_obstacles.length > 0)
-        msgObstacles += '<span style="font-size: 0.8em; color: #666;">' + liste_obstacles.join(', ') + '</span>';
-      explications.push(msgObstacles);
+      // On ajuste aussi en fonction de la taille de la cible
+      mObstacle = mObstacle / (sz2 / PIX_PER_UNIT);
+      if (mObstacle > 5 - bonusCouvert) mObstacle = 5 - bonusCouvert;
+      else mObstacle = Math.round(mObstacle);
+      bonusCouvert += mObstacle;
+      if (mObstacle > 0) {
+        log("Obstacle" + ((liste_obstacles.length > 1) ? "s" : "") + " trouvé : " + liste_obstacles.join(', '));
+        let msgObstacles = 'Obstacle' + ((liste_obstacles.length > 1) ? 's' : '') + ' sur le trajet => -' + mObstacle + ' en Attaque<br />';
+        if (liste_obstacles.length > 0)
+          msgObstacles += '<span style="font-size: 0.8em; color: #666;">' + liste_obstacles.join(', ') + '</span>';
+        explications.push(msgObstacles);
+      }
     }
-    return mObstacle;
+    if (predicateAsBool(attaquant, 'tirIgnoreCibleEngagee')) return bonusCouvert;
+    //Ensuite malus de cible au contact avec un allié de l'attaquant
+    let malusMelee = 0;
+    if (mAlliersContact) {
+      mAlliersContact = mAlliersContact / (sz2 / PIX_PER_UNIT);
+      malusMelee = 2 + mAlliersContact;
+      if (malusMelee > 5) malusMelee = 5;
+      else malusMelee = Math.round(malusMelee);
+    } else {
+      let ennemisCible = ennemisAuContact(cible, pageId);
+      ennemisCible.forEach(function(tok) {
+        if (tok.id == tok1.id) return;
+        let perso = persoOfToken(tok);
+        if (perso && allies.has(perso.charId)) {
+          malusMelee = malusMelee || 2;
+          let d = distancePixToken(tok1, tok);
+          if (d >= dp) return;
+          let r = tokenSizeAsCircle(tok);
+          if (d < dp - ((r + sz2) / 3)) malusMelee = 5;
+          else malusMelee++;
+        }
+      });
+    }
+    if (malusMelee) explications.push("Cible en mêlée avec un allié => -" + malusMelee + " en attaque");
+    return bonusCouvert + malusMelee;
   }
 
   function determinant(xa, ya, xb, yb) {
@@ -27873,7 +27901,7 @@ var COFantasy2 = COFantasy2 || function() {
       });
       let bonusCouvert = attributeAsInt(perso, 'bonusCouvert', 0, 2);
       if (bonusCouvert) {
-        addLineToFramedDisplay(display, "est à couvert (+" + bonusCouvert + " DEF)");
+        addLineToFramedDisplay(display, "est à couvert (-" + bonusCouvert + " aux attaques à distance)");
       }
       if (!defenseMontree) {
         let defenseAffichee = 10;
