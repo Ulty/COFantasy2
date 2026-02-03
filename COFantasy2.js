@@ -1,4 +1,4 @@
-//Dernière modification : mar. 27 janv. 2026,  04:40
+//Dernière modification : mar. 03 févr. 2026,  05:22
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1739,6 +1739,200 @@ var COFantasy2 = COFantasy2 || function() {
     if (m.length > 4 && m[4]) query = m[4];
     else query = '?' + randomInteger(9999999);
     return body + 'thumb' + extension + query;
+  }
+
+  function createToken(name, createur, imgsrc, options) {
+    let spec = {...options
+    };
+    spec.name = name;
+    spec.subtype = 'token';
+    spec.imgsrc = normalizeTokenImg(imgsrc);
+    if (createur) {
+      spec.left = spec.left || createur.token.get('left');
+      spec.top = spec.top || createur.token.get('top');
+      spec.pageid = spec.pageid || createur.token.get('pageid');
+    } else {
+      spec.left = spec.left || 0;
+      spec.top = spec.top || 0;
+    }
+    let defTaille = PIX_PER_UNIT;
+    if (options.taille) {
+      switch (tailleDeDescription(options.taille)) {
+        case 1:
+          defTaille = Math.round(PIX_PER_UNIT * 0.35);
+          break; //Minuscule
+        case 2:
+          defTaille = Math.round(PIX_PER_UNIT * 0.5);
+          break; //Très petit
+        case 3:
+          defTaille = Math.round(PIX_PER_UNIT * 0.75);
+          break; //Petit
+        case 5:
+          defTaille = Math.round(PIX_PER_UNIT * 1.5);
+          break; //Grand
+        case 6:
+          defTaille = Math.round(PIX_PER_UNIT * 2);
+          break; //Énorme
+        case 7:
+          defTaille = Math.round(PIX_PER_UNIT * 3);
+          break; //Colossal
+      }
+    }
+    spec.width = spec.width || defTaille;
+    spec.height = spec.height || defTaille;
+    spec.layer = spec.layer || 'objects';
+    if (spec.showname === undefined) spec.showname = true;
+    if (spec.showplayers_name === undefined) spec.showplayers_name = true;
+    if (spec.showplayers_bar1 === undefined) spec.showplayers_bar1 = true;
+    if (spec.light_hassight === undefined) spec.light_hassigth = true; //Pour ne pas passer les murs
+    if (!options.visionPartagee) spec.light_losangle = '0';
+    return createObj('graphic', spec);
+  }
+
+  //evt est optionnel
+  //spec contient:
+  //- avatar
+  //- attributesFiche : nom -> valeur
+  //- attaques array
+  //- attributes array(avec current et max)
+  //- abilities array
+  //- actions arrays (avec nom, cmd et type)
+  function createCharacter(name, createur, spec, token, evt) {
+    let controlledby = '';
+    let inplayerjournals = '';
+    if (createur) {
+      let charCreateur = getObj('character', createur.charId);
+      if (charCreateur) {
+        controlledby = charCreateur.get('controlledby');
+        inplayerjournals = charCreateur.get('inplayerjournals');
+      }
+    }
+    let avatar;
+    if (spec.avatar) avatar = spec.avatar;
+    let character = createObj('character', {
+      name,
+      avatar,
+      controlledby,
+      inplayerjournals,
+    });
+    if (!character) {
+      log("Impossible de créer le personnage " + name);
+      log(spec);
+      return;
+    }
+    let charId = character.id;
+    if (token) token.set('represents', charId);
+    let perso = {
+      charId,
+      token
+    };
+    let pnj = true;
+    let specAttrs = spec.attributesFiche;
+    if (specAttrs) {
+      if (specAttrs.sheet_type == 'pc') pnj = false;
+      for (const attr in specAttrs) {
+        if (attr.endsWith('_max')) {
+          let base = attr.substring(0, attr.length - 4);
+          let opt = {
+            maxVal: specAttrs[attr]
+          };
+          let cur = ficheAttribute(perso, base, specAttrs[attr]);
+          setFicheAttr(perso, base, cur, evt, opt);
+        } else if (attr == 'pv') { //Il faut aussi mettre le max
+          let opt = {
+            maxVal: specAttrs[attr]
+          };
+          setFicheAttr(perso, attr, specAttrs[attr], evt, opt);
+        } else {
+          setFicheAttr(perso, attr, specAttrs[attr], evt);
+        }
+      }
+    }
+    if (token) {
+      let pvAttr = attributesInsensitive(perso, 'pv');
+      if (pvAttr.length > 0) {
+        let pvMax = toInt(pvAttr[0].get('max'), 0);
+        let pv = toInt(pvAttr[0].get('current'), 0);
+        if (pv === 0 && pvMax) {
+          pv = pvMax;
+          setFicheAttr(perso, 'pv', pv, evt);
+        }
+        token.set('bar1_link', pvAttr[0].id);
+        token.set('bar1_value', pv);
+        token.set('bar1_max', pvMax);
+      } else {
+        //On crée un attribut de valeur minimale
+        let niveau = 1;
+        if (createur) niveau = ficheAttributeAsInt(createur, 'niveau', 1);
+        if (spec.pvParNiveau) niveau *= spec.pvParNiveau;
+        let opt = {
+          maxVal: niveau
+        };
+        pvAttr = setFicheAttr(perso, 'pv', niveau, evt, opt);
+        token.set('bar1_link', pvAttr.id);
+      }
+      setDefaultTokenForCharacter(character, token);
+    }
+    if (pnj) {
+      if (!specAttrs || !specAttrs.sheet_type) setFicheAttr(perso, 'sheet_type', 'npc', evt);
+      //Faut-il aussi changer le tab ?
+    }
+    let specAttaques = spec.attaques;
+    if (specAttaques) {
+      let maxAttackLabel = 0;
+      let prefix_attaques = 'repeating_armes_';
+      if (pnj) prefix_attaques = 'repeating_npcarmes_';
+      specAttaques.forEach(function(att) {
+        let id = generateRowID();
+        let pref = prefix_attaques + id + '_arme-';
+        for (const field in att) {
+          createObj('attribute', {
+            _characterid: charId,
+            name: pref + field,
+            current: att[field]
+          });
+        }
+        maxAttackLabel++;
+        createObj('attribute', {
+          _characterid: charId,
+          name: pref + 'label',
+          current: maxAttackLabel,
+        });
+      });
+      setFicheAttr(perso, 'max_attack_label', maxAttackLabel, evt);
+    }
+    specAttrs = spec.attributes; //les attributs hors ceux normaux de la fiche
+    if (specAttrs) {
+      specAttrs.forEach(function(a) {
+        a._characterid = charId;
+        let attr = createObj('attribute', a);
+        if (createur && a.lie) {
+          addEffetTemporaireLie(createur, attr, evt);
+        }
+      });
+    }
+    let specAbil = spec.abilities;
+    if (specAbil) {
+      specAbil.forEach(function(a) {
+        a._characterid = charId;
+        a.istokenaction = true;
+        createObj('ability', a);
+      });
+    }
+    let specActions = spec.actions;
+    if (specActions) {
+      specActions.forEach(function(act) {
+        let pref = 'repeating_actions1_' + generateRowID() + '_action-';
+        for (const field in act) { //devrait être nom, type, cmd
+          createObj('attribute', {
+            _characterid: charId,
+            name: pref + field,
+            current: act[field]
+          });
+        }
+      });
+    }
+    return character;
   }
 
   // Les soins et récupération -----------------------------------------------
@@ -9740,6 +9934,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   // triggers sheet workers
   // options peut avoir un champ msg et un champ maxVal
+  // evt est optionnel
   // si options a un champ default, supprime la fiche si la valeur est default
   // renvoie l'attribut, sauf si on a le default
   function setFicheAttr(perso, attribute, value, evt, options = {}) {
@@ -9767,7 +9962,7 @@ var COFantasy2 = COFantasy2 || function() {
       attr.setWithWorker({
         current: value
       });
-      addCreatedAttributeToEvt(attr, evt);
+      if (evt) addCreatedAttributeToEvt(attr, evt);
       return attr;
     }
     attr = attr[0];
@@ -9775,7 +9970,7 @@ var COFantasy2 = COFantasy2 || function() {
       deleteAttribute(attr, evt);
       return;
     }
-    addAttributeToEvt(attr, evt, attr.get('current'), attr.get('max'), true);
+    if (evt) addAttributeToEvt(attr, evt, attr.get('current'), attr.get('max'), true);
     let sa = {};
     sa[attribute] = value;
     if (options.maxVal !== undefined)
@@ -11003,6 +11198,44 @@ var COFantasy2 = COFantasy2 || function() {
     'tir chirurgical': {
       tirIgnoreCibleEngagee: true
     },
+    //Voie du compagnon animal
+    'le loup': {
+      compagnonLoup: 'PARAM', //Le nom du loup
+      compagnon: {
+        id: 'compagnonLoupId',
+        avatar: "https://s3.amazonaws.com/files.d20.io/images/59094818/J0yWdxryZFKakJtNGJNNvw/max.jpg?1532612061",
+        token: "https://s3.amazonaws.com/files.d20.io/images/60183959/QAMH6WtyoK78aa4zX_mR_Q/thumb.png?1533898482",
+        name: 'PARAM',
+        pvParNiveau: 4,
+        attributesFiche: {
+          taille: 'Moyenne',
+          agi: 1,
+          con: 1,
+          con_sup: 'S',
+          for: 2,
+          per: 2,
+          per_sup: 'S',
+          cha: -2,
+          int: -3,
+          vol: 2,
+          comp_def: '12+[rang_voieNUMEROVOIE]',
+          comp_pv_max: '[niveau]*4',
+          comp_init: '[init]',
+          comp_pnjatk: '[atkmag]',
+          predicats_script: 'quadrupede',
+          creature: 'Créature vivante',
+          peuple: 'Loup',
+        },
+        attaques: [{
+          nom: 'Attaque au contact',
+          //atk devrait être donné par comp_pnjatk
+          dm: '1d4',
+          dmdiv: 2,
+          dmtype: 'morsure',
+          atktype: 'naturel',
+        }]
+      }
+    },
     //Voies de guerrier ////////////////////////////////////////////
     //Voie du bouclier
     'proteger un allie': {
@@ -11059,18 +11292,24 @@ var COFantasy2 = COFantasy2 || function() {
       compagnon: {
         id: 'familierMageId',
         name: 'PARAM',
-        taille: 'Très petite',
-        agi: 3,
-        agi_sup: 'S',
-        for: -4,
-        per: 2,
-        cha: -2,
-        int: -2,
-        vol: 2,
-        comp_def: '13+[rang_voieNUMEROVOIE]',
-        comp_pv_max: '[niveau]',
-        comp_init: '[init]',
-        predicats_script: 'aucuneActionCombat'
+        visionPartagee: true,
+        avatar: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
+        token: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
+        pvParNiveau: 1,
+        attributesFiche: {
+          taille: 'Très petite',
+          agi: 3,
+          agi_sup: 'S',
+          for: -4,
+          per: 2,
+          cha: -2,
+          int: -2,
+          vol: 2,
+          comp_def: '13+[rang_voieNUMEROVOIE]',
+          comp_pv_max: '[niveau]',
+          comp_init: '[init]',
+          predicats_script: 'aucuneActionCombat'
+        }
       }
     },
     //Voies de druide ////////////////////////////////////////////
@@ -11245,7 +11484,6 @@ var COFantasy2 = COFantasy2 || function() {
       let charPerso = getObj('character', perso.charId);
       let nom = charPerso.get('name');
       let idName = compagnon.id;
-      delete compagnon.id;
       let charId = attributeAsString(perso, idName);
       let character;
       if (charId) character = getObj('character', charId);
@@ -11258,13 +11496,22 @@ var COFantasy2 = COFantasy2 || function() {
         }
       } else {
         let nomCompagnon = compagnon.name;
-        delete compagnon.name;
         if (nomCompagnon == 'PARAM') {
           nomCompagnon = ficheAttribute(perso, 'v' + numVoie + 'r' + rang + '_param', '');
         }
         if (nomCompagnon == '') {
           log("Il manque le paramètre de la capacité " + capacite + " pour " + nomPerso(perso));
         } else {
+          //On remplace les champs dans attributesFiche
+          let caf = compagnon.attributesFiche;
+          for (const attrName in caf) {
+            let v = caf[attrName];
+            if (typeof v == 'string') {
+              caf[attrName] = v.replace(/NUMEROVOIE/g, numVoie);
+            }
+          }
+          caf.compagnon = nom;
+          //TODO: remplacer aussi dans les autres parties ?
           //On commence par chercher si le compagnon n'a pas déjà été crée
           let chars = findObjs({
             _type: 'character',
@@ -11276,23 +11523,35 @@ var COFantasy2 = COFantasy2 || function() {
             };
             return (ficheAttribute(persoCompagnon, 'compagnon', '') == nom);
           });
-          if (!character) {
-            character = createObj('character', {
-              name: nomCompagnon,
-              controlledby: charPerso.get('controlledby'),
-              inplayerjournals: charPerso.get('inplayerjournals'),
-            });
+          if (character) {
+            //On vérifie juste que les champs de fiche sont bien remplis
+            let persoCompagnon = {
+              charId: character.id
+            };
+            for (const attrName in compagnon.attributesFiche) {
+              let val = compagnon.attributeFiche[attrName];
+              setFicheAttr(persoCompagnon, attrName, val, {});
+            }
+            //TODO: rajouter aussi le reste ? Et dans ce cas, partager le code ?
+          } else {
+            //Il faut créer la fiche
+            let token;
+            if (compagnon.token) {
+              let optToken = {
+                visionPartagee: compagnon.visionPartagee,
+                taille: compagnon.attributesFiche.taille,
+              };
+              token = createToken(nomCompagnon, perso, compagnon.token, optToken);
+              if (!token) {
+                log("Impossible de créer le token " + nomCompagnon + " pour " + nomPerso(perso));
+                log(compagnon);
+              }
+            }
+            character = createCharacter(nomCompagnon, perso, compagnon, token);
+            if (token) token.remove();
           }
           charId = character.id;
           setTokenAttr(perso, idName, charId);
-          for (const attrName in compagnon) {
-            let val = compagnon[attrName].replace(/NUMEROVOIE/g, numVoie);
-            let persoCompagnon = {
-              charId
-            };
-            setFicheAttr(persoCompagnon, attrName, val, {});
-          }
-          sendPerso(perso, "Il faut maintenant ajouter un token à " + nomCompagnon, true);
         }
       }
       preds[idName] = charId;
@@ -13430,10 +13689,12 @@ var COFantasy2 = COFantasy2 || function() {
   //Le mouvement des tokens -------------------------------------------------
 
   //retourne le personnage du compagnon s'il est présent et actif
-  function compagnonPresent(perso, nomCompagnon) {
+  function compagnonPresent(perso, nomCompagnon, pageId) {
     let compagnon = predicateAsBool(perso, nomCompagnon);
     if (compagnon) {
-      let pageId = perso.token.get('pageid');
+      if (!pageId && perso.token) {
+        pageId = perso.token.get('pageid');
+      }
       let compTokenSearch = {
         _type: 'graphic',
         _subtype: 'token',
@@ -13460,16 +13721,18 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function compagnonEnVue(perso, nomCompagnon, pageId) {
-    let compagnon = compagnonPresent(perso, nomCompagnon);
+    let compagnon = compagnonPresent(perso, nomCompagnon, pageId);
     if (!compagnon) return false;
-    pageId = pageId || perso.token.get('pageid');
+    if (perso.token) {
+      pageId = pageId || perso.token.get('pageid');
+    } else if (!pageId) return false;
     let page = getObj('page', pageId);
     if (!page) {
       log("Impossible de trouver la page d'id " + pageId);
       return true;
     }
     let murs = getWalls(page, pageId);
-    if (!murs) return true;
+    if (!murs || !perso.token) return true;
     return !(obstaclePresentPerso(compagnon, perso, murs));
   }
 
@@ -14162,6 +14425,37 @@ var COFantasy2 = COFantasy2 || function() {
       token,
       charId
     };
+  }
+
+  function persoOfCharName(nom, pageId) {
+    let c = findObjs({
+      _type: 'character',
+      name: nom
+    });
+    if (c.length === 0) return;
+    if (c.length > 1) {
+      log("Attention, plus d'un personnage nommé " + nom);
+    }
+    let perso;
+    c.forEach(function(character) {
+      if (perso) return;
+      let charId = character.id;
+      let tokens = findObjs({
+        _type: 'graphic',
+        _subtype: 'token',
+        _pageid: pageId,
+        represents: charId,
+      });
+      if (tokens.length === 0) return;
+      perso = {
+        charId,
+        token: tokens[0]
+      };
+    });
+    if (!perso) perso = {
+      charId: c[0].id
+    };
+    return perso;
   }
 
   function sendChar(charId, msg) {
@@ -15128,8 +15422,8 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function tailleNormale(perso, def = 4) {
-    switch (ficheAttribute(perso, 'taille', '', optTransforme).trim().toLowerCase()) {
+  function tailleDeDescription(taille) {
+    switch (taille.trim().toLowerCase()) {
       case "minuscule":
         return 1;
       case "très petit":
@@ -15153,8 +15447,14 @@ var COFantasy2 = COFantasy2 || function() {
       case "colossal":
       case "colossale":
         return 7;
-      default: //On passe à la méthode suivante
+      default:
+        return;
     }
+  }
+
+  function tailleNormale(perso, def = 4) {
+    let t = tailleDeDescription(ficheAttribute(perso, 'taille', '', optTransforme));
+    if (t) return t;
     if (predicateAsBool(perso, 'bonusTestPeuple_petiteTaille')) return 3;
     switch (getRace(perso)) {
       case 'lutin':
@@ -15276,6 +15576,7 @@ var COFantasy2 = COFantasy2 || function() {
     setToken(nouveauToken, 'showplayers_aura2', token.get('showplayers_aura2'), evt);
     setToken(nouveauToken, 'statusmarkers', token.get('statusmarkers'), evt);
     setToken(nouveauToken, 'light_angle', token.get('light_angle'), evt);
+    setToken(nouveauToken, 'light_losangle', token.get('light_losangle'), evt);
     setToken(nouveauToken, 'has_limit_field_of_vision', token.get('has_limit_field_of_vision'), evt);
     setToken(nouveauToken, 'has_limit_field_of_night_vision', token.get('has_limit_field_of_night_vision'), evt);
     if (stateCOF.combat) {
@@ -22796,13 +23097,26 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //Calcul l'initiative d'un personnage
-  function persoInit(perso) {
+  function persoInit(perso, r) {
+    let pageId;
+    if (perso.token) pageId = perso.token.get('pageid');
+    else if (stateCOF.combat) pageId = stateCOF.combat.pageId;
+    if (!r) {
+      let initDe = ficheAttribute(perso, 'comp_init', '');
+      if (initDe && initDe.trim() == '[init]') {
+        let compagnonDe = ficheAttribute(perso, 'compagnon', '');
+        if (compagnonDe) {
+          let autre = persoOfCharName(compagnonDe, pageId);
+          if (autre) return persoInit(autre, true);
+        }
+      }
+    }
     let init;
     init = ficheAttributeAsInt(perso, 'init', 10, optTransforme);
-    if (getState(perso, 'aveugle')) init -= 5;
+    if (!r && getState(perso, 'aveugle')) init -= 5;
     init += predicateAsInt(perso, 'bonusInitiative', 0);
     // Familier du mage
-    if (compagnonEnVue(perso, 'familierMage')) init += 2;
+    if (compagnonEnVue(perso, 'familierMage', pageId)) init += 2;
     return init;
   }
 
@@ -24248,15 +24562,41 @@ var COFantasy2 = COFantasy2 || function() {
 
   // Les armes ---------------------------------------------------------
 
+  function attaqueDeCompagnon(attaquant) {
+    let attaqueDe = ficheAttribute(attaquant, 'comp_pnjatk', '');
+    if (!attaqueDe) return;
+    let compagnonDe = ficheAttribute(attaquant, 'compagnon', '');
+    if (!compagnonDe) return;
+    let pageId;
+    if (attaquant.token) pageId = attaquant.token.get('pageid');
+    let autre = persoOfCharName(compagnonDe, pageId);
+    if (!autre) return;
+
+    attaqueDe = attaqueDe.trim();
+    if (attaqueDe.length == 8) {
+      let attrDe = attaqueDe.substring(1, 7);
+      let options = {
+        recursive: true
+      };
+      return attaquePerso(autre, attrDe, options);
+    }
+  }
+
   //attaquant peut ne pas avoir de token
-  function attaquePersoPNJ(attaquant, x) {
+  function attaquePersoPNJ(attaquant, x, r) {
     let atk;
-    let listeAttaquesPNJ;
     let oatk;
+    if (!r) {
+      let a = attaqueDeCompagnon(attaquant);
+      if (a !== undefined) {
+        atk = a;
+        oatk = a;
+      }
+    }
+    let listeAttaquesPNJ = listAllAttacks(attaquant);
     switch (x) {
       case 'atkcac':
         let atkcac;
-        listeAttaquesPNJ = listAllAttacks(attaquant);
         for (let label in listeAttaquesPNJ) {
           let att = listeAttaquesPNJ[label];
           if (atk === undefined) {
@@ -24285,7 +24625,6 @@ var COFantasy2 = COFantasy2 || function() {
         return atkcac;
       case 'atktir':
         let atktir;
-        listeAttaquesPNJ = listAllAttacks(attaquant);
         for (let label in listeAttaquesPNJ) {
           let att = listeAttaquesPNJ[label];
           if (atk === undefined) {
@@ -24309,7 +24648,6 @@ var COFantasy2 = COFantasy2 || function() {
         return atktir;
       case 'atkmag':
         let atkmag;
-        listeAttaquesPNJ = listAllAttacks(attaquant);
         for (let label in listeAttaquesPNJ) {
           let att = listeAttaquesPNJ[label];
           let typeat = fieldAsString(att, 'arme-atktype', 'naturel');
@@ -24333,7 +24671,7 @@ var COFantasy2 = COFantasy2 || function() {
   //options peut contenir transforme, et avecCarac
   function attaquePerso(attaquant, x, options = {}) {
     if (x === undefined) return 0;
-    if (persoEstPNJ(attaquant, options)) return attaquePersoPNJ(attaquant, x);
+    if (persoEstPNJ(attaquant, options)) return attaquePersoPNJ(attaquant, x, options.recursive);
     let attDiv;
     let attCar;
     let attBase = 1;
@@ -24405,7 +24743,12 @@ var COFantasy2 = COFantasy2 || function() {
       weaponStats.attDice = dm.dice;
     }
     if (persoEstPNJ(perso, optTransforme)) {
-      weaponStats.attSkill = fieldAsInt(att, 'arme-atk', 0);
+      let atk = attaqueDeCompagnon(perso);
+      if (atk === undefined) {
+        weaponStats.attSkill = fieldAsInt(att, 'arme-atk', 0);
+      } else {
+        weaponStats.attSkill = atk;
+      }
       weaponStats.attDMBonusCommun = fieldAsInt(att, 'arme-dmdiv', 0);
       if (perso.transforme.charId && attributeAsBool(perso, 'changementDeFormeUtiliseAttaqueMag')) {
         let attMag = attaquePerso(perso, 'atkmag');
@@ -28532,6 +28875,7 @@ var COFantasy2 = COFantasy2 || function() {
         options.type = options.type || weaponStats.typeDegats;
         break;
       case 'magique':
+      case 'magiques':
         options.magique = true;
         options.type = options.type || 'energie'; //Les dégâts magiques sans type associé sont supposés de type énergie, l'équivalent de force dans PF1
         break;
@@ -28541,13 +28885,19 @@ var COFantasy2 = COFantasy2 || function() {
         options[weaponStats.typeDegats] = true;
         break;
       case 'tranchants':
+      case 'griffes':
         options.tranchant = true;
         break;
       case 'contondants':
+      case 'coup':
         options.contondant = true;
         break;
       case 'perforants':
+      case 'morsure':
         options.perforant = true;
+        break;
+      case 'électricité':
+        options.electrique = true;
         break;
     }
   }
@@ -31446,6 +31796,18 @@ var COFantasy2 = COFantasy2 || function() {
 
   const attributeQuiAffecteMaitriseArmes = new RegExp('^v[1-9]r2$|^v[1-9]profil$|^maitrises_armes$');
 
+  function activateSheetWorkerCompagnon(perso, compagnon) {
+      if (predicateAsBool(perso, compagnon)) {
+        let fid = predicateAsBool(perso, compagnon + 'Id');
+        let attrCompagnon = findObjs({
+          _type:'attribute',
+          characterid: fid,
+          name: 'compagnon',
+        });
+        attrCompagnon[0].setWithWorker({current: attrCompagnon[0].get('current')});
+      }
+  }
+
   function attributeChanged(attr) {
     let n = attr.get('name');
     if (n == 'cofantasy') treatSheetCommand(attr);
@@ -31459,6 +31821,14 @@ var COFantasy2 = COFantasy2 || function() {
         delete predicats.mooks;
       }
       if (infos.armesMaitrisees) delete infos.armesMaitrisees;
+    } else if (n == 'niveau') {
+      const evt = {type:"Changement de niveau"};
+      addEvent(evt);
+      let perso = {charId:attr.get('characterid')};
+      let [pc, pcMax] = ficheAttributeAsIntWithMax(perso, 'pc', 0);
+      if (pc < pcMax) setFicheAttr(perso, 'pc', pcMax, evt);
+      activateSheetWorkerCompagnon(perso, 'familierMage');
+      activateSheetWorkerCompagnon(perso, 'compagnonLoup');
     } else if (attributeQuiAffecteMaitriseArmes.test(n)) {
       let infos = infosFiche[attr.get('characterid')];
       if (!infos) return;
