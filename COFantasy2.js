@@ -1,4 +1,4 @@
-//Dernière modification : ven. 06 févr. 2026,  04:03
+//Dernière modification : sam. 07 févr. 2026,  06:25
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1761,7 +1761,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.taille) {
       switch (tailleDeDescription(options.taille)) {
         case 1:
-          defTaille = Math.round(PIX_PER_UNIT * 0.35);
+          defTaille = Math.round(PIX_PER_UNIT * 0.375);
           break; //Minuscule
         case 2:
           defTaille = Math.round(PIX_PER_UNIT * 0.5);
@@ -4084,6 +4084,13 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function attackRollExpr(attaquant, diceOptions) {
+    if (diceOptions.deBonus !== true) {
+    let autre = compagnonDeAuContact(attaquant);
+    if (autre && predicateAsBool(autre, 'travailDEquipe')) {
+      diceOptions.deBonus = diceOptions.deBonus || 0;
+      diceOptions.deBonus++;
+    }
+    }
     let de = computeDice(attaquant, diceOptions);
     return "[[" + de + "cs>" + diceOptions.crit + "cf1]]";
   }
@@ -10443,7 +10450,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     setDefaultTokenForCharacter(character, perso.token);
-    sendPlayer("Token de "+character.get('name')+" lié");
+    sendPlayer("Token de " + character.get('name') + " lié");
   }
 
   function commandeLinkToken(cmd, playerId, pageId, options) {
@@ -10540,11 +10547,14 @@ var COFantasy2 = COFantasy2 || function() {
       if (!mook) charsTreated.add(charId);
       character.get('_defaulttoken', function(defaultToken) {
         if (defaultToken) {
-          evt.defaultTokens.push({
-            charId: character.id,
-            defaultToken: {...defaultToken
-            }
-          });
+          defaultToken = JSON.parse(defaultToken);
+          if (defaultToken) {
+            evt.defaultTokens.push({
+              charId: character.id,
+              defaultToken: {...defaultToken
+              }
+            });
+          }
         }
         linkToken(perso, character, mook, cof2e, playerId, evt);
       });
@@ -11416,7 +11426,9 @@ var COFantasy2 = COFantasy2 || function() {
           atktype: 'naturel',
         }]
       },
-      'travail d’equipe': {},
+      'travail d’equipe': {
+      travailDEquipe: true,
+      },
     },
     //Voies de guerrier ////////////////////////////////////////////
     //Voie du bouclier
@@ -13928,12 +13940,30 @@ var COFantasy2 = COFantasy2 || function() {
     return !(obstaclePresentPerso(compagnon, perso, murs));
   }
 
+  //Si le compagnon est au contact, retourne son perso
+  function compagnonAuContact(perso, nomCompagnon, pageId) {
+    if (!perso.token) return;
+    pageId = pageId || perso.token.get('pageid');
+    let compagnon = compagnonPresent(perso, nomCompagnon, pageId);
+    if (!compagnon) return false;
+    if (distanceCombat(perso.token, compagnon.token, pageId) == 0) return compagnon;
+  }
+
   //Retourne le personnage dont perso est le compagnon, avec token s'il est sur pageId
   function compagnonDe(perso, pageId) {
     let compagnonDeId = predicateAsBool(perso, 'compagnonDe');
     if (compagnonDeId) return persoOfCharId(compagnonDeId, pageId);
     let compagnonDe = ficheAttribute(perso, 'compagnon', '');
     if (compagnonDe) return persoOfCharName(compagnonDe, pageId);
+  }
+
+  //Si perso est le compagnon d'un perso au contact, le retourne
+  function compagnonDeAuContact(perso, pageId) {
+    if (!perso.token) return;
+    pageId = pageId || perso.token.get('pageid');
+    let autre = compagnonDe(perso, pageId);
+    if (!autre || !autre.token) return;
+    if (distanceCombat(perso.token, autre.token, pageId) === 0) return autre;
   }
 
   //cof2-centrer-sur-token tid (ou nom de token)
@@ -21725,7 +21755,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   // Test de caractéristique
-  // options : bonusAttrs, bonusPreds, bonus, roll
+  // options : bonusAttrs, bonusPreds, bonus, roll, deBonus
   // Après le test, lance callback(testRes, explications
   // testRes.texte est l'affichage du jet de dé
   // testRes.reussite indique si le jet est réussi
@@ -22612,7 +22642,7 @@ var COFantasy2 = COFantasy2 || function() {
         res += '} ';
       }
       if (bonusPeuple.length > 0) {
-        res += '?{Bonus de peuple|Aucun,&#32;';
+        res += ' ?{Bonus de peuple|Aucun,&#32;';
         bonusPeuple.forEach(function(b) {
           let nom = preds['nomTestPeuple' + b];
           if (!nom) {
@@ -22625,7 +22655,7 @@ var COFantasy2 = COFantasy2 || function() {
         res += '} ';
       }
       if (bonusPrestige.length > 0) {
-        res += '?{Bonus de voie de prestige|Aucun,&#32;';
+        res += ' ?{Bonus de voie de prestige|Aucun,&#32;';
         bonusPrestige.forEach(function(b) {
           let nom = preds['nomTestPrestige' + b];
           if (!nom) {
@@ -22636,6 +22666,9 @@ var COFantasy2 = COFantasy2 || function() {
           res += '|' + nom + ',' + '--bonusPrestige ' + b;
         });
         res += '}';
+      }
+      if (predicateAsBool(perso, 'travailDEquipe') && compagnonAuContact(perso)) {
+        res += ' ?{Pistage ou vigilance?|Non,&#32;|Pistage,--competence pistage --deBonus|Vigilance,--competence vigilance --deBonus}';
       }
       infos.choixBonusCapacite = res;
     }
@@ -22998,6 +23031,11 @@ var COFantasy2 = COFantasy2 || function() {
         optionsTest.bonusAttrs = bonusAttrs;
         optionsTest.bonusPreds = bonusPreds;
         optionsTest.competence = 'vigilance';
+        if (predicateAsBool(perso, 'travailDEquipe') && compagnonAuContact(perso) && optionsTest.deBonus !== true) {
+          addLineToFramedDisplay(display, "Travail d'équipe => dé bonus pour éviter d'être surpris");
+          optionsTest.deBonus = optionsTest.deBonus || 0;
+          optionsTest.deBonus++;
+        }
         testCaracteristique(perso, 'PER', testSurprise, testId, optionsTest, evt,
           function(tr, explications) {
             let result;
@@ -32393,9 +32431,9 @@ var COFantasy2 = COFantasy2 || function() {
       if (apiMsg.selected && apiMsg.selected.length > 0) {
         firstSelected = getObj('graphic', apiMsg.selected[0]._id);
         if (firstSelected === undefined) {
-        let firstSelectedObj = getObj(apiMsg.selected[0]._type, apiMsg.selected[0]._id);
-          if(!firstSelectedObj)
-          error("Un objet sélectionné n'est pas trouvé en interne", apiMsg.selected);
+          let firstSelectedObj = getObj(apiMsg.selected[0]._type, apiMsg.selected[0]._id);
+          if (!firstSelectedObj)
+            error("Un objet sélectionné n'est pas trouvé en interne", apiMsg.selected);
         }
       }
       if (firstSelected) {
