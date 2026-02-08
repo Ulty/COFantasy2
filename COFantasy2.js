@@ -1,4 +1,4 @@
-//Dernière modification : dim. 08 févr. 2026,  10:45
+//Dernière modification : dim. 08 févr. 2026,  03:07
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -10391,6 +10391,57 @@ var COFantasy2 = COFantasy2 || function() {
     return onGenre(perso, '', 'e');
   }
 
+  //Travail sur le token par défaut, asynchrone
+  function materialiseDefaultToken(character, pageId, layer, left, top, evt, updateSpec, treatToken, noToken) {
+    character.get('_defaulttoken', function(defaultToken) {
+      if (!defaultToken) {
+        noToken("Pas de token défini pour " + character.get('name'));
+        return;
+      }
+      defaultToken = JSON.parse(defaultToken);
+      if (!defaultToken) {
+        noToken("Pas de token défini pour " + character.get('name'));
+        return;
+      }
+      let charId = character.id;
+      let tokenSpec = defaultToken;
+      if (evt) {
+        tokenSpec = {...defaultToken
+        };
+      }
+      tokenSpec.imgsrc = normalizeTokenImg(tokenSpec.imgsrc);
+      delete tokenSpec.pageid;
+      tokenSpec._pageid = pageId;
+      tokenSpec.left = left;
+      tokenSpec.top = top;
+      tokenSpec.represents = charId;
+      tokenSpec.layer = layer;
+      for (let i = 1; i<5; i++) {
+        let bar = 'bar'+i+'_';
+        let attrId = tokenSpec[bar+'link'];
+        if (attrId) {
+          let attr = getObj('attribute', attrId);
+          if (attr) {
+          tokenSpec[bar+'value'] = attr.get('current');
+          tokenSpec[bar+'max'] = attr.get('max');
+          }
+        }
+      }
+      if (updateSpec) updateSpec(tokenSpec);
+      let token = createObj('graphic', tokenSpec);
+      if (!token) {
+        noToken("Impossible de modifier le token par défaut de cette fiche, il faut en mettre un exemplaire sur la carte (probablement à cause de l'image du token qui n'est pas dans une librairie personnelle)");
+        return;
+      }
+      evt.defaultTokens = evt.defaultTokens || [];
+      evt.defaultTokens.push({
+        charId,
+        defaultToken,
+      });
+      treatToken(token);
+    });
+  }
+
   function linkToken(perso, character, mook, cof2e, playerId, evt) {
     let pvAttr = attributesInsensitive(perso, 'pv');
     if (pvAttr.length === 0) {
@@ -10483,49 +10534,28 @@ var COFantasy2 = COFantasy2 || function() {
           sendPlayer("Pas de fiche avec l'id " + options.selectChar, playerId);
           return;
         }
-        character.get('_defaulttoken', function(defaultToken) {
-          if (!defaultToken) {
-            sendPlayer("Pas de token défini pour " + character.get('name'), playerId);
-            return;
-          }
-          defaultToken = JSON.parse(defaultToken);
-          if (!defaultToken) {
-            sendPlayer("Pas de token défini pour " + character.get('name'), playerId);
-            return;
-          }
-          let charId = character.id;
-          let perso = {
-            charId
-          };
-          let mook = ficheAttributeAsInt(perso, 'mook', 0);
-          let tokenSpec = {...defaultToken
-          };
-          tokenSpec.imgsrc = normalizeTokenImg(tokenSpec.imgsrc);
-          delete tokenSpec.pageid;
-          tokenSpec._pageid = pageId;
-          tokenSpec.top = 0;
-          tokenSpec.left = 0;
-          tokenSpec.represents = charId;
-          tokenSpec.layer = 'gmlayer';
+        let charId = character.id;
+        let perso = {
+          charId
+        };
+        let updateSpec = function(tokenSpec) {
           tokenSpec.name = tokenSpec.name || character.get('name');
           if (tokenSpec.width == PIX_PER_UNIT && tokenSpec.height == PIX_PER_UNIT) {
             delete tokenSpec.width;
             delete tokenSpec.height;
           }
           setTailleToken(tokenSpec, ficheAttribute(perso, 'taille', ''));
-          let token = createObj('graphic', tokenSpec);
-          if (!token) {
-            sendPlayer("Impossible de modifier le token par défaut de cette fiche, il faut en mettre un exemplaire sur la carte (probablement à cause de l'image du token qui n'est pas dans une librairie personnelle", playerId);
-            return;
-          }
-          evt.defaultTokens.push({
-            charId,
-            defaultToken,
-          });
+        };
+        let treatToken = function(token) {
+          let mook = ficheAttributeAsInt(perso, 'mook', 0);
           perso.token = token;
           linkToken(perso, character, mook, cof2e, playerId, evt);
           token.remove();
-        });
+        };
+        let noToken = function(msg) {
+          sendPlayer(msg, playerId);
+        };
+        materialiseDefaultToken(character, pageId, 'gmlayer', 0, 0, evt, updateSpec, treatToken, noToken);
       } else {
         sendPlayer("Pas de token ou de personnage sélectionné", playerId);
       }
@@ -15873,11 +15903,12 @@ var COFantasy2 = COFantasy2 || function() {
     let tokenChange = attributeAsBool(perso, 'changementDeToken');
     if (!tokenChange) return;
     let token = perso.token;
+    let pageId = token.get('pageid');
     let tokenMJ =
       findObjs({
         _type: 'graphic',
         _subtype: 'token',
-        _pageid: token.get('pageid'),
+        _pageid: pageId,
         layer: 'gmlayer',
         represents: perso.charId,
         name: token.get('name')
@@ -15895,22 +15926,13 @@ var COFantasy2 = COFantasy2 || function() {
     removeTokenAttr(perso, 'changementDeToken', evt);
     if (tokenMJ.length === 0) {
       let character = getObj('character', perso.charId);
-      character.get('_defaulttoken', function(defToken) {
-        if (defToken) {
-          defToken = JSON.parse(defToken);
-          defToken.imgsrc = thumbImage(defToken.imgsrc);
-          defToken.layer = 'objects';
-          defToken.left = token.get('left');
-          defToken.top = token.get('top');
-          defToken.pageid = token.get('pageid');
-          let newToken = createObj('graphic', defToken);
-          if (newToken) {
-            copyOldTokenToNewToken(newToken, perso, evt);
-            return;
-          }
-        }
-        error("Impossible de retrouver le token d'origine du personnage", perso);
-      });
+      let treatToken = function(newToken) {
+        copyOldTokenToNewToken(newToken, perso, evt);
+      };
+      let noToken = function(msg) {
+        error("Impossible de retrouver le token d'origine du personnage. " + msg, perso);
+      };
+      materialiseDefaultToken(character, pageId, 'objects', token.get('left'), token.get('top'), evt, undefined, treatToken, noToken);
       return;
     }
     return copyOldTokenToNewToken(tokenMJ[0], perso, evt);
