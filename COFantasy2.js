@@ -1,4 +1,4 @@
-//Dernière modification : dim. 08 févr. 2026,  09:57
+//Dernière modification : dim. 08 févr. 2026,  10:45
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1785,7 +1785,7 @@ var COFantasy2 = COFantasy2 || function() {
       spec.left = spec.left || 0;
       spec.top = spec.top || 0;
     }
-  setTailleToken(spec, options.taille);
+    setTailleToken(spec, options.taille);
     spec.layer = spec.layer || 'objects';
     if (spec.showname === undefined) spec.showname = true;
     if (spec.showplayers_name === undefined) spec.showplayers_name = true;
@@ -2436,11 +2436,12 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (difficulte > 0) {
         let testId = 'reposComplet' + perso.token.id;
-        let survieRodeur = bonusEvolutif(perso, 'survieRodeur', function(msg){
+        let survieRodeur = bonusEvolutif(perso, 'survieRodeur', function(msg) {
           addLineToFramedDisplay(displayAll, msg);
         });
         if (survieRodeur) {
-          options = {...options};
+          options = {...options
+          };
           options.bonusEvolutif = survieRodeur;
         }
         testCaracteristique(perso, 'CON', difficulte, testId, options, evt,
@@ -10500,12 +10501,17 @@ var COFantasy2 = COFantasy2 || function() {
           let tokenSpec = {...defaultToken
           };
           tokenSpec.imgsrc = normalizeTokenImg(tokenSpec.imgsrc);
+          delete tokenSpec.pageid;
           tokenSpec._pageid = pageId;
           tokenSpec.top = 0;
           tokenSpec.left = 0;
           tokenSpec.represents = charId;
           tokenSpec.layer = 'gmlayer';
           tokenSpec.name = tokenSpec.name || character.get('name');
+          if (tokenSpec.width == PIX_PER_UNIT && tokenSpec.height == PIX_PER_UNIT) {
+            delete tokenSpec.width;
+            delete tokenSpec.height;
+          }
           setTailleToken(tokenSpec, ficheAttribute(perso, 'taille', ''));
           let token = createObj('graphic', tokenSpec);
           if (!token) {
@@ -11447,9 +11453,9 @@ var COFantasy2 = COFantasy2 || function() {
         }]
       },
     },
-      'travail d’equipe': {
-        travailDEquipe: true,
-      },
+    'travail d’equipe': {
+      travailDEquipe: true,
+    },
     //Voie de la survie
     'survie': {
       bonusTestEvolutif_escalade: true,
