@@ -1,4 +1,4 @@
-//Dernière modification : sam. 07 févr. 2026,  06:25
+//Dernière modification : dim. 08 févr. 2026,  09:57
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1743,23 +1743,10 @@ var COFantasy2 = COFantasy2 || function() {
     return body + 'thumb' + extension + query;
   }
 
-  function createToken(name, createur, imgsrc, options) {
-    let spec = {...options
-    };
-    spec.name = name;
-    spec.subtype = 'token';
-    spec.imgsrc = normalizeTokenImg(imgsrc);
-    if (createur) {
-      spec.left = spec.left || createur.token.get('left');
-      spec.top = spec.top || createur.token.get('top');
-      spec.pageid = spec.pageid || createur.token.get('pageid');
-    } else {
-      spec.left = spec.left || 0;
-      spec.top = spec.top || 0;
-    }
+  function setTailleToken(spec, taille) {
     let defTaille = PIX_PER_UNIT;
-    if (options.taille) {
-      switch (tailleDeDescription(options.taille)) {
+    if (taille) {
+      switch (tailleDeDescription(taille)) {
         case 1:
           defTaille = Math.round(PIX_PER_UNIT * 0.375);
           break; //Minuscule
@@ -1782,6 +1769,23 @@ var COFantasy2 = COFantasy2 || function() {
     }
     spec.width = spec.width || defTaille;
     spec.height = spec.height || defTaille;
+  }
+
+  function createToken(name, createur, imgsrc, options) {
+    let spec = {...options
+    };
+    spec.name = name;
+    spec.subtype = 'token';
+    spec.imgsrc = normalizeTokenImg(imgsrc);
+    if (createur) {
+      spec.left = spec.left || createur.token.get('left');
+      spec.top = spec.top || createur.token.get('top');
+      spec.pageid = spec.pageid || createur.token.get('pageid');
+    } else {
+      spec.left = spec.left || 0;
+      spec.top = spec.top || 0;
+    }
+  setTailleToken(spec, options.taille);
     spec.layer = spec.layer || 'objects';
     if (spec.showname === undefined) spec.showname = true;
     if (spec.showplayers_name === undefined) spec.showplayers_name = true;
@@ -2432,6 +2436,13 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (difficulte > 0) {
         let testId = 'reposComplet' + perso.token.id;
+        let survieRodeur = bonusEvolutif(perso, 'survieRodeur', function(msg){
+          addLineToFramedDisplay(displayAll, msg);
+        });
+        if (survieRodeur) {
+          options = {...options};
+          options.bonusEvolutif = survieRodeur;
+        }
         testCaracteristique(perso, 'CON', difficulte, testId, options, evt,
           function(tr, explications) {
             let smsg = nomPerso(perso) + " fait ";
@@ -4085,11 +4096,11 @@ var COFantasy2 = COFantasy2 || function() {
 
   function attackRollExpr(attaquant, diceOptions) {
     if (diceOptions.deBonus !== true) {
-    let autre = compagnonDeAuContact(attaquant);
-    if (autre && predicateAsBool(autre, 'travailDEquipe')) {
-      diceOptions.deBonus = diceOptions.deBonus || 0;
-      diceOptions.deBonus++;
-    }
+      let autre = compagnonDeAuContact(attaquant);
+      if (autre && predicateAsBool(autre, 'travailDEquipe')) {
+        diceOptions.deBonus = diceOptions.deBonus || 0;
+        diceOptions.deBonus++;
+      }
     }
     let de = computeDice(attaquant, diceOptions);
     return "[[" + de + "cs>" + diceOptions.crit + "cf1]]";
@@ -10495,6 +10506,7 @@ var COFantasy2 = COFantasy2 || function() {
           tokenSpec.represents = charId;
           tokenSpec.layer = 'gmlayer';
           tokenSpec.name = tokenSpec.name || character.get('name');
+          setTailleToken(tokenSpec, ficheAttribute(perso, 'taille', ''));
           let token = createObj('graphic', tokenSpec);
           if (!token) {
             sendPlayer("Impossible de modifier le token par défaut de cette fiche, il faut en mettre un exemplaire sur la carte (probablement à cause de l'image du token qui n'est pas dans une librairie personnelle", playerId);
@@ -11229,6 +11241,10 @@ var COFantasy2 = COFantasy2 || function() {
 
   const descriptionBonus = {
     Evolutif: {
+      escalade: {
+        nom: "Escalade",
+        description: "escalade",
+      },
       injonction: {
         nom: "Persuasion de l'envoûteur",
         description: "persuasion et séduction",
@@ -11236,14 +11252,6 @@ var COFantasy2 = COFantasy2 || function() {
       mecanismes: {
         nom: 'Mécanismes',
         description: "réparer ou comprendre des mécanismes &#013;(y compris désamorcer des pièges mécaniques et manipuler des armes de siège)",
-      },
-      vigilance: {
-        nom: 'Vigilance',
-        description: "éviter d'être surpris",
-      },
-      robustesse: {
-        nom: 'Robustesse',
-        description: "résister aux efforts physiques, à la chaleur, &#013;au froid (conditions naturelles)"
       },
       plantes: {
         nom: 'Plantes',
@@ -11260,6 +11268,18 @@ var COFantasy2 = COFantasy2 || function() {
       occultisme: {
         nom: 'Occultisme',
         description: "connaissance et érudition en rapport avec la magie",
+      },
+      survieRodeur: {
+        nom: 'Survie en milieu naturel',
+        descripion: "s'orienter, trouver un abris et de la nourriture, ...",
+      },
+      robustesse: {
+        nom: 'Robustesse',
+        description: "résister aux efforts physiques, à la chaleur, &#013;au froid (conditions naturelles)"
+      },
+      vigilance: {
+        nom: 'Vigilance',
+        description: "éviter d'être surpris",
       },
     },
     Peuple: {
@@ -11426,9 +11446,14 @@ var COFantasy2 = COFantasy2 || function() {
           atktype: 'naturel',
         }]
       },
+    },
       'travail d’equipe': {
-      travailDEquipe: true,
+        travailDEquipe: true,
       },
+    //Voie de la survie
+    'survie': {
+      bonusTestEvolutif_escalade: true,
+      bonusTestEvolutif_survieRodeur: true,
     },
     //Voies de guerrier ////////////////////////////////////////////
     //Voie du bouclier
