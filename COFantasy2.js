@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 12 févr. 2026,  10:57
+//Dernière modification : jeu. 12 févr. 2026,  03:28
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1176,10 +1176,12 @@ var COFantasy2 = COFantasy2 || function() {
         name: 'scriptVersion',
         current: 0,
       });
-      attr.setWithWorker({
-        current: 1,
-        max: stateCOF.version
-      });
+      _.delay(function() {
+        attr.setWithWorker({
+          current: 1,
+          max: stateCOF.version
+        });
+      }, 2000);
     } else {
       if (attrs.length > 1) {
         for (let i = 1; i < attrs.length; i++) {
