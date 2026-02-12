@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 12 févr. 2026,  03:41
+//Dernière modification : jeu. 12 févr. 2026,  04:04
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1171,6 +1171,7 @@ var COFantasy2 = COFantasy2 || function() {
       caseInsensitive: true
     });
     if (attrs.length === 0) {
+      /*
       let attr = createObj('attribute', {
         characterid: charId,
         name: 'scriptVersion',
@@ -1182,6 +1183,7 @@ var COFantasy2 = COFantasy2 || function() {
           max: stateCOF.version
         });
       }, 2000);
+      */
     } else {
       if (attrs.length > 1) {
         for (let i = 1; i < attrs.length; i++) {
@@ -32383,26 +32385,13 @@ var COFantasy2 = COFantasy2 || function() {
       if (pc < pcMax) setFicheAttr(perso, 'pc', pcMax, evt);
       activateSheetWorkerCompagnon(perso, 'familierMage');
       activateSheetWorkerCompagnon(perso, 'compagnonLoup');
-    } else if (n == 'version') {
-      log("Attribut de version modifiée");
-      let perso = {
-        charId: attr.get('characterid')
-      };
-      if (!ficheAttribute(perso, 'scriptVersion')) {
-        log("Création de l'attribut  scriptVersion");
-        let attr = createObj('attribute', {
-          characterid: perso.charId,
-          name: 'scriptVersion',
-          current: 0,
-        });
-        _.delay(function() {
+    } else if (n == 'scriptVersion') {
+      log("Attribut scriptVersion modifiée");
           log("Activation du sheet worker pour scriptVersion");
           attr.setWithWorker({
             current: 1,
             max: stateCOF.version
           });
-        }, 2000);
-      }
     } else if (attributeQuiAffecteMaitriseArmes.test(n)) {
       let infos = infosFiche[attr.get('characterid')];
       if (!infos) return;
