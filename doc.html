@@ -1024,6 +1024,11 @@ tr {line-height: 25px;}
                   <li><strong>Le loup :</strong> il faut indiquer le nom du loupdans les paramètres de la capacité. Le script va ensuite automatiquement créer la fiche et le token du loup.</li>
                   <li><strong>Travail d'équipe :</strong> le script ajoute le prédicat <code>travailDEquipe</code>, qui permet d'avoir les dé bonus appropriés.</li>
                 </ol>
+                <h4 class="text-secondary">Voie de la survie</h4>
+                <ol>
+                  <li><strong>Survie :</strong> ajoute deux compétences évolutives : <code>escalade</code> et <code>survieRodeur</code>, et gère le bonus à la récupération en demandant si la nuit est passée en milieu naturel.</li>
+                  <li><strong>Nature nourricière :</strong> le script propose une action hors combat.</li>
+                </ol>
               </div>
                 <h3 class="text-info" id="sorcier">Sorcier</h3>
               <div class="decalage">
@@ -1109,6 +1114,7 @@ tr {line-height: 25px;}
                   <li><strong>ajoutePERauxDMdArc</strong> : indique qu'il fait ajouter la PER aux dégâts des arcs.</li>
                   <li><strong>aucuneActionCombat</strong> : indique que le personnage n'agit jamais en combat. Ce peut être pas exemple le cas du familier du mage.</li>
                   <li><strong>bonusInitiative</strong> : bonus à l'initiative. Ne se cumule pas.</li>
+                  <li><strong>bonusRecuperationMilieuNaturel</strong> : ajoute 1d4° aux PVs récupérés lors d'une dépense de DR après un repos complet.</li>
                   <li><strong>bonusTest_<i>carac</i></strong> : bonus aux tests de caractéristique <i>carac</i>. Ne se cumule pas.</li>
                   <li><strong>bonusTest_<i>competence</i></strong> : bonus aux tests de compétence <i>competence</i>. Ne se cumule pas.</li>
                   <li><strong>bonusTestEvolutif_<i>competence</i></strong> : bonus ou nom de voie. Si on donne un nom de voie, le bonus est le rang dans la voie + 2, capé à 7.</li>
@@ -1123,6 +1129,7 @@ tr {line-height: 25px;}
                   <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
                   <li><strong>protegerUnallie</strong> : donne la possibilité d'ajouter +2 en DEF à un allié une fois par tour lorsqu'on porte un bouclier.</li>
                   <li><strong>tirIgnoreCibleEngagee</strong>: les attaques à distance igorent les pénalités liées aux cible aux contact avec des alliés.</li>
+                  <li><strong>travailDEquipe</strong> : ajoute un dé bonus aux jet de pistage et de vigilance quand on contact du compagnon. Ajoute un dé bonus en attaque au compagnon s'il est au contact du personnage.</li>
                   <li><strong>visionDansLeNoir</strong> : entier. Le personnage voit dans le noir jusqu'à cette distance.</li>
                 </ul>
               </div>
