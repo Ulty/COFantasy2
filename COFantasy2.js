@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 12 févr. 2026,  03:28
+//Dernière modification : jeu. 12 févr. 2026,  03:41
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -32383,6 +32383,26 @@ var COFantasy2 = COFantasy2 || function() {
       if (pc < pcMax) setFicheAttr(perso, 'pc', pcMax, evt);
       activateSheetWorkerCompagnon(perso, 'familierMage');
       activateSheetWorkerCompagnon(perso, 'compagnonLoup');
+    } else if (n == 'version') {
+      log("Attribut de version modifiée");
+      let perso = {
+        charId: attr.get('characterid')
+      };
+      if (!ficheAttribute(perso, 'scriptVersion')) {
+        log("Création de l'attribut  scriptVersion");
+        let attr = createObj('attribute', {
+          characterid: perso.charId,
+          name: 'scriptVersion',
+          current: 0,
+        });
+        _.delay(function() {
+          log("Activation du sheet worker pour scriptVersion");
+          attr.setWithWorker({
+            current: 1,
+            max: stateCOF.version
+          });
+        }, 2000);
+      }
     } else if (attributeQuiAffecteMaitriseArmes.test(n)) {
       let infos = infosFiche[attr.get('characterid')];
       if (!infos) return;
