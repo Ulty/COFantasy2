@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 12 févr. 2026,  04:04
+//Dernière modification : ven. 13 févr. 2026,  03:35
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -89,7 +89,7 @@ var COFantasy2 = COFantasy2 || function() {
     return res;
   }
 
-  //Les variables globales
+  //Les variables globales ----------------------------------------------------------
   let jumpgate; //true si on a une campagne Jumpgate
   let apiMsg; //Le message en cours de traitement (avec champ selected, etc)
   let markerCatalog = {};
@@ -623,6 +623,7 @@ var COFantasy2 = COFantasy2 || function() {
     inBar: true
   }, ];
 
+// Tout ce qui doit survivre est dans state.COFantasy --------------------------------------
   let stateCOF = state.COFantasy;
   let reglesOptionelles; // = stateCOF.options.regles.val;
 
@@ -690,6 +691,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - afterDisplay : données à afficher après un display
   // - version : la version du script en cours, pour détecter qu'on change de version
   // - attenteDepenseDR : map de token id en attente de dépense de DR après un repos.
+  // - milieu : peut être non défini, et sinon artificiel ou naturel
 
   function commandeCleanGlobalState(cmd, playerId, pageId, options) {
     stateCOF = stateCOF || state.COFantasy;
@@ -1142,6 +1144,26 @@ var COFantasy2 = COFantasy2 || function() {
     handout.forEach(parseHandout);
   }
 
+  //Met le milieu par défaut (artifiel, naturel)
+  function commandeMilieu(cmd, playerId, pageId, options) {
+    if (cmd.length < 2) {
+      delete stateCOF.milieu;
+      sendPlayer("Plus de milieu défini", playerId);
+    }
+    switch (cmd[1].toLowerCase().trim()) {
+      case 'naturel':
+        stateCOF.milieu = 'naturel';
+        sendPlayer("Les joueurs sont maintenant en milieu naturel", playerId);
+          return;
+      case 'artificiel':
+        stateCOF.milieu = 'artificiel';
+        sendPlayer("Les joueurs sont maintenant en milieu naturel", playerId);
+          return;
+    }
+    if (!stateCOF.milieu) sendPlayer("Le milieu actuel n'est pas défini", playerId);
+    else sendPlayer("Les joueurs sont actuellement en milieu "+stateCOF.milieu, playerId);
+  }
+
   function updateVersion(version) {
     if (version == scriptVersion) return; //Le script est à jour
     stateCOF.version = scriptVersion;
@@ -1171,19 +1193,15 @@ var COFantasy2 = COFantasy2 || function() {
       caseInsensitive: true
     });
     if (attrs.length === 0) {
-      /*
       let attr = createObj('attribute', {
         characterid: charId,
         name: 'scriptVersion',
         current: 0,
       });
-      _.delay(function() {
-        attr.setWithWorker({
-          current: 1,
-          max: stateCOF.version
-        });
-      }, 2000);
-      */
+      attr.setWithWorker({
+        current: 1,
+        max: stateCOF.version
+      });
     } else {
       if (attrs.length > 1) {
         for (let i = 1; i < attrs.length; i++) {
@@ -2064,7 +2082,7 @@ var COFantasy2 = COFantasy2 || function() {
     let recup;
     if (options.max) {
       let gain = de + bonus;
-      if (options.milieuNaturel && predicateAsBool(perso, 'bonusRecuperationMilieuNaturel')) {
+      if ((options.milieuNaturel || stateCOF.milieu == 'naturel') && predicateAsBool(perso, 'bonusRecuperationMilieuNaturel')) {
         let opt = {
           bonus: gain,
         };
@@ -2321,7 +2339,12 @@ var COFantasy2 = COFantasy2 || function() {
     } = args;
     const evt = evtAvecRedo('Recuperation', args);
     if (stateCOF.combat) sortirDuCombat(evt);
-    let displayMJ = startFramedDisplay(playerId, "Récupération " + typeRecuperation, undefined, {
+    let titreMJ = "Récupération "+typeRecuperation;
+    if (stateCOF.milieu) {
+      titreMJ += " en milieu ";
+      titreMJ += boutonSimple('cof2-milieu ?{milieu|artificiel|naturel|indéterminé,&#32;}', stateCOF.milieu, BS_BUTTON); 
+    }
+    let displayMJ = startFramedDisplay(playerId, titreMJ, undefined, {
       chuchote: 'GM'
     });
     startTableInFramedDisplay(displayMJ);
@@ -2388,7 +2411,7 @@ var COFantasy2 = COFantasy2 || function() {
           stateCOF.attenteDepenseDR = stateCOF.attenteDepenseDR || {};
           stateCOF.attenteDepenseDR[perso.token.id] = complete ? 'max' : 'jet';
           let cmd = "!cof2-depenser-dr " + perso.token.id;
-          if (predicateAsBool(perso, 'bonusRecuperationMilieuNaturel')) {
+          if (predicateAsBool(perso, 'bonusRecuperationMilieuNaturel') && !stateCOF.milieu) {
             let de = ficheAttributeAsInt(perso, 'drecup', 6);
             let niveau = ficheAttributeAsInt(perso, 'niveau', 1);
             let gain = de + Math.floor(niveau / 2);
@@ -11514,6 +11537,7 @@ var COFantasy2 = COFantasy2 || function() {
     'survie': {
       bonusTestEvolutif_escalade: true,
       bonusTestEvolutif_survieRodeur: true,
+      Restriction_bonusTestEvolutif_survieRodeur: 'milieuNaturel',
       bonusRecuperationMilieuNaturel: true
     },
     'nature nourriciere': {
@@ -11521,6 +11545,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Nature nourricière',
         horsCombat: true,
+        milieu: 'naturel',
         cmd: "!cof2-nature-nourriciere @{selected|token_id} --limiteParJour 1 natureNourriciere",
       }
     },
@@ -12115,10 +12140,19 @@ var COFantasy2 = COFantasy2 || function() {
     return infos;
   }
 
+  function restrictionInterdite(restriction) {
+    switch (restriction) {
+      case 'milieuNaturel': return stateCOF.milieu && stateCOF.milieu != 'naturel';
+    }
+    return false;
+  }
+
   function predicateAsBool(perso, name) {
     let pred = getPredicates(perso);
     let r = pred[name];
     if (r === undefined) return false;
+    let restriction = pred['Restriction_'+name];
+    if (restriction && restrictionInterdite(restriction)) return false;
     if (Array.isArray(r)) r = r.find(function(p) {
       return p;
     });
@@ -12129,6 +12163,8 @@ var COFantasy2 = COFantasy2 || function() {
     let pred = getPredicates(perso);
     let r = pred[name];
     if (r === undefined) return def;
+    let restriction = pred['Restriction_'+name];
+    if (restriction && restrictionInterdite(restriction)) return def;
     if (defPresent !== undefined) def = defPresent;
     if (Array.isArray(r)) {
       if (r.length === 0) return def;
@@ -17286,7 +17322,6 @@ var COFantasy2 = COFantasy2 || function() {
           let charName = "d'id " + charId;
           if (character) charName = character.get('name');
           error("Attention, il y a plusieurs tokens nommés " + tokenName, total);
-          log("  tokens instances du personnage " + charName, total);
         }
       }
       tNames.forEach(function(tok) {
@@ -24325,7 +24360,7 @@ var COFantasy2 = COFantasy2 || function() {
     let selected = [];
     updateNextInitSet.forEach(function(id) {
       let perso = persoOfId(id);
-      if (perso) selected.push(id);
+      if (perso) selected.push(perso);
     });
     let allTokens = findObjs({
       _type: 'graphic',
@@ -24748,7 +24783,7 @@ var COFantasy2 = COFantasy2 || function() {
         const effet = effetTempOfAttribute(attr);
         if (effet === undefined) {
           //erreur, on stoppe tout
-          log(attr);
+          error("Effet temporaire sans effet", attr);
           fin();
           return;
         }
@@ -32159,8 +32194,6 @@ var COFantasy2 = COFantasy2 || function() {
       return obj.get('name').endsWith(endName);
     });
     if (tokAttr.length > 0) {
-      log("Removing token local attributes");
-      log(tokAttr);
       tokAttr.forEach(function(attr) {
         attr.remove();
       });
@@ -32360,6 +32393,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  //Attention, ça ne réagit de manière fiable qu'aux modifications manuelles, pas trop celles du sheet worker.
   function attributeChanged(attr) {
     let n = attr.get('name');
     if (n == 'cofantasy') treatSheetCommand(attr);
@@ -32385,13 +32419,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (pc < pcMax) setFicheAttr(perso, 'pc', pcMax, evt);
       activateSheetWorkerCompagnon(perso, 'familierMage');
       activateSheetWorkerCompagnon(perso, 'compagnonLoup');
-    } else if (n == 'scriptVersion') {
-      log("Attribut scriptVersion modifiée");
-          log("Activation du sheet worker pour scriptVersion");
-          attr.setWithWorker({
-            current: 1,
-            max: stateCOF.version
-          });
     } else if (attributeQuiAffecteMaitriseArmes.test(n)) {
       let infos = infosFiche[attr.get('characterid')];
       if (!infos) return;
@@ -32535,6 +32562,9 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeManoeuvres,
       acteur: 1,
       minArgs: 1,
+    },
+    'milieu' : {
+      fn: commandeMilieu,
     },
     'multi-command': {
       fn: commandeMultiCommand,

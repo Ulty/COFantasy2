@@ -849,6 +849,10 @@ tr {line-height: 25px;}
                 <p>Fait un test de surprise sur tous les tokens sélectionné. Si la difficulté n'est pas présente, ils sont automatiquement surpris. Les valeurs des compétences <code>vigilance</code> et <code>perception</code> sont ajoutés au test de perception.</p>
                 <p>Si vous souhaitez préciser que la surprise est le fait d'un personnage ou effet non vivant, vous pouvez rajouter l'option <code>--nonVivant</code>.</p>
               </div>
+              <h4 class="text-info" id="milieu">Milieu</h4>
+              <div>
+                <p>Certaines capacités dépendent du milieu dans lequel les joueurs évoluent. La commande <code>!cof2-milieu</code> permet de fixer le milieu dans lequel les joueurs évoluent. Sans argument, cela permet d'avoir un milieu indéterminé. Sinon, on peut afficher le milieu avec l'argumennt <code>afficher</code>, et le fixer avec un des arguments supportés pour l'instant : <code>artificiel</code> et <code>naturel</code>.</p>
+              </div>
               <!--
               <h4 class="text-info" id="bourse">Gestion de la bourse : <code>!cof-bourse</code></h4>
               <div class="decalage">
@@ -1014,6 +1018,7 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="rodeur">Rôdeur</h3>
               <div class="decalage">
+                <p>La commande <code>!cof2-milieu</code> permet de fixer le milieu dans lequel évoluent les personnages, ce qui permet d'activer ou désactiver un certain nombre de capacités de rôdeur.</p>
                 <h4 class="text-secondary">Voie de l'archer</h4>
                 <ol>
                   <li><strong>Archer émérite :</strong> ajoute automatiquement le buff d'initiative sur la fiche, ainsi que les dommages aux dégâts des arcs. Attention, il faut bien penser à ajouter <code>arc</code> dans la partie modificateurs de l'attaque, si un arc ne contient pas le mot <code>arc</code> dans son nom.</li>
@@ -1026,7 +1031,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie de la survie</h4>
                 <ol>
-                  <li><strong>Survie :</strong> ajoute deux compétences évolutives : <code>escalade</code> et <code>survieRodeur</code>, et gère le bonus à la récupération en demandant si la nuit est passée en milieu naturel.</li>
+                  <li><strong>Survie :</strong> ajoute deux compétences évolutives : <code>escalade</code> et <code>survieRodeur</code>, et gère le bonus à la récupération en demandant si la nuit est passée en milieu naturel. Le script ne demande rien si le milieu des PJs est fixé.</li>
                   <li><strong>Nature nourricière :</strong> le script propose une action hors combat.</li>
                 </ol>
               </div>
