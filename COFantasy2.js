@@ -1,4 +1,4 @@
-//Dernière modification : ven. 13 févr. 2026,  03:35
+//Dernière modification : dim. 22 févr. 2026,  02:51
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11324,6 +11324,10 @@ var COFantasy2 = COFantasy2 || function() {
 
   const descriptionBonus = {
     Evolutif: {
+      eclaireur: {
+        nom: 'Éclaireur',
+        description: "En milieu naturel: discrétion, vigilance et pistage",
+      },
       escalade: {
         nom: "Escalade",
         description: "escalade",
@@ -11477,20 +11481,24 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie de l'artilleur
     mecanismes: {
       bonusTestEvolutif_mecanismes: true,
-      deBonusArmesDeSiege: true
+      deBonusArmesDeSiege: true,
+      Restriction_deBonusArmesDeSiege: 'armure_arquebusier',
     },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
     'archer emerite': {
       ajoutePERauxDMdArc: true,
+      Restriction_ajoutePERauxDMdArc: 'armure_rodeur',
       buffsSurFiche: [{
         nom: 'Archer émérite',
         attrib: 'init',
+        limiteArmure: 'rodeur',
         value: '[rang voie NUMEROVOIE]'
       }]
     },
     'tir chirurgical': {
-      tirIgnoreCibleEngagee: true
+      tirIgnoreCibleEngagee: true,
+      Restriction_tirIgnoreCibleEngagee: 'armure_rodeur',
     },
     //Voie du compagnon animal
     'le loup': {
@@ -11532,13 +11540,15 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'travail d’equipe': {
       travailDEquipe: true,
+      Restriction_travailDEquipe: 'armure_rodeur',
     },
     //Voie de la survie
     'survie': {
       bonusTestEvolutif_escalade: true,
       bonusTestEvolutif_survieRodeur: true,
       Restriction_bonusTestEvolutif_survieRodeur: 'milieuNaturel',
-      bonusRecuperationMilieuNaturel: true
+      bonusRecuperationMilieuNaturel: true,
+      Restriction_bonusRecuperationMilieuNaturel: 'armure_rodeur',
     },
     'nature nourriciere': {
       natureNourriciere: 'RANG',
@@ -11546,16 +11556,22 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Nature nourricière',
         horsCombat: true,
         milieu: 'naturel',
+        limiteArmure: 'rodeur',
         cmd: "!cof2-nature-nourriciere @{selected|token_id} --limiteParJour 1 natureNourriciere",
       }
     },
     //Voie du traqueur
-    'eclaireur': {},
+    'eclaireur': {
+      bonusTestEvolutif_eclaireur: true,
+      Restriction_bonusTestEvolutif_eclaireur: 'milieuNaturel',
+      DRAuLieuDePC: 'PARAM',
+    },
     'attaque eclair': {
       action: {
         nom: 'Attaque éclair',
         combat: true,
-        type: 'L',
+        limiteArmure: 'rodeur',
+        type: 'SELONRANG(L,L,L,L,A)',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaque @{selected|AGI} --plus @{selected|AGI}"
       },
     },
@@ -11563,13 +11579,15 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie du bouclier
     'proteger un allie': {
       bonusTestEvolutif_vigilance: true,
-      protegerUnAllie: true
+      protegerUnAllie: true,
+      Restriction_protegerUnAllie: 'armure_guerrier',
     },
     //Voie de la résistance
     'robustesse': {
       bonusTestEvolutif_robustesse: true,
       buffsSurFiche: [{
         nom: 'Robustesse',
+        limiteArmure: 'guerrier',
         attrib: 'pv',
         value: '[rang voie NUMEROVOIE] + 2'
       }]
@@ -11584,6 +11602,7 @@ var COFantasy2 = COFantasy2 || function() {
         horsCombat: true,
         type: 'A',
         mana: 1,
+        limiteArmure: 'ensorceleur',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Injonction --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
       },
     },
@@ -11595,6 +11614,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'A',
         mana: 1,
+        limiteArmure: 'magicien',
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible1|token_id} Arc de feu --auto --dm SELONRANG(1,1,1,2,2)d4E+@{selected|INT} --portee 0 --feu --sortilege --psave AGI [[10+@{selected|INT}]] --cible @{target|Cible2|token_id} --cible @{target|Cible3|token_id}"
       },
     },
@@ -11606,11 +11626,13 @@ var COFantasy2 = COFantasy2 || function() {
         horsCombat: true,
         type: 'L',
         mana: 1,
+        limiteArmure: 'magicien',
         cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10 --acteur @{selected|token_id}',
       }, {
         nom: 'Lumière dans les yeux',
         type: 'L',
         mana: 1,
+        limiteArmure: 'magicien',
         //TODO: ajouter effet de lumière sur la cible
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
       }],
@@ -11649,6 +11671,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'M',
         mana: 1,
+        limiteArmure: 'druide',
         cmd: "!cof2-effet peauDEcorce SELONRANG(2,2,3,3,4) --dureeEnMinutes @{selected|PER} --select @{selected|token_id}"
       }
     },
@@ -11770,6 +11793,20 @@ var COFantasy2 = COFantasy2 || function() {
       delete preds.actions;
     }
     //Les bonus permanents qui ont sur la fiche
+    if (preds.DRAuLieuDePC && preds.DRAuLieuDePC.trim().toLowerCase() == 'dr') {
+      preds.buffsSurFiche = [
+        {
+        nom: 'Éclaireur bonus DR',
+        attrib: 'dr',
+        value: '1',
+        },
+        {
+          nom: 'Éclaireur malus PC',
+        attrib: 'pc',
+        value: '-1',
+        },
+      ];
+    }
     if (preds.buffsSurFiche) {
       if (!Array.isArray(preds.buffsSurFiche)) preds.buffsSurFiche = [preds.buffsSurFiche];
       preds.buffsSurFiche.forEach(function(b) {
@@ -11792,6 +11829,9 @@ var COFantasy2 = COFantasy2 || function() {
         else prefix = 'repeating_buffs_' + generateRowID() + '_';
         b.nom = '[S] ' + b.nom;
         b.on = '1';
+        if (b.limiteArmure && armureRestreinte(perso, b.limiteArmure)) {
+          b.on = '0';
+        }
         champsDesBuffsDeFiche.forEach(function(field) {
           if (!b[field]) {
             log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
@@ -12105,7 +12145,7 @@ var COFantasy2 = COFantasy2 || function() {
       for (let pref in equipement) {
         let eq = equipement[pref];
         if (eq['equip-on'] == '1') {
-          let r = fieldAsString(eq, 'equip-prop', '');
+          let r = fieldAsString(eq, 'equip-props', '');
           if (r) raw += '\n' + r;
         }
         predicates.equipement = predicateOfRaw(raw);
@@ -12140,7 +12180,50 @@ var COFantasy2 = COFantasy2 || function() {
     return infos;
   }
 
-  function restrictionInterdite(restriction) {
+  //Renvoie 0 (ou false) si l'armure que porte perso n'est pas restreinte par restriction,
+  //sinon renvoie la différence de classe entre les deux
+  function armureRestreinte(perso, restriction) {
+    if (!perso.armureRestreinte) perso.armureRestreinte = {};
+    if (perso.armureRestreinte[restriction]) return perso.armureRestreinte[restriction];
+    let diff;
+      let limite = limiteBonusArmure(perso, restriction);
+      if (limite < 2) {
+        diff = 0;
+      } else if (ficheAttributeAsInt(perso, 'armure_eqp', 0) > 0) {
+        if (limite > 7) {
+          diff = 7;//TODO
+        } else {
+        let id = ficheAttribute(perso, 'armor_gearid', '');
+        if (id) {
+          let props = ficheAttribute(perso, id + 'equip_props', '');
+          if (props) {
+          let p = predicateOfRaw(props);
+            let agi = p['agi-max'];
+            if (agi) {
+              agi = toInt(agi, 1);
+              if (agi >= limite) diff = 0;
+              else diff = limite - agi;
+            }
+          }
+        }
+          if (diff === undefined) {
+        //On va juste regarder le bonus et le malus d'armure.
+        let bonus = ficheAttributeAsInt(perso, 'armure', 0);
+        let malus = ficheAttributeAsInt(perso, 'armure_malus', bonus);
+        if (malus < bonus - 1) bonus = Math.floor((malus+bonus)/2);
+        if (bonus <= (8 - limite)) diff = 0;
+        diff = bonus + limite - 8;
+          }
+        }
+      }
+    perso.armureRestreinte[restriction] = diff;
+    return diff;
+  }
+
+  function restrictionInterdite(perso, restriction) {
+    if (restriction.startsWith('armure_')) {
+      return armureRestreinte(perso, restriction.substring(7));
+    }
     switch (restriction) {
       case 'milieuNaturel': return stateCOF.milieu && stateCOF.milieu != 'naturel';
     }
@@ -12152,7 +12235,7 @@ var COFantasy2 = COFantasy2 || function() {
     let r = pred[name];
     if (r === undefined) return false;
     let restriction = pred['Restriction_'+name];
-    if (restriction && restrictionInterdite(restriction)) return false;
+    if (restriction && restrictionInterdite(perso, restriction)) return false;
     if (Array.isArray(r)) r = r.find(function(p) {
       return p;
     });
@@ -12164,7 +12247,7 @@ var COFantasy2 = COFantasy2 || function() {
     let r = pred[name];
     if (r === undefined) return def;
     let restriction = pred['Restriction_'+name];
-    if (restriction && restrictionInterdite(restriction)) return def;
+    if (restriction && restrictionInterdite(perso, restriction)) return def;
     if (defPresent !== undefined) def = defPresent;
     if (Array.isArray(r)) {
       if (r.length === 0) return def;
@@ -12179,6 +12262,8 @@ var COFantasy2 = COFantasy2 || function() {
     let pred = getPredicates(perso);
     let r = pred[name];
     if (!r) return [];
+    let restriction = pred['Restriction_'+name];
+    if (restriction && restrictionInterdite(perso, restriction)) return [];
     if (Array.isArray(r)) return r;
     return [r];
   }
@@ -13890,7 +13975,19 @@ var COFantasy2 = COFantasy2 || function() {
         } else {
           if (!action.horsCombat) return;
         }
+        if (action.milieu && stateCOF.milieu && action.milieu != stateCOF.milieu) return;
         if (!typeActionPossible(perso, action.type)) return;
+        if (action.limiteArmure) {
+        let ar = armureRestreinte(perso, action.limiteArmure);
+          if (ar > 0) {
+            if (action.mana) {
+              action = {... action};
+              action.mana += ar;
+            } else {
+              return;
+            }
+          }
+        }
         let command = selectedToValue(action.cmd, 'selected', perso);
         let request;
         if (action.mana > 0) {
@@ -21452,6 +21549,13 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     });
+    if (res < 7 && competence == 'vigilance') {
+      let ecl = bonusEvolutif(perso, 'eclaireur');
+      if (ecl > res) {
+        res = ecl;
+        competence = 'eclaireur';
+      }
+    }
     if (res > 0 && expliquer) {
       expliquerBonus(perso, 'Evolutif', competence, res, expliquer);
     }
@@ -25080,9 +25184,8 @@ var COFantasy2 = COFantasy2 || function() {
             case 'trait':
               break;
             default:
-              if (oatk === undefined) oatk = fieldAsInt(att, 'arme-atk', 0);
-              if (atkcac === undefined) atkcac = oatk;
-              if (oatk > atkcac) atkcac = oatk;
+              oatk = fieldAsInt(att, 'arme-atk', 0);
+              if (atkcac === undefined || oatk > atkcac) atkcac = oatk;
           }
         }
         if (atkcac === undefined) {
@@ -25104,9 +25207,8 @@ var COFantasy2 = COFantasy2 || function() {
           let typeat = fieldAsString(att, 'arme-atktype', 'naturel');
           if (typeat == 'sort') continue;
           //TODO: vérifier que l'attaque n'est pas auto
-          if (oatk === undefined) oatk = fieldAsInt(att, 'arme-atk', 0);
-          if (atktir === undefined) atktir = oatk;
-          if (oatk > atktir) atktir = oatk;
+          oatk = fieldAsInt(att, 'arme-atk', 0);
+          if (atktir === undefined || oatk > atktir) atktir = oatk;
         }
         if (atktir === undefined) {
           if (atk === undefined)
@@ -25120,9 +25222,8 @@ var COFantasy2 = COFantasy2 || function() {
           let att = listeAttaquesPNJ[label];
           let typeat = fieldAsString(att, 'arme-atktype', 'naturel');
           if (typeat != 'sort') continue;
-          if (oatk === undefined) oatk = fieldAsInt(att, 'arme-atk', 0);
-          if (atkmag === undefined) atkmag = oatk;
-          if (oatk > atkmag) atkmag = oatk; //TODO: on prend vraiment le plus haut ?
+          oatk = fieldAsInt(att, 'arme-atk', 0);
+          if (atkmag === undefined || oatk > atkmag) atkmag = oatk; //TODO: on prend vraiment le plus haut ?
         }
         if (atkmag === undefined) {
           //Alors c'est forcément NC + VOL
@@ -30314,6 +30415,73 @@ var COFantasy2 = COFantasy2 || function() {
     scope[cmd[0]] = parseLimite(cmd, options);
   }
 
+  function limiteBonusArmure(perso, armure) {
+      switch (armure) {
+        case 'cuirSimple':
+        case 'cuir':
+          return 6;
+        case 'cuirRenforce':
+          return 5;
+        case 'chemiseDeMailles':
+        case 'chemiseMailles':
+        case 'chemiseDeMaille':
+          return 4;
+        case 'cotteDeMailles':
+        case 'coteDeMailles':
+        case 'cotteDeMaille':
+          return 3;
+        case 'armureDePlaques':
+        case 'armureDePlaque':
+        case 'plaque':
+        case 'plaques':
+          return 2;
+        case 'plaqueComplete': return 1;
+        case 'arquebusier':
+          return 4;
+        case 'barde':
+          return 5;
+        case 'rodeur':
+          return 5;
+        case 'voleur':
+          return 6;
+        case 'barbare':
+          return 5;
+        case 'chevalier':
+          return 2;
+        case 'guerrier':
+          return 3;
+        case 'ensorceleur':
+        case 'magicien':
+        case 'sorcier':
+          return 10;
+        case 'forgesort':
+          return 6;
+        case 'druide':
+          return 6;
+        case 'moine':
+          return 10;
+        case 'pretre':
+          return 4;
+        default:
+          error("Restriction d'armure "+armure+"non reconnue.", armure);
+          return 0;
+      }
+  }
+  //Option de restriction d'armure. En interne, c'est un minimum d'AGI max.
+  function limiteArmureOption(ctx, cmd, options, state, optionString, pageId) {
+    if (cmd.length < 2) {
+      //Alors toutes les armures sont interdites
+      options.limiteArmure = 10;
+      return;
+    }
+    let limiteArmure = parseInt(cmd[1]);
+    if (isNaN(limiteArmure)) {
+      let armure = removeAccents(cmd[1].trim()).toLowerCase();
+      limiteArmure = limiteBonusArmure(options.acteur, armure);
+    }
+    if (limiteArmure < 1) return; //Aucune limite, en fait
+  }
+
   function decrAttributeOption(ctx, cmd, options, state, optionString, pageId) {
     if (cmd.length < 2) {
       if (!options.noError)
@@ -30590,6 +30758,9 @@ var COFantasy2 = COFantasy2 || function() {
       default: 2,
     },
     donneAction: stringDefaultOption,
+    drain: {
+      fn: dmgTypeOption
+    },
     draineMana: {
       fn: diceOption,
     },
@@ -30661,6 +30832,9 @@ var COFantasy2 = COFantasy2 || function() {
     },
     ligne: {
       fn: aoeOption,
+    },
+    limiteArmure: {
+      fn: limiteArmureOption,
     },
     limiteParCombat: {
       fn: limiteOption,
@@ -30914,9 +31088,6 @@ var COFantasy2 = COFantasy2 || function() {
       fn: dmgTypeOption
     },
     argent: {
-      fn: dmgTypeOption
-    },
-    drain: {
       fn: dmgTypeOption
     },
   };
