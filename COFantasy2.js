@@ -1,4 +1,4 @@
-//Dernière modification : sam. 28 févr. 2026,  10:37
+//Dernière modification : dim. 01 mars 2026,  10:31
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -10056,12 +10056,12 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //Retourne une liste d'attributs
-  //personnage peut ne pas avoir de token
-  function tokenAttribute(personnage, name) {
-    let fullName = fullAttributeName(personnage, name);
+  //perso peut ne pas avoir de token
+  function tokenAttribute(perso, name) {
+    let fullName = fullAttributeName(perso, name);
     return findObjs({
       _type: 'attribute',
-      _characterid: personnage.charId,
+      _characterid: perso.charId,
       name: fullName
     });
   }
@@ -13962,13 +13962,13 @@ var COFantasy2 = COFantasy2 || function() {
   //Ajoute l'action à ligne, si elle est disponible
   function ajouterAction(perso, action, ligne, actionsEnCombat = true) {
     if (actionsEnCombat) {
-      if (!action.combat) return;
-      if (action.debutDuTour && !(isActiveTurnPerso(perso) && aucuneAction(stateCOF.combat))) return;
+      if (!action.combat) return ligne;
+      if (action.debutDuTour && !(isActiveTurnPerso(perso) && aucuneAction(stateCOF.combat))) return ligne;
     } else {
-      if (!action.horsCombat) return;
+      if (!action.horsCombat) return ligne;
     }
-    if (action.milieu && stateCOF.milieu && action.milieu != stateCOF.milieu) return;
-    if (!typeActionPossible(perso, action.type)) return;
+    if (action.milieu && stateCOF.milieu && action.milieu != stateCOF.milieu) return ligne;
+    if (!typeActionPossible(perso, action.type)) return ligne;
     if (action.limiteArmure) {
       let ar = armureRestreinte(perso, action.limiteArmure);
       if (ar > 0) {
@@ -13977,7 +13977,7 @@ var COFantasy2 = COFantasy2 || function() {
           };
           action.mana += ar;
         } else {
-          return;
+          return ligne;
         }
       }
     }
@@ -13999,14 +13999,14 @@ var COFantasy2 = COFantasy2 || function() {
             request = " ?{Concentration|Oui(L),--typeAction L --mana " + manaL + "|Non(A),--typeAction A --mana " + action.mana + "}";
           } else {
             let depMana = manaL == 0 || depenseManaPossible(perso, manaL, false, opt);
-            if (!depMana) return;
+            if (!depMana) return ligne;
             command += " --typeAction L --mana " + manaL;
           }
         }
       } else {
         let opt = {};
         if (command.startsWith('!cof2-soin ')) opt.pasDeBrulureDeMana = true;
-        if (!depenseManaPossible(perso, action.mana, false, opt)) return;
+        if (!depenseManaPossible(perso, action.mana, false, opt)) return ligne;
         command += " --mana " + action.mana;
         if (stateCOF.combat) command += " --typeAction " + action.type;
       }
@@ -14018,6 +14018,7 @@ var COFantasy2 = COFantasy2 || function() {
     };
     let b = boutonComplexe(command, action.nom, perso, bopt);
     if (!bopt.actionImpossible) ligne += b + '<br />';
+    return ligne;
   }
 
   function actionsParDefaut(perso, ligne, pageId, options) {
@@ -14249,14 +14250,14 @@ var COFantasy2 = COFantasy2 || function() {
     let infos = getInfos(perso);
     if (infos.actions) {
       infos.actions.forEach(function(action) {
-        ajouterAction(perso, action, ligne, actionsEnCombat);
+        ligne = ajouterAction(perso, action, ligne, actionsEnCombat);
       });
     }
     if (combat && actionsEnCombat) {
       let actions = actionsDisponibles(perso, combat);
       if (actions && actions.supplementaires) {
         actions.supplementaires.forEach(function(action) {
-          ajouterAction(perso, action, ligne, actionsEnCombat);
+          ligne = ajouterAction(perso, action, ligne, actionsEnCombat);
         });
       }
     }
