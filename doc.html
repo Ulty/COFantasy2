@@ -1039,6 +1039,11 @@ tr {line-height: 25px;}
                   <li><strong>Éclaireur :</strong> ajoute automatiquement les compétences évolutives (y compris le bonus en cas de test de surprise si le milieu est naturel). Pour remplacer les bonus de PC par un bonus de DR, ajouter <code>DR</code> dans les paramètres de la compétence.</li>
                   <li><strong>Attaque éclair :</strong> le script ajoute l'action dans la liste du tour.</li>
                 </ol>
+                <h4 class="text-secondary">Voie du combat à deux armes</h4>
+                <ol>
+                  <li><strong>Attaque à suivre :</strong> le script propose l'atttaque quand le personnage a une arme en main secondaire. Bien penser à indiquer le type d'arme avec dans les modificateurs,, par exemple <code>dague</code>, <code>epeeCourte</code> ou <code>hachette</code>, surtout si l'arme a un nom particulier.</li>
+                  <li><strong>Parade croisée :</strong> le bonus est automatiquement compté quand le personnage a une arme dans chaque main.</li>
+                </ol>
               </div>
                 <h3 class="text-info" id="sorcier">Sorcier</h3>
               <div class="decalage">
@@ -1157,6 +1162,7 @@ tr {line-height: 25px;}
               <ul>
                 <li><strong>benediction</strong> : bonus à tous les tests, de valeur l'activation, ou 1 par défaut.</li>
                 <li><strong>bonusCouvert</strong> : bonus contre les attaques à distance, de valeur l'activation, ou 2 par défaut.</li>
+                <li><strong>paradeCroisee</strong> : bonus en DEF quand on porte une arme en main gauche. Le script propose de s'engager à ne pas utiliser son arme gauche on début du tour.</li>
                 <li><strong>peauDEcorce</strong> : bonus en DEF.</li>
               </ul>
               </div>
