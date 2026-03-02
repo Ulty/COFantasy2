@@ -1,4 +1,4 @@
-//Dernière modification : dim. 01 mars 2026,  10:31
+//Dernière modification : lun. 02 mars 2026,  03:37
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -24324,7 +24324,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     cibles.forEach(function(target) {
       if (attributeAsBool(target, 'limiteParTour_positionDeRiposte')) return;
-      let pt = versionInvisibleDePerso(attaquant);
+      let pt = versionInvisibleDePerso(target);
       if (pt) selected.push(pt);
       else selected.push(target);
     });
