@@ -1,4 +1,4 @@
-//Dernière modification : lun. 02 mars 2026,  03:37
+//Dernière modification : lun. 02 mars 2026,  05:24
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2375,6 +2375,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     };
     let reposPerso = function(perso) {
+      nbReposes++;
       //On remet les dm temp à 0.
       updateCurrentBar(perso, 4, 0, evt);
       //On enlève aussi la barre 4, c'est plus propre
@@ -2393,8 +2394,17 @@ var COFantasy2 = COFantasy2 || function() {
           let pmMax = toInt(perso.token.get('bar2_max'), pm);
           if (pm < pmMax) updateCurrentBar(perso, 2, pmMax, evt);
         }
+        if (ficheAttribute(perso, 'compagnon', '') !== '' && predicateAsBool(perso, 'animal')) {
+          //Les compagnons animaux récupèrent tous leurs PVs
+          let pvMax = toInt(perso.token.get('bar1_max'), 0);
+          if (pvMax > 0) {
+            let pv = toInt(perso.token.get('bar1_value'), pvMax);
+            if (pv < pvMax) updateCurrentBar(perso, 1, pvMax, evt);
+          }
+          fin();
+          return;
+        }
       }
-      nbReposes++;
       addCellInFramedDisplay(displayMJ, nomPerso(perso), 100, true, fond);
       let [dr, drMax] = ficheAttributeAsIntWithMax(perso, 'dr', 2);
       let drGagne;
@@ -2487,12 +2497,13 @@ var COFantasy2 = COFantasy2 || function() {
         let survieRodeur = bonusEvolutif(perso, 'survieRodeur', function(msg) {
           addLineToFramedDisplay(displayAll, msg);
         });
+        let optPerso = options;
         if (survieRodeur) {
-          options = {...options
+          optPerso = {...options
           };
-          options.bonusEvolutif = survieRodeur;
+          optPerso.bonusEvolutif = survieRodeur;
         }
-        testCaracteristique(perso, 'CON', difficulte, testId, options, evt,
+        testCaracteristique(perso, 'CON', difficulte, testId, optPerso, evt,
           function(tr, explications) {
             let smsg = nomPerso(perso) + " fait ";
             if (explications.length === 0) {
@@ -11416,6 +11427,19 @@ var COFantasy2 = COFantasy2 || function() {
               if (prev == '/') comment = true;
               break;
             case ' ':
+              if (parseVal) {
+                //si pas de valeur, alors on attend la valeur, rien à faire
+                if (val !== '') {
+                  assignPredicate(pred, code, val);
+                  code = '';
+                  val = '';
+                  parseVal = false;
+                }
+              } else if (code !== '') {
+                assignPredicate(pred, code, true);
+                code = '';
+              }
+              break;
             case ',':
               if (parseVal) {
                 if (val === '') val = true;
@@ -11683,7 +11707,7 @@ var COFantasy2 = COFantasy2 || function() {
       buffsSurFiche: [{
         nom: 'Archer émérite',
         attrib: 'init',
-        limiteArmure: 'rodeur',
+        limiteArmure: 'cuirRenforce',
         value: '[rang voie NUMEROVOIE]'
       }]
     },
@@ -11792,6 +11816,9 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Posture défensive',
         combat: true,
         type: 'M',
+        limiteArmure: 'guerrier',
+        inutileSiAttributBool: 'postureDefensive',
+        bouclier: true,
         cmd: "!cof2-effet postureDefensive 1",
       }
     },
@@ -11800,7 +11827,7 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_robustesse: true,
       buffsSurFiche: [{
         nom: 'Robustesse',
-        limiteArmure: 'guerrier',
+        //limiteArmure: 'guerrier', //On risque de ne pas utiliser la bonne armure
         attrib: 'pv',
         value: '[rang voie NUMEROVOIE] + 2'
       }]
@@ -12245,6 +12272,14 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function removeEquipementSpecificPredicates(preds) {
+    delete preds['agi-max'];
+    delete preds.armure;
+    delete preds['dm-1m'];
+    delete preds['type-dm'];
+    delete preds.lancer;
+  }
+
   function getPredicates(perso) {
     let infos = infosFiche[perso.charId];
     let predicates;
@@ -12358,8 +12393,9 @@ var COFantasy2 = COFantasy2 || function() {
           let r = fieldAsString(eq, 'equip-props', '');
           if (r) raw += '\n' + r;
         }
-        predicates.equipement = predicateOfRaw(raw);
       }
+      predicates.equipement = predicateOfRaw(raw);
+      removeEquipementSpecificPredicates(predicates.equipement);
     }
     //On rajoute les prédicats de transformation, si transformé
     persoTransforme(perso);
@@ -13981,6 +14017,8 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
+    if (action.inutileSiAttributBool && attributeAsBool(perso, action.inutileSiAttributBool)) return ligne;
+    if (action.bouclier && !ficheAttributeAsBool(perso, 'bouclier_eqp', false)) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
     let request;
     if (action.mana > 0) {
@@ -26130,7 +26168,7 @@ var COFantasy2 = COFantasy2 || function() {
         let m = "rengaine " + ancienneArme.name;
         if (nouvelleArme && stateCOF.combat && ancienneArme.label) {
           //Alors on lache l'ancienne arme, plutôt que de la rengainer.
-          m = "lache " + ancienneArme.nom;
+          m = "lache " + ancienneArme.name;
           lacherArme(perso, ancienneArme, evt);
         }
         if (nouvelleArme || (labelArmeActuelleGauche && labelArmeActuelleGauche != labelArmeActuelle)) {
@@ -26306,7 +26344,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.son) playSound(options.son);
     persos.forEach(function(perso) {
       if (limiteRessources(perso, options, 'degaine', 'dégainer', evt)) return;
-
       function afterSave() {
         let nomArme = degainerArme(perso, armeLabel, evt, options);
         if (nomArme) sendPerso(perso, "a déjà " + nomArme + " en main");
@@ -28917,7 +28954,7 @@ var COFantasy2 = COFantasy2 || function() {
     let {
       perso,
       playerId,
-      pageId,
+      //pageId,
       nombreDePlantes,
       jetHeures,
       options
@@ -28952,7 +28989,7 @@ var COFantasy2 = COFantasy2 || function() {
         } else {
           addLineToFramedDisplay(display, tr.rerolls + tr.modifiers);
         }
-        augmenterLeTempsEnMinutes(jetHeures.val * 60, undefined, evt, pageId); //TODO: peut-être ne pas faire systematiquement pour laisser les autres agir pendant que le rôdeur va chercher des herbes ?
+        //augmenterLeTempsEnMinutes(jetHeures.val * 60, undefined, evt, pageId); //TODO: peut-être ne pas faire systematiquement pour laisser les autres agir pendant que le rôdeur va chercher des herbes ?
         //Ajouter une gestion de synchronisation (combien de minutes d'avance sur ceux qui n'ont pas encore agi ?
       });
   }
@@ -29122,8 +29159,13 @@ var COFantasy2 = COFantasy2 || function() {
       }
       let aBouclier = ficheAttributeAsInt(perso, 'bouclier', 0) > 0;
       if (ficheAttributeAsInt(perso, 'bouclier_eqp', 0) === 0 &&
-        (aBouclier || ficheAttributeAsBool(perso, 'bouclier', false)))
-        addLineToFramedDisplay(display, "ne porte pas son bouclier");
+        (aBouclier || ficheAttributeAsBool(perso, 'bouclier', false))) {
+        let msg = "ne porte pas son bouclier";
+        if (!(armeEnMain && armeEnMain.deuxMains) && !armeEnMainGaucheLabel) {
+          msg += ' ' + boutonSimple('!cof2-equiper-bouclier --select ' + perso.token.id + " --typeAction L", '<span style="font-family:\'Pictos Custom\'">e</span>', BS_BUTTON);
+        }
+        addLineToFramedDisplay(display, msg);
+      }
       if (attributeAsBool(perso, 'etatExsangue')) {
         addLineToFramedDisplay(display, "est exsangue");
       }
