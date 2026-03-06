@@ -1,4 +1,4 @@
-//Dernière modification : ven. 06 mars 2026,  01:42
+//Dernière modification : ven. 06 mars 2026,  07:25
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2359,6 +2359,8 @@ var COFantasy2 = COFantasy2 || function() {
     let fond = false;
     let displayPlayers = [];
     let nbReposes = 0;
+    let tempsRepos = 30;
+    if (complete) tempsRepos = 480;
     let fin = function() {
       nb--;
       if (nb === 0) {
@@ -2370,13 +2372,16 @@ var COFantasy2 = COFantasy2 || function() {
             sendFramedDisplay(display);
           });
         }
-        let duree = (complete) ? 480 : 30;
-        augmenterLeTempsEnMinutes(duree, undefined, evt, pageId);
+        augmenterLeTempsEnMinutes(tempsRepos, undefined, evt, pageId);
         proposerFinEffetsIndetermines();
       }
     };
     let reposPerso = function(perso) {
       nbReposes++;
+      if (!complete) {
+      let tps = predicateAsInt(perso, 'tempsRecuperationRapide', 30);
+        if (tempsRepos > tps) tempsRepos = tps;
+      }
       //On remet les dm temp à 0.
       updateCurrentBar(perso, 4, 0, evt);
       //On enlève aussi la barre 4, c'est plus propre
@@ -3053,44 +3058,8 @@ var COFantasy2 = COFantasy2 || function() {
       }
       defense -= bonus;
     }
-    defense += predicateAsInt(target, 'DEF', 0); //deprecated
     defense += predicateAsInt(target, 'bonus_DEF', 0);
     defense += predicateAsInt(target, 'bonus_DEF(anneau)', 0);
-    if (attaquant && predicateAsBool(target, 'armeDeLEte') && predicateAsBool(attaquant, 'creatureDeLHiver')) {
-      explications.push("Protégé par une arme de l'été => +25 en DEF");
-      defense += 25;
-    }
-    //Bonus au défi duelliste
-    let defiDuellisteAttr = tokenAttribute(target, 'defiDuelliste');
-    if (defiDuellisteAttr.length > 0) {
-      defiDuellisteAttr = defiDuellisteAttr[0];
-      let cibleDefi = defiDuellisteAttr.get('max');
-      if (cibleDefi.startsWith(attaquant.token.id)) cibleDefi = true;
-      else {
-        let cibleDefiSep = cibleDefi.indexOf(' ');
-        let cibleDefiName = cibleDefi.substring(cibleDefiSep + 1);
-        if (cibleDefiName == nomPerso(attaquant)) {
-          let cibleDefiId = cibleDefi.substring(0, cibleDefiSep);
-          cibleDefi = persoOfId(cibleDefiId, cibleDefiName, pageId);
-          cibleDefi = cibleDefi === undefined || cibleDefi.id == attaquant.token.id;
-        } else cibleDefi = false;
-      }
-      if (cibleDefi) {
-        let bonusDefi = parseInt(defiDuellisteAttr.get('current'));
-        defense += bonusDefi;
-        explications.push("Défi => +" + bonusDefi + " DEF");
-      }
-    }
-    if (attributeAsBool(target, 'rapideCommeLeVent')) {
-      defense += 4;
-      explications.push("Rapide comme le vent => +3 DEF");
-    }
-    if (predicateAsBool(target, 'autoriteNaturelle')) {
-      let bonus = 1 + modCarac(target, 'charisme');
-      if (bonus > 0) {
-        defense += bonus;
-      }
-    }
     if (attributeAsBool(target, 'sprint')) {
       defense -= 5;
       explications.push("Sprint => -5 en DEF");
@@ -3417,10 +3386,11 @@ var COFantasy2 = COFantasy2 || function() {
         messageAttaqueDM("Fureur draconide", explications, options, 1);
       }
     }
-    let armeDePredilection = predicateAsBool(attaquant, 'armeDePredilection');
-    if (armeDePredilection) {
-      let actif = false;
-      let arme = armeDePredilection.trim.toLowerCase();
+    if (weaponStats && weaponStats.arme) {
+      let armesDePredilection = predicatesNamed(attaquant, 'armeDePredilection');
+      let estPredilection = 1;
+      armesDePredilection.forEach(function(ap) {
+      let arme = ap.trim.toLowerCase();
       //On commence par normaliser le type d'arme
       switch (arme) {
         case 'épée':
@@ -3442,6 +3412,7 @@ var COFantasy2 = COFantasy2 || function() {
           arme = 'armeDeJet';
           break;
       }
+        let actif;
       switch (arme) {
         case 'arc':
         case 'arbalete':
@@ -3459,9 +3430,11 @@ var COFantasy2 = COFantasy2 || function() {
           actif = options[arme];
           if (!actif && weaponStats) actif = weaponStats[arme];
       }
-      if (actif) {
+        if (actif) estPredilection++;
+      });
+      if (estPredilection) {
         attBonus += 1;
-        let bonusDM = predicateAsInt(attaquant, 'specialisationGuerrier', 0, 2);
+        let bonusDM = predicateAsInt(attaquant, 'specialisationGuerrier', 0, estPredilection);
         messageAttaqueDM("Armes de prédilection", explications, options, 1, bonusDM);
       }
     }
@@ -11699,6 +11672,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Vigilance',
         description: "éviter d'être surpris",
       },
+      vigueur: {
+        nom: 'Vigueur',
+        description: "résister aux maladies et aux poisons",
+      }
     },
     Peuple: {
       intimidation: {
@@ -11802,6 +11779,10 @@ var COFantasy2 = COFantasy2 || function() {
     'habitant des tunnels': {
       bonusTestPeuple_nain: true,
       visionDansLeNoir: 30,
+    },
+    'haches et marteaux': {
+      armesMaitrisees: 'nain',
+      hachesEtMarteaux: true,
     },
     //Voie du mage
     'capacite de peuple + occultisme': {
@@ -11955,6 +11936,16 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-action est très vif --donneAction EM --acteur @{selected|token_id} --decrLimitePredicatParCombat mouvementVivacite"
       }
     },
+    'manoeuvre': { //TODO: vérifier carac quand copié-collé
+      deBonusManoeuvre: true,
+      Restriction_deBonusManoeuvre: 'armure_guerrier',
+    },
+    //Voie du maitre d'armes
+    'armes de predilection': {
+      bonusTestEvolutif_armes: true,
+      armeDePredilection: 'PARAM',
+      Restriction_armeDePredilection: 'armure_guerrier'
+    },
     //Voie de la résistance
     'robustesse': {
       bonusTestEvolutif_robustesse: true,
@@ -11965,14 +11956,10 @@ var COFantasy2 = COFantasy2 || function() {
         value: '[rang voie NUMEROVOIE] + 2'
       }]
     },
-    'manoeuvre': { //TODO: vérifier carac quand copié-collé
-      deBonusManoeuvre: true,
-      Restriction_deBonusManoeuvre: 'armure_guerrier',
-    },
-    //Voie du maitre d'armes
-    'armes de predilection': {
-      bonusTestEvolutif_armes: true,
-      armeDePredilection: 'PARAM'
+    'resilient': {
+      tempsRecuperationRapide: 'SELONRANG(10,10,10,5,5)',
+      bonusSaveContre_etourdi: 'RANG',
+      bonusSaveContre_affaibli: 'RANG',
     },
     //Voies d'ensorceleur ///////////////////////////////////////////
     //Voie de l'envouteur
@@ -12082,6 +12069,17 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 1,
         cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --acteur @{selected|token_id} --cible @{target|token_id} --portee 0',
       }
+    },
+    'vigueur divine': {
+      bonusTestEvolutif_vigueur: true,
+      action: {
+        nom: "Vigueur divine",
+        typeAction: 'L',
+        mana: 2,
+        combat: true,
+        horsCombat: true,
+        cmd: "!cof2-action soigne @{target|token_name} d'un poison ou d'une maladie --target @{target|token_id} --acteur @{selected|token_id} --portee 0",
+      },
     },
   };
 
@@ -12416,11 +12414,13 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function removeEquipementSpecificPredicates(preds) {
-    delete preds['agi-max'];
-    delete preds.armure;
     delete preds['dm-1m'];
+    delete preds['dm-2m'];
     delete preds['type-dm'];
     delete preds.lancer;
+    delete preds.armure;
+    delete preds['agi-max'];
+    delete preds.bouclier;
   }
 
   function getPredicates(perso) {
@@ -22941,6 +22941,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.type) {
       bonusPreds.push('bonusSaveContre_' + options.type);
+      if (options.type == 'maladie' || options.type == 'poison') bonusPreds.push('bonusTestEvolutif_vigueur');
     }
     if (s.etat) {
       bonusPreds.push('bonusSaveContre_' + s.etat);
@@ -26021,6 +26022,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (am.contactUneMain && arme.portee === 0 && !arme.deuxMains) return true;
     if (am.arbaleteLegere && arme.arbalete && arme.legere) return true;
     if (am.contondantUneMain && !arme.deuxMains && arme.typeDegats == 'contondants') return true;
+    if (am.nain && (arme.hache || arme.marteau)) return true;
     for (const typeArme in am) {
       if (arme[typeArme]) return true;
     }
@@ -31158,6 +31160,9 @@ var COFantasy2 = COFantasy2 || function() {
     arbalete: boolDefaultOption,
     arc: boolDefaultOption,
     arcCourt: boolDefaultOption,
+    argent: {
+      fn: dmgTypeOption
+    },
     armeDeContact: boolDefaultOption,
     artificiel: boolDefaultOption,
     asphyxie: boolDefaultOption,
@@ -31569,9 +31574,6 @@ var COFantasy2 = COFantasy2 || function() {
       fn: dmgTypeOption
     },
     maladie: {
-      fn: dmgTypeOption
-    },
-    argent: {
       fn: dmgTypeOption
     },
   };
