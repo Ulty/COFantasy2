@@ -1,4 +1,4 @@
-//Dernière modification : lun. 02 mars 2026,  05:24
+//Dernière modification : ven. 06 mars 2026,  01:42
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -643,6 +643,7 @@ var COFantasy2 = COFantasy2 || function() {
   //     - attaque : nombre d'actions d'attaque effectuées par le personnage actif
   //     - mouvement : nombre d'actions de mouvement effectuées par le personnage actif
   //     - gratuite : nombre d'actions gratuites effectuées par le personnage actif
+  //     - extra : vaut 'M' ou 'A' quand le personnage a doit à une action supplémentaire ce roound
   //     - supplementaires : actions spécifiques disponibles pour le personnage.
   //   - tourEntame : map de token id vers un struct avec limitee, attaque et mouvement
   //                  pour les persos qui ont déjà entamé leur tour et le finissent plus tard.
@@ -3419,7 +3420,29 @@ var COFantasy2 = COFantasy2 || function() {
     let armeDePredilection = predicateAsBool(attaquant, 'armeDePredilection');
     if (armeDePredilection) {
       let actif = false;
-      switch (armeDePredilection) {
+      let arme = armeDePredilection.trim.toLowerCase();
+      //On commence par normaliser le type d'arme
+      switch (arme) {
+        case 'épée':
+        case 'épées':
+        case 'epee':
+          arme = 'epee';
+          break;
+        case 'haches':
+          arme = 'hache';
+          break;
+        case 'masses':
+          arme = 'masse';
+          break;
+        case 'lances':
+          arme = 'lance';
+          break;
+        case 'arme de jet':
+        case 'armes de jet':
+          arme = 'armeDeJet';
+          break;
+      }
+      switch (arme) {
         case 'arc':
         case 'arbalete':
         case 'fronde':
@@ -3430,13 +3453,16 @@ var COFantasy2 = COFantasy2 || function() {
         case 'baton':
         case 'masse':
         case 'rapiere':
-          actif = options[armeDePredilection];
-          if (!actif && weaponStats) actif = weaponStats[armeDePredilection];
+        case 'lance':
+        case 'mainsNues':
+        case 'armeDeJet':
+          actif = options[arme];
+          if (!actif && weaponStats) actif = weaponStats[arme];
       }
       if (actif) {
         attBonus += 1;
         let bonusDM = predicateAsInt(attaquant, 'specialisationGuerrier', 0, 2);
-        messageAttaqueDM("Arme de prédiléction", explications, options, 1, bonusDM);
+        messageAttaqueDM("Armes de prédilection", explications, options, 1, bonusDM);
       }
     }
     return attBonus;
@@ -4149,9 +4175,15 @@ var COFantasy2 = COFantasy2 || function() {
         expliquer("Arme non maîtrisée => dé malus en Attaque");
       }
     }
+    let deBonus = options.deBonus;
+    if (deBonus === true) deBonus = 1;
+    if (options.manoeuvre && predicateAsBool(attaquant, 'deBonusManoeuvre')) {
+      if (!deBonus) deBonus = 0;
+      deBonus++;
+    }
     return {
       deMalus,
-      deBonus: options.deBonus,
+      deBonus,
       crit,
     };
   }
@@ -4412,14 +4444,27 @@ var COFantasy2 = COFantasy2 || function() {
             break;
           }
         case 'decrLimitePredicatParTour':
-          //Ne fait que diminuer l'attribut, n'empêche pas l'attaque
-          let pred = branch.decrLimitePredicatParTour;
-          let test = testLimiteUtilisationsCapa(attaquant, pred, 'tour',
-            "ne peut plus utiliser " + pred + " ce tour",
-            "Attaque impossible, pas de prédicat " + pred);
-          if (test === undefined) break;
-          utiliseCapacite(attaquant, test, evt);
-          break;
+          {
+            //Ne fait que diminuer l'attribut, n'empêche pas l'attaque
+            let pred = branch.decrLimitePredicatParTour;
+            let test = testLimiteUtilisationsCapa(attaquant, pred, 'tour',
+              "ne peut plus utiliser " + pred + " ce tour",
+              "Attaque impossible, pas de prédicat " + pred);
+            if (test === undefined) break;
+            utiliseCapacite(attaquant, test, evt);
+            break;
+          }
+        case 'decrLimitePredicatParCombat':
+          {
+            //Ne fait que diminuer l'attribut, n'empêche pas l'attaque
+            let pred = branch.decrLimitePredicatParCombat;
+            let test = testLimiteUtilisationsCapa(attaquant, pred, 'combat',
+              "ne peut plus utiliser " + pred + " avant le prochain repos court",
+              "Attaque impossible, pas de prédicat " + pred);
+            if (test === undefined) break;
+            utiliseCapacite(attaquant, test, evt);
+            break;
+          }
         default:
           opt[field] = branch[field];
       }
@@ -5108,7 +5153,8 @@ var COFantasy2 = COFantasy2 || function() {
           let r20def = addRollForRedo(() => rollDePlus(20, opt), testIdOpp, target, evt, options);
           let attSkillTarget = attaquePerso(target, 'atkmag');
           let optTarget = {
-            pasDeDmg: true
+            pasDeDmg: true,
+            ignoreObstacles: true,
           };
           let attBonusTarget = bonusAttaqueA(target, undefined, evt, target.messages, optTarget);
           attBonusTarget += bonusAttaqueD(target, attaquant, weaponStats.portee, pageId, evt, target.messages, optTarget);
@@ -5576,15 +5622,16 @@ var COFantasy2 = COFantasy2 || function() {
                   options.preDmg[target.token.id].absorberUnSort = true;
                 }
               } else {
-                if ((attributeAsBool(target, 'postureDefensive') || capaciteDisponible(target, 'postureDefensiveGratuite', 'tour')) &&
+                if (attributeAsBool(target, 'postureDefensive') &&
                   ficheAttributeAsBool(target, 'bouclier_eqp', false)) {
                   options.preDmg = options.preDmg || {};
                   options.preDmg[target.token.id] = options.preDmg[target.token.id] || {};
-                  if (attributeAsBool(target, 'postureDefensive')) {
-                    options.preDmg[target.token.id].postureDefensive = 'normale';
-                  } else {
-                    options.preDmg[target.token.id].postureDefensive = 'gratuite';
-                  }
+                  options.preDmg[target.token.id].postureDefensive = true;
+                } else if (capaciteDisponible(target, 'postureDefensiveGratuite', 'tour') &&
+                  ficheAttributeAsBool(target, 'bouclier_eqp', false)) {
+                  options.preDmg = options.preDmg || {};
+                  options.preDmg[target.token.id] = options.preDmg[target.token.id] || {};
+                  options.preDmg[target.token.id].postureDefensiveGratuite = true;
                 }
               }
             }
@@ -6097,6 +6144,10 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     let args = getEvtArgs(evt);
+    if (!args) {
+      error("Impossible de retrouver les arguments de l'attaque", evt);
+      return;
+    }
     let cible = args.cibles.find(function(target) {
       return (target.token.id === perso.token.id);
     });
@@ -6193,17 +6244,19 @@ var COFantasy2 = COFantasy2 || function() {
     let attrName = 'postureDefensive';
     let opt = {
       bouclier: true,
+      forceOuAgilite: true,
+      diviseSiTaille: 6,
     };
     if (optionsParade.deMalus) {
       opt.deMalus = true;
-      opt.predicat = true;
+      opt.predicat = 'tour';
       attrName = 'postureDefensiveGratuite';
     } else {
       opt.attrAsBool = true;
     }
     evitementGenerique(cmd, playerId, pageId, optionsParade, guerrier, "parer au bouclier", attrName,
       "de parade de coup au bouclier", "de parer un coup au bouclier",
-      " a déjà essayé de parer coup au bouclier ce tour", 'force', 'contact', "le coup est paré !", opt);
+      " a déjà essayé de parer un coup au bouclier ce tour", 'force', 'contact', "le coup est paré !", opt);
   }
 
   function appliquerParadeProjectiles(cible, test, options, evt) {
@@ -6315,7 +6368,7 @@ var COFantasy2 = COFantasy2 || function() {
     removePreDmg(options, cible);
   }
 
-  function appliquerEvitementGenerique(cible, evitementGen, pageId, options, evt, callback) {
+  function appliquerEvitementGenerique(attaquant, cible, evitementGen, pageId, options, evt, callback) {
     let args = getEvtArgs(evt);
     let lanceur = cible;
     let {
@@ -6380,6 +6433,9 @@ var COFantasy2 = COFantasy2 || function() {
         case 'contact':
           attBonus = ficheAttributeAsInt(lanceur, 'atkcac_base', 1, options);
           attBonus += ficheAttributeAsInt(lanceur, 'atkcac_buff', 0, options);
+          if (opt && opt.forceOuAgilite) {
+            attBonus += Math.max(modCarac(lanceur, 'for', options), modCarac(lanceur, 'agi', options));
+          }
           attBonus += modCarac(lanceur, 'for', options);
           break;
         case 'esquive':
@@ -6449,6 +6505,11 @@ var COFantasy2 = COFantasy2 || function() {
         if (opt && cible.critique && (opt.critiqueDevientNormal || (opt.critiqueAnnuleCritique && d20roll != 20))) {
           cible.critique = false;
           msg += " => Réussi, l'attaque fait des dégâts normaux";
+          removePreDmg(options, cible, attributeName);
+        } else if (opt && opt.diviseSiTaille && taillePerso(attaquant) >= opt.diviseSiTaille) {
+          cible.diviseDmg = cible.diviseDmg || 1;
+          cible.diviseDmg *= 2;
+          generalMsg += " => Réussi, " + msgReussite + " Les DM sont divisés par 2";
           removePreDmg(options, cible, attributeName);
         } else {
           cible.touche = false;
@@ -6551,7 +6612,7 @@ var COFantasy2 = COFantasy2 || function() {
             }
           };
           preDmgToken.evitementGenerique.forEach(function(evitementGenerique) {
-            appliquerEvitementGenerique(cible, evitementGenerique, pageId,
+            appliquerEvitementGenerique(attaquant, cible, evitementGenerique, pageId,
               options, evt, finaliseTargetPreDmg);
           });
         } else {
@@ -6773,6 +6834,13 @@ var COFantasy2 = COFantasy2 || function() {
         });
         callback();
       }); //fin testCaracteristique (asynchrone)
+  }
+
+  function effetEtatTemp(effet) {
+    if (!effet.endsWith('Temp')) return;
+    let etat = effet.substring(0, effet.length - 4);
+    if (!cof_states[etat]) return;
+    return etat;
   }
 
   function attackDealDmg(attaquant, ciblesTouchees, echecCritique, attackLabel, weaponStats, d20roll, display, options, evt, explications, playerId, pageId, cibles) {
@@ -7669,13 +7737,11 @@ var COFantasy2 = COFantasy2 || function() {
                 if (ef.finEffet) {
                   let attr = tokenAttribute(target, ef.effet);
                   if (attr.length === 0) {
-                    if (ef.effet.endsWith('Temp')) {
-                      let etat = ef.effet.substring(0, ef.effet.length - 4);
-                      if (!cof_states[etat]) return;
-                      if (getState(target, etat)) {
-                        setState(target, etat, false, evt);
-                        target.messages.push(nomPerso(target) + ' ' + messageFin(target, ef.message));
-                      }
+                    let etat = effetEtatTemp(ef.effet);
+                    if (!etat) return;
+                    if (getState(target, etat)) {
+                      setState(target, etat, false, evt);
+                      target.messages.push(nomPerso(target) + ' ' + messageFin(target, ef.message));
                     }
                     return;
                   }
@@ -8016,6 +8082,7 @@ var COFantasy2 = COFantasy2 || function() {
                         type: ce.typeDmg,
                         bonus: predicateAsInt(target, 'bonusSaveContre_' + ce.etat, 0),
                       };
+                      ce.save.etat = ce.etat;
                       let rollId = 'etat_' + ce.etat + index + '_' + target.token.id;
                       save(ce.save, target, rollId, expliquer, saveOpts, evt,
                         function(reussite, rolltext) {
@@ -8098,6 +8165,7 @@ var COFantasy2 = COFantasy2 || function() {
                         chanceRollId: options.chanceRollId,
                         type: ef.typeDmg,
                       };
+                      ef.save.etat = effetEtatTemp(ef.effet);
                       let rollId = 'effet_' + ef.effet + index + '_' + target.token.id;
                       let duree = ef.duree;
                       save(ef.save, target, rollId, expliquer, saveOpts, evt,
@@ -8424,7 +8492,11 @@ var COFantasy2 = COFantasy2 || function() {
           }
           if (preDmgToken.postureDefensive && preDmgToken.postureDefensive !== 'reroll') {
             action = "!cof2-parer-un-coup-au-bouclier " + target.token.id + ' ' + evt.id;
-            if (preDmgToken.postureDefensive == 'gratuite') action += ' --deMalus';
+            line += "<br/>" + boutonSimple(action, "parer le coup");
+            nbBoutons++;
+          }
+          if (preDmgToken.postureDefensiveGratuite && preDmgToken.postureDefensiveGratuite !== 'reroll') {
+            action = "!cof2-parer-un-coup-au-bouclier " + target.token.id + ' ' + evt.id + ' --deMalus';
             line += "<br/>" + boutonSimple(action, "parer le coup");
             nbBoutons++;
           }
@@ -11066,16 +11138,22 @@ var COFantasy2 = COFantasy2 || function() {
   function depenseAction(perso, typeAction, combat, evt) {
     delete perso.actionMax;
     evt.combat = evt.combat || deepCopy(combat);
-    let actions = combat.actions;
+    let actions = actionsDisponibles(perso, combat);
+    if (!actions) {
+      error("Pas encore d'action pour " + nomPerso(perso), combat);
+      return;
+    }
     switch (typeAction) {
       case 'L':
         actions.limitee = true;
         break;
       case 'A':
         actions.attaque++;
+        if (actions.attaque > 1 && actions.extra == 'A') actions.extra = 'G';
         break;
       case 'M':
         actions.mouvement++;
+        if (actions.mouvement > 2 && (actions.extra == 'M' || actions.extra == 'A')) actions.extra = 'G';
         break;
       case 'G':
         actions.gratuite++;
@@ -11111,37 +11189,51 @@ var COFantasy2 = COFantasy2 || function() {
           break;
         case 'L':
           if (!isActive(perso)) {
-            sendPerso(perso, "ne peut pas faire d'action limitée dans cet état");
+            if (!options.testeRessources) {
+              sendPerso(perso, "ne peut pas faire d'action limitée dans cet état");
+            }
             return true;
           }
           if (!typeActionPossible(perso, 'L')) {
-            demandeConfirmationActionLimitee(perso, "ne peut plus faire d'action limitée ce tour");
+            if (!options.testeRessources) {
+              demandeConfirmationActionLimitee(perso, "ne peut plus faire d'action limitée ce tour");
+            }
             return true;
           }
           break;
         case 'A':
           if (!isActive(perso)) {
-            sendPerso(perso, "ne peut pas faire d'action d'attaque dans cet état");
+            if (!options.testeRessources) {
+              sendPerso(perso, "ne peut pas faire d'action d'attaque dans cet état");
+            }
             return true;
           }
           if (!typeActionPossible(perso, 'A')) {
-            sendPerso(perso, "ne peut plus faire d'action d'attaque ce tour");
+            if (!options.testeRessources) {
+              sendPerso(perso, "ne peut plus faire d'action d'attaque ce tour");
+            }
             return true;
           }
           break;
         case 'M':
           if (!isActive(perso)) {
-            sendPerso(perso, "ne peut pas faire d'action de mouvement dans cet état");
+            if (!options.testeRessources) {
+              sendPerso(perso, "ne peut pas faire d'action de mouvement dans cet état");
+            }
             return true;
           }
           if (!typeActionPossible(perso, 'M')) {
-            sendPerso(perso, "ne peut plus faire d'action de mouvement ce tour");
+            if (!options.testeRessources) {
+              sendPerso(perso, "ne peut plus faire d'action de mouvement ce tour");
+            }
             return true;
           }
           break;
         case 'G':
           if (!isActive(perso)) {
-            sendPerso(perso, "ne peut pas faire d'action gratuite dans cet état");
+            if (!options.testeRessources) {
+              sendPerso(perso, "ne peut pas faire d'action gratuite dans cet état");
+            }
             return true;
           }
           break;
@@ -11151,7 +11243,9 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (perso && combat && options.potion && !options.typeAction) {
       if (!typeActionPossible(perso, 'M')) {
-        sendPerso(perso, "ne peut pas boire de potion pendant ce tour");
+        if (!options.testeRessources) {
+          sendPerso(perso, "ne peut pas boire de potion pendant ce tour");
+        }
         return true;
       }
       options.typeAction = 'M';
@@ -11227,6 +11321,24 @@ var COFantasy2 = COFantasy2 || function() {
           msgPasCapa = "Action impossible, pas de prédicat " + pred;
         }
         let test = testLimiteUtilisationsCapa(perso, pred, 'tour', msgPlusDispo,
+          msgPasCapa);
+        if (test === undefined) return true;
+        utiliseCapacite(perso, test, evt);
+      } else {
+        error("Impossible de savoir à qui appliquer la limitation du prédicat " + pred, options);
+        return true;
+      }
+    }
+    if (options.decrLimitePredicatParCombat) {
+      let pred = options.decrLimitePredicatParCombat;
+      if (perso) {
+        let msgPlusDispo;
+        let msgPasCapa;
+        if (!options.testeRessources) {
+          msgPlusDispo = "ne peut plus utiliser " + pred + " avant le prochain repos";
+          msgPasCapa = "Action impossible, pas de prédicat " + pred;
+        }
+        let test = testLimiteUtilisationsCapa(perso, pred, 'combat', msgPlusDispo,
           msgPasCapa);
         if (test === undefined) return true;
         utiliseCapacite(perso, test, evt);
@@ -11539,6 +11651,10 @@ var COFantasy2 = COFantasy2 || function() {
 
   const descriptionBonus = {
     Evolutif: {
+      armes: {
+        nom: 'Expertise en armes',
+        description: "estimer la valeur d'une arme ou la réputation martiale",
+      },
       eclaireur: {
         nom: 'Éclaireur',
         description: "En milieu naturel: discrétion, vigilance et pistage",
@@ -11822,6 +11938,23 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-effet postureDefensive 1",
       }
     },
+    //Voie du combat
+    'vivacite': {
+      buffsSurFiche: [{
+        nom: 'Vivacité',
+        attrib: 'init',
+        //limiteArmure: 'guerrier', //TODO: mécanisme pour ajouter seulement quand on connaît les armures
+        value: 3
+      }],
+      vivacite: 3, //Bonus aux save contre immobilise et renverse. On n'utilise pas bonusSaveContre_ pour pouvoir limiter aux armures de guerrier
+      Restriction_vivacite: 'armure_guerrier',
+      mouvementVivacite: true,
+      action: {
+        nom: '<span title="Action de mouvement suppélementaire">Vivacité</span>',
+        limitArmure: 'guerrier',
+        cmd: "!cof2-action est très vif --donneAction EM --acteur @{selected|token_id} --decrLimitePredicatParCombat mouvementVivacite"
+      }
+    },
     //Voie de la résistance
     'robustesse': {
       bonusTestEvolutif_robustesse: true,
@@ -11831,6 +11964,15 @@ var COFantasy2 = COFantasy2 || function() {
         attrib: 'pv',
         value: '[rang voie NUMEROVOIE] + 2'
       }]
+    },
+    'manoeuvre': { //TODO: vérifier carac quand copié-collé
+      deBonusManoeuvre: true,
+      Restriction_deBonusManoeuvre: 'armure_guerrier',
+    },
+    //Voie du maitre d'armes
+    'armes de predilection': {
+      bonusTestEvolutif_armes: true,
+      armeDePredilection: 'PARAM'
     },
     //Voies d'ensorceleur ///////////////////////////////////////////
     //Voie de l'envouteur
@@ -11870,6 +12012,7 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10 --acteur @{selected|token_id}',
       }, {
         nom: 'Lumière dans les yeux',
+        combat: true,
         type: 'L',
         mana: 1,
         limiteArmure: 'magicien',
@@ -12458,8 +12601,8 @@ var COFantasy2 = COFantasy2 || function() {
           let bonus = ficheAttributeAsInt(perso, 'armure', 0);
           let malus = ficheAttributeAsInt(perso, 'armure_malus', bonus);
           if (malus < bonus - 1) bonus = Math.floor((malus + bonus) / 2);
-          if (bonus <= (8 - limite)) diff = 0;
           diff = bonus + limite - 8;
+          if (diff < 0) diff = 0;
         }
       }
     }
@@ -12955,9 +13098,11 @@ var COFantasy2 = COFantasy2 || function() {
               }
             }
             let aps = boutonAttaque(perso, attackLabel, options);
-            picto = aps.picto;
-            style = aps.style;
-            return aps.act;
+            if (options.commande) {
+              picto = aps.picto;
+              style = aps.style;
+              return aps.act;
+            } else return aps;
           }
           let opt = {
             acteur: perso,
@@ -13041,12 +13186,12 @@ var COFantasy2 = COFantasy2 || function() {
     let overlay = '';
     if (options.overlay) overlay = ' title="' + options.overlay + '"';
     if (actions.length == 1) {
-      action = actions[0];
-      if (action) {
-        let toReturn = boutonSimple(action, text, buttonStyle + overlay);
+      let act = actions[0];
+      if (act) {
+        let toReturn = boutonSimple(act, text, buttonStyle + overlay);
         return toReturn;
       } else {
-        log("Action vide dans boutonComplexe " + action + "(texte = " + text + "), pour " + nomPerso(perso));
+        log("Action vide dans boutonComplexe (action = " + action + ", texte = " + text + "), pour " + nomPerso(perso));
         return '';
       }
     } else {
@@ -13064,8 +13209,8 @@ var COFantasy2 = COFantasy2 || function() {
   // - typeAction: le type d'action, si connu (L, A, M ou G)
   // - attaquePossible: ne pas chercher si l'attaque est impossible
   // - commande: remplacement de !cof-attaque2 att.id targt.id label
+  //    Dans ce cas, on renvoie juste act, picto et style !!!
   // - request, à ajouter à la fin après le traitement
-  // Dans ce cas, on renvoie juste act, picto et style
   function boutonAttaque(attaquant, label, options = {}) {
     let pageId = attaquant.token.get('pageid');
     let tid = attaquant.token.id;
@@ -13131,7 +13276,14 @@ var COFantasy2 = COFantasy2 || function() {
         (options.typeAction && !typeActionPossible(attaquant, options.typeAction)) ||
         actionImpossible(attaquant, opt, label);
       options.actionImpossible = impossible;
-      if (impossible) return text;
+      if (impossible) {
+        if (options.commande) return {
+          act: text,
+          picto: '',
+          style: ''
+        };
+        return text;
+      }
     }
     //Les modificateurs ne rendent jamais une attaque impossible
     addWeaponStatsToOptions(attaquant, attackStats, undefined, pageId, options);
@@ -13688,6 +13840,19 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function actionExtra(a, actions) {
+    let extra = actions.extra;
+    if (!extra) return a;
+    switch (a) {
+      case 'G':
+        return extra;
+      case 'M':
+        if (extra == 'G') return 'M';
+        else return extra;
+    }
+    return a;
+  }
+
   function actionMax(perso) {
     if (perso.actionMax === undefined) {
       if (isActive(perso)) {
@@ -13702,16 +13867,16 @@ var COFantasy2 = COFantasy2 || function() {
             };
           }
           if (actions.limitee) {
-            perso.actionMax = 'G';
+            perso.actionMax = actionExtra('G', actions);
           } else if (actions.attaque + actions.mouvement > 1) {
-            perso.actionMax = 'G';
+            perso.actionMax = actionExtra('G', actions);
           } else if (actions.attaque > 0) {
-            if (getState(perso, 'ralenti') || attributeAsBool(perso, 'limiteParTour_riposteAvantInit'))
-              perso.actionMax = 'G';
-            else perso.actionMax = 'M';
+            if (getState(perso, 'ralenti') || attributeAsBool(perso, 'limiteParTour_riposteAvantInit')) {
+              perso.actionMax = actionExtra('G', actions);
+            } else perso.actionMax = actionExtra('M', actions);
           } else if (actions.mouvement == 1) {
             if (getState(perso, 'ralenti') || attributeAsBool(perso, 'limiteParTour_riposteAvantInit')) {
-              perso.actionMax = 'G';
+              perso.actionMax = actionExtra('G', actions);
             } else perso.actionMax = 'A';
           } else {
             if (getState(perso, 'ralenti')) {
@@ -17805,6 +17970,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - oldTokenId
   // - newTokenId
   // - newToken
+  // TODO: enlever l'attribut des effetsTemporairesLies qui le contiennent ?
   function finDEffet(attr, effet, attrName, charId, evt, options = {}) { //L'effet arrive en fin de vie, doit être supprimé
     let res;
     let newInit = [];
@@ -18443,8 +18609,8 @@ var COFantasy2 = COFantasy2 || function() {
       }
       return;
     }
-    if (ef.effet.endsWith('Temp')) {
-      let etat = ef.effet.substring(0, ef.effet.length - 4);
+    let etat = effetEtatTemp(ef.effet);
+    if (etat) {
       if (predicateAsBool(target, 'immunite_' + etat)) {
         sendPerso(target, 'ne peut pas être ' + stringOfEtat(etat, target));
         return;
@@ -19054,6 +19220,7 @@ var COFantasy2 = COFantasy2 || function() {
             type: options.type,
             regard: options.regard,
           };
+          options.save.etat = effetEtatTemp(effet);
           let saveId = 'effet_' + effet + "_" + perso.token.id;
           save(options.save, perso, saveId, expliquer, saveOpts, evt,
             function(reussite, rollText) {
@@ -19254,6 +19421,7 @@ var COFantasy2 = COFantasy2 || function() {
           chanceRollId: options.chanceRollId,
           type: options.type
         };
+        options.save.etat = effetEtatTemp(effet);
         options.save.entrave = mEffet.entrave;
         let d = duree;
         let saveId = 'effet_' + effet + "_" + perso.token.id;
@@ -19899,7 +20067,8 @@ var COFantasy2 = COFantasy2 || function() {
         if (distanceCombat(tok2, obj, pageId) === 0) {
           //Si c'est un allié, on compte à part.
           let perso = persoOfToken(obj);
-          if (perso && allies.has(perso.charId) && !predicateAsBool(attaquant, 'tirIgnoreCibleEngagee')) {
+          if (perso && allies.has(perso.charId) && !predicateAsBool(perso, 'aucuneActionCombat') &&
+            !predicateAsBool(attaquant, 'tirIgnoreCibleEngagee')) {
             mAlliersContact += mToken * 3;
             mToken = 0;
           } else {
@@ -19936,7 +20105,7 @@ var COFantasy2 = COFantasy2 || function() {
       ennemisCible.forEach(function(tok) {
         if (tok.id == tok1.id) return;
         let perso = persoOfToken(tok);
-        if (perso && allies.has(perso.charId)) {
+        if (perso && allies.has(perso.charId) && !predicateAsBool(perso, 'aucuneActionCombat')) {
           malusMelee = malusMelee || 2;
           let d = distancePixToken(tok1, tok);
           if (d >= dp) return;
@@ -22654,6 +22823,7 @@ var COFantasy2 = COFantasy2 || function() {
   //   - contact : la difficulté si la cible est au contact de options.attaquant
   //   - fauchage
   //   - entrave (pour les action qui immobilisent, ralentissent ou paralysent)
+  //   - etat quand le save est contre un état particulier
   //   - sortilege
   //   - augmenteAvecMargeDeToucher
   function save(s, target, saveId, expliquer, options, evt, afterSave) {
@@ -22771,6 +22941,11 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.type) {
       bonusPreds.push('bonusSaveContre_' + options.type);
+    }
+    if (s.etat) {
+      bonusPreds.push('bonusSaveContre_' + s.etat);
+      if (s.etat == 'immobilise' || s.etat == 'renverse')
+        bonusPreds.push('vivacite');
     }
     if (!options.hideSaveTitle) {
       let title = " Jet " + deCarac(carac) + " " + seuil;
@@ -22998,7 +23173,8 @@ var COFantasy2 = COFantasy2 || function() {
     let s = {
       carac: carac,
       seuil: seuil,
-      entrave: met.entrave
+      entrave: met.entrave,
+      etat: effetEtatTemp(effetC),
     };
     save(s, perso, saveId, expliquer, options, evt,
       function(reussite, texte) { //asynchrone
@@ -25037,7 +25213,8 @@ var COFantasy2 = COFantasy2 || function() {
       let s = {
         carac: carac,
         seuil: seuil,
-        entrave: met.entrave
+        entrave: met.entrave,
+        etat: effetEtatTemp(effetC),
       };
       save(s, perso, saveId, expliquer, saveOpts, evt,
         function(reussite, texte) { //asynchrone
@@ -25355,51 +25532,58 @@ var COFantasy2 = COFantasy2 || function() {
     let extraImg = afficheOptionImage(options);
     options.message[0] += extraImg;
     let cibles = [];
-    if (options.donneAction) {
-      let combat = stateCOF.combat;
-      if (combat) {
-        let actions = combat.actions;
-        switch (options.donneAction) {
-          case 'L':
-            if (actions.limitee) {
-              actions.limitee = false;
-            } else if (actions.attaque > 1) {
-              actions.attaque -= 2;
-            } else if (actions.attaque == 1) {
-              actions.attaque = 0;
-              if (actions.mouvement > 0) {
-                actions.mouvement--;
-              }
-            } else if (actions.mouvement > 1) {
-              actions.mouvement -= 2;
-            } else {
-              actions.mouvement = 0;
-            }
-            break;
-          case 'A':
-            if (actions.limitee) {
-              actions.limitee = false;
-              actions.mouvement++;
-            } else if (actions.attaque > 0) {
-              actions.attaque--;
-            } else if (actions.mouvement > 1) {
-              actions.mouvement--;
-            }
-            break;
-          case 'M':
-            if (actions.limitee) {
-              actions.limitee = false;
-              actions.attaque++;
-            } else if (actions.mouvement > 0) {
-              actions.mouvement--;
-            }
-        }
-      }
-    }
+    let combat = stateCOF.combat;
     iterSelected(selected, function(cible) {
       cibles.push(cible);
       if (!acteur) {
         if (limiteRessources(cible, options, undefined, 'action', evt)) return;
+      }
+      if (options.donneAction && combat) {
+        let actions = actionsDisponibles(cible, combat);
+        if (actions) {
+          switch (options.donneAction) {
+            case 'L':
+              if (actions.limitee) {
+                actions.limitee = false;
+              } else if (actions.attaque > 1) {
+                actions.attaque -= 2;
+              } else if (actions.attaque == 1) {
+                actions.attaque = 0;
+                if (actions.mouvement > 0) {
+                  actions.mouvement--;
+                }
+              } else if (actions.mouvement > 1) {
+                actions.mouvement -= 2;
+              } else {
+                actions.mouvement = 0;
+              }
+              break;
+            case 'A':
+              if (actions.limitee) {
+                actions.limitee = false;
+                actions.mouvement++;
+              } else if (actions.attaque > 0) {
+                actions.attaque--;
+              } else if (actions.mouvement > 1) {
+                actions.mouvement--;
+              }
+              break;
+            case 'M':
+              if (actions.limitee) {
+                actions.limitee = false;
+                actions.attaque++;
+              } else if (actions.mouvement > 0) {
+                actions.mouvement--;
+              }
+              break;
+            case 'EM': //Action de mouvement supplémentaire
+              if (actions.extra) {
+                sendPerso(cible, "ne peut pas avoir d'autre action supplémentaire ce round");
+                return;
+              }
+              actions.extra = 'M';
+          }
+        }
       }
       if (options.fxCible) {
         spawnFx(cible.token.get('left'), cible.token.get('top'), options.fxCible, cible.token.get('pageid'));
@@ -26344,6 +26528,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.son) playSound(options.son);
     persos.forEach(function(perso) {
       if (limiteRessources(perso, options, 'degaine', 'dégainer', evt)) return;
+
       function afterSave() {
         let nomArme = degainerArme(perso, armeLabel, evt, options);
         if (nomArme) sendPerso(perso, "a déjà " + nomArme + " en main");
@@ -26556,6 +26741,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     // Fin des effets qui durent pour le combat
     attrs = removeAllAttributes('attributDeCombat', evt, attrs);
+    attrs = removeAllAttributes('effetsTemporairesLies', evt, attrs);
     attrs = removeAllAttributes('limiteParTour', evt, attrs);
     // Autres attributs
     if (combat.tour / 10 != Math.floor(combat.tour / 10)) {
@@ -31035,6 +31221,7 @@ var COFantasy2 = COFantasy2 || function() {
     decrAttribute: {
       fn: decrAttributeOption,
     },
+    decrLimitePredicatParCombat: wordDefaultOption,
     decrLimitePredicatParTour: wordDefaultOption,
     deplaceDe: {
       fn: deplaceDeOption,
