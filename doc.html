@@ -496,7 +496,8 @@ tr {line-height: 25px;}
                 <h5>RD critique</h5>
                 <p>Utiliser un <a href=#predicats>prédicat</a> <code>RD_critique</code> avec comme valeur la résistance aux critiques. Se combine avec une éventuelle RD critique fournie par le port d'un casque.</p>
                 <h5>Résistances</h5>
-                <p>Pour les effets qui divisent la dégâts subits d'un type donné, utilisez un <a href=#predicats>prédicat</a> <code>resistanceA_<i>type</i></code>. Une resistance à tous les dégâts non-magiques est possible avec <code>resistanceA_nonMagique</code>.<!--Il est aussi possible d'octroyer une résistance temporaire, par exemple une potion de résistance au feu pourra être simulée par la commande <code>!cof-set-attribute resistanceA_feu true</code>. Cela ne sera pas visible dans les prédicats, local à un mook, et il faut ensuite effacer l'attribut à la fin de l'effet-->.</p>
+                <p>Pour les effets qui divisent la dégâts subits d'un type donné, vous pouvez utiliser la case sous <code>RD</code> de la fiche. S'il y a plusieurs résistances, vous pouvez les lister là, en les séparant par des virgules. Le script accepte aussi le type <code>nonMagique</code> pour une résistance à out ce qui n'est pas magique.</p>
+                <!--Il est aussi possible d'octroyer une résistance temporaire, par exemple une potion de résistance au feu pourra être simulée par la commande <code>!cof-set-attribute resistanceA_feu true</code>. Cela ne sera pas visible dans les prédicats, local à un mook, et il faut ensuite effacer l'attribut à la fin de l'effet-->
                 <p>Pour les effets qui divisent par 2 les dégâts ou la durée, utiliser un <a href=#predicats>prédicat</a> <code>diviseEffet_<i>type</i></code>.</p>
                 <p>Pour les effets qui donnent un bonus aux tests pour résister aux effets ou dégâts d'un certain type, utiliser un <a href=#predicats>prédicat</a> <code>bonusSaveContre_<i>type</i></code> de valeur le bonus accordé. Par exemple, un objet qui donnerait +5 à tous les tests pour résister au poison pourrait être encodé par un prédicat <code>bonusSaveContre_poison</code> de valeur <code>5</code>.</p>
                 <!--
@@ -709,6 +710,7 @@ tr {line-height: 25px;}
                     <li><code>--saveActifParTour <i>carac seuil</i></code> : la cible peut se sortir de l'effet à tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i> (utilisation dans bouton dans la liste d'actions).</li>
                     <li><code>--save <i>carac seuil</i></code> : la cible peut faire un jet pour échapper à l'effet. Si on ajoute l'argument <code>demiDuree</code>, alors réussir la sauvegarde ne fait que diviser la durée.</li>
                     <li><code>--seulementVivant</code> : l'effet ne peut s'appliquer qu'aux personnages vivants.</li>
+                    <li><code>--vampirise <i>p</i></code> : soigne du pourcentage indiqué (<i>p</i>) DM infligés, quel que soit leur type. Par exemple, pour une attaque qui soigne de la moitié des dégâts infligés, on pourra mettre --vampirise 50. À noter que les soins se cumulent avec les dégâts de type drain.</li>
                     <li><code>--dureeEnMinutes <i>duree</i></code> : indique une durée en minute pour les effets qui durent plus d'un combat</li>
                     <li><code>--accumuleDuree <i>n</i></code> : l'effet peut être accumulé : chaque fois qu'on applique à nouveau l'effet avec une durée donnée, on ajoute cette durée à la durée courante de l'effet sur la cible. On ne peut cumuler ainsi que <i>n</i> instances de l'effet.</li>
                     <li><code>--valeur <i>n</i></code> : pour certains effet, permet de spécifier une valeur qui remplace la valeur par défaut de l'effet.</li>
@@ -1161,11 +1163,13 @@ tr {line-height: 25px;}
                   <li><strong>descriptionTestPrestige_<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de voie de prestige nommé <i>nom</i></li>
                   <li><strong>familierMage</strong> : un nom de familier. Quand le familier est visible du personnage, donne un bonus de +2 en initiative et en défense.</li>
                   <li><strong>hachesEtMarteaux</strong> : donne un bonus de +1 à l'attaque et aux DM avec une hache ou un marteau de guerre.</li>
+                  <li><strong>insensibleALaDouleur</strong> : permet de faire encore une action A ou M après être mis à 0 PV.</li>
                   <li><strong>nomTestEvolutif_<i>nom</i></strong> : le nom à afficher pour bonus évolutif nommé <i>nom</i></li>
                   <li><strong>nomTestPeuple<i>nom</i></strong> : le nom à afficher pour bonus de peuple nommé <i>nom</i></li>
                   <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
                 <li><strong>paradeCroisee</strong> : bonus en DEF quand on porte une arme en main gauche. Le script propose de s'engager à ne pas utiliser son arme gauche on début du tour.</li>
                   <li><strong>protegerUnallie</strong> : donne la possibilité d'ajouter +2 en DEF à un allié une fois par tour lorsqu'on porte un bouclier.</li>
+                  <li><strong>resistanceA_<i>type</i></strong> : divise par 2 les DM associés au type.</li>
                   <li><strong>tempsRecuperationRapide</strong> : le temps nécessaire à une récupération rapide</li>
                   <li><strong>tirIgnoreCibleEngagee</strong>: les attaques à distance igorent les pénalités liées aux cible aux contact avec des alliés.</li>
                   <li><strong>travailDEquipe</strong> : ajoute un dé bonus aux jet de pistage et de vigilance quand on contact du compagnon. Ajoute un dé bonus en attaque au compagnon s'il est au contact du personnage.</li>

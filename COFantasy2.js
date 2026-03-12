@@ -1,4 +1,4 @@
-//Dernière modification : mar. 10 mars 2026,  02:34
+//Dernière modification : jeu. 12 mars 2026,  06:06
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3322,7 +3322,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (options.bonusDM !== undefined && weaponStats && weaponStats.arme) malusDM = -3;
       messageAttaqueDM("L'attaquant se noie", explications, options, -3, malusDM);
     }
-    if ((options.marteau || options.hache) && predicateAsBool(attaquant, 'hachesEtMarteaux')) {
+    if ((weaponStats && (weaponStats.marteau || weaponStats.hache)) && predicateAsBool(attaquant, 'hachesEtMarteaux')) {
       attBonus += 1;
       messageAttaqueDM("Haches & marteaux", explications, options, 1);
     }
@@ -3386,7 +3386,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (weaponStats && weaponStats.arme) {
       let armesDePredilection = predicatesNamed(attaquant, 'armeDePredilection');
-      let estPredilection = 1;
+      let estPredilection = 0;
       armesDePredilection.forEach(function(ap) {
         let arme = ap.trim.toLowerCase();
         //On commence par normaliser le type d'arme
@@ -6625,7 +6625,7 @@ var COFantasy2 = COFantasy2 || function() {
     return 0;
   }
 
-  function computeAttackDice(d, maxDmg, options) {
+  function computeDmgDice(d, maxDmg, options) {
     if (isNaN(d) || d < 0) {
       error("Dé d'attaque incorrect", d);
       return 0;
@@ -6672,7 +6672,7 @@ var COFantasy2 = COFantasy2 || function() {
     else if (attDMArme > 0) attDMArme = '+' + attDMArme;
     attDMBonus = attDMArme + attDMBonus;
     let attNbDicesCible = attNbDices;
-    let attDiceCible = computeAttackDice(weaponStats.attDice, target.maxDmg, options);
+    let attDiceCible = computeDmgDice(weaponStats.attDice, target.maxDmg, options);
     let attCarBonus = '';
     if (weaponStats.attCarBonus) {
       if (weaponStats.sabre && predicateAsBool(attaquant, 'techniqueDuSabre') && weaponStats.attCarBonus == '@{FOR}' && !(options.lamesJumelles && weaponStats.armeGauche)) {
@@ -12121,14 +12121,14 @@ var COFantasy2 = COFantasy2 || function() {
         horsCombat: true,
         type: 'A',
         mana: 1,
-        cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --acteur @{selected|token_id} --cible @{target|token_id} --portee 0',
+        cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --acteur @{selected|token_id} --select @{target|token_id} --portee 0',
       },
     },
     'vigueur divine': {
       bonusTestEvolutif_vigueur: true,
       action: {
         nom: "Vigueur divine",
-        typeAction: 'L',
+        type: 'L',
         mana: 2,
         combat: true,
         horsCombat: true,
@@ -12404,17 +12404,17 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (preds.sortDeCapacite) {
       let raw = preds.sortDeCapacite;
-      replaceSpecialInField(preds, 'sortDeCapacite', numVoie, rmax, param);
-      if (preds.sortSortDeCapacite === '') {
+          let sort = replaceSpecialStrings(raw, numVoie, rmax, param);
+      if (sort === '') {
         if (raw == 'PARAM' && !warnParam) {
           warnParam = false;
           log("Il manque le paramètre de la capacité " + capacite + " pour " + nomPerso(perso) + " (capacité à choisir)");
         }
       } else {
         let actionsDeCapa = [];
-        predicatsDeCapacite(perso, preds.sortDeCapacite, numVoie, rang, {}, actionsDeCapa, [], {});
+        predicatsDeCapacite(perso, sort, numVoie, rang, {}, actionsDeCapa, [], {});
         if (actionsDeCapa.length === 0) {
-          log("Impossible de trouver le sort pour " + preds.sortDeCapacite + "(paramètre de " + capacite + " de " + nomPerso(perso));
+          log("Impossible de trouver le sort pour " + sort + "(paramètre de " + capacite + " de " + nomPerso(perso));
         } else {
           for (let i = 0; i < actionsDeCapa.length; i++) {
             if (actionsDeCapa[i].mana) actions.push(actionsDeCapa[i]);
@@ -14558,13 +14558,13 @@ var COFantasy2 = COFantasy2 || function() {
     }
     persoTransforme(perso);
     if (perso.transforme.charId) {
-      let command = "!cof-fin-changement-de-forme --cible " + perso.token.id;
+      let command = "!cof-fin-changement-de-forme --select " + perso.token.id;
       ligne += boutonSimple(command, "Retrouver sa forme normale") + '<br/>';
       if (predicateAsBool(perso, 'transformationRegeneratrice')) {
         let pv = parseInt(perso.token.get('bar1_value'));
         let anciensPVs = attributeAsInt(perso, 'PVAvantTransformation', pv);
         if (!isNaN(pv) && anciensPVs > pv) {
-          command = "!cof-fin-changement-de-forme --transformationRegeneratrice --cible " + perso.token.id;
+          command = "!cof-fin-changement-de-forme --transformationRegeneratrice --select " + perso.token.id;
           ligne += boutonSimple(command, "Transformation régénératrice") + '(L)<br/>';
         }
       }
@@ -17463,6 +17463,12 @@ var COFantasy2 = COFantasy2 || function() {
       fin: '',
       visible: true,
     },
+    agitAZeroPV: {
+      activation: "continue à agir malgré les blessures",
+      actif: "devrait être à terre",
+      fin: "subit l'effet de ses blessures",
+      visible: true
+    },
     asphyxie: {
       activation: "commence à manquer d'air",
       actif: "étouffe",
@@ -18246,6 +18252,21 @@ var COFantasy2 = COFantasy2 || function() {
           }, {
             tousLesTokens: true
           });
+        break;
+      case 'agitAZeroPV':
+        iterTokensOfAttribute(charId, options.pageId, effet, attrName, function(token) {
+          let perso = {
+            charId: charId,
+            token: token
+          };
+          let pv = token.get('bar1_value');
+          if (pv == 0) { //jshint ignore:line
+            mort(perso, undefined, evt);
+          } else {
+            //On note qu'il l'a déjà fait pour qu'il ne puisse le refaire dans le combat
+            setTokenAttr(perso, 'aAgiAZeroPV', true, evt);
+          }
+        });
         break;
       case 'ombreMortelle':
       case 'dedoublement':
@@ -20927,7 +20948,7 @@ var COFantasy2 = COFantasy2 || function() {
       addCellInFramedDisplay(display, enlever, 100, false, fond, "text-align:right;");
       fond = !fond;
     }
-    let ajouter = boutonSimple("!cof2-gerer-equipe " + nom + " --commande ajouter --cible @{target|personnage à ajouter|token_id}", '<span title="ajouter un personnage", style="font-family: \'Pictos\'">+</span>', BS_BUTTON);
+    let ajouter = boutonSimple("!cof2-gerer-equipe " + nom + " --commande ajouter --select @{target|personnage à ajouter|token_id}", '<span title="ajouter un personnage", style="font-family: \'Pictos\'">+</span>', BS_BUTTON);
     let dupliquer = boutonSimple("!cof2-gerer-equipe " + nom + " --commande dupliquer ?{Nom de la nouvelle équipe}", '<span title="dupliquer l\'équipe", style="font-family: \'Pictos\'">|</span>', BS_BUTTON);
     addCellInFramedDisplay(display, "&nbsp;" + ajouter + " &emsp; " + dupliquer, 100, true, fond);
     let lister = boutonSimple("!cof2-lister-equipes", '<span title="Lister toutes les équipes", style="font-family: \'Pictos\'">l</span>', BS_BUTTON);
@@ -24543,7 +24564,7 @@ var COFantasy2 = COFantasy2 || function() {
             //Les effets quand on entre en combat
             if (predicateAsBool(perso, 'embuscade')) {
               let diffSurprise = 15 + modCarac(perso, 'agi');
-              let commande = "!cof2-surprise " + diffSurprise + " --cible @{target|token_id}";
+              let commande = "!cof2-surprise " + diffSurprise + " --select @{target|token_id}";
               sendPerso(perso, "peut faire une " + boutonSimple(commande, 'embuscade'), true);
             }
             //Les autres persos qui entrent en combat en même temps
@@ -27148,8 +27169,9 @@ var COFantasy2 = COFantasy2 || function() {
       let restants = attributeAsInt(target, 'limiteParCombat__increvable', predicateAsInt(target, 'increvable', 1));
       setTokenAttr(target, 'limiteParCombat__increvable', restants - 1, evt);
       setTokenAttr(target, 'increvableActif', true, evt);
-    } else if ((attributeAsBool(target, 'enrage') || predicateAsBool(target, 'durACuire')) &&
+    } else if ((attributeAsBool(target, 'enrage') || predicateAsBool(target, 'durACuire') || predicateAsBool(target, 'insensibleALaDouleur')) &&
       !attributeAsBool(target, 'aAgiAZeroPV')) {
+      //TODO: mettre à mort un perco avec insensibleALaDouleur après sa première action.
       let msgAgitZ = nomPerso(target) + " devrait être mort";
       msgAgitZ += eForFemale(target) + ", mais ";
       msgAgitZ += onGenre(target, 'il', 'elle') + " continue à se battre !";
@@ -27694,13 +27716,19 @@ var COFantasy2 = COFantasy2 || function() {
       div++;
       expliquer(nomPerso(target) + " est protégé contre les dégâts de zone");
     }
-    if (predicateOrAttributeAsBool(target, 'resistanceA_' + dmgType) || predicateAsBool(target, 'diviseEffet_' + dmgType)) {
+    let resistances = {};
+    ficheAttribute(target, 'resdm', '').trim().split(',').forEach(function(r) {
+      r = r.trim();
+      if (r === '') return;
+      resistances[r] = true;
+    });
+    if (resistances[dmgType] || predicateOrAttributeAsBool(target, 'resistanceA_' + dmgType) || predicateAsBool(target, 'diviseEffet_' + dmgType)) {
       div++;
     }
     if (predicateOrAttributeAsBool(target, 'vulnerableA_' + dmgType)) {
       multiply();
     }
-    if (predicateOrAttributeAsBool(target, 'resistanceA_nonMagique') && !options.magique && !options.sortilege) {
+    if ((resistances.nonMagique || predicateOrAttributeAsBool(target, 'resistanceA_nonMagique')) && !options.magique && !options.sortilege) {
       div++;
     }
     if (predicateAsBool(target, 'generalVengeance')) {
@@ -27760,11 +27788,11 @@ var COFantasy2 = COFantasy2 || function() {
         div++;
       }
     } else {
-      if (options.tranchant && predicateOrAttributeAsBool(target, 'resistanceA_tranchant')) {
+      if (options.tranchant && (resistances.tranchant || predicateOrAttributeAsBool(target, 'resistanceA_tranchant'))) {
         div++;
-      } else if (options.perforant && predicateOrAttributeAsBool(target, 'resistanceA_percant')) {
+      } else if (options.perforant && (resistances.percant || predicateOrAttributeAsBool(target, 'resistanceA_percant'))) {
         div++;
-      } else if (options.contondant && predicateOrAttributeAsBool(target, 'resistanceA_contondant')) {
+      } else if (options.contondant && (resistances.contondant || predicateOrAttributeAsBool(target, 'resistanceA_contondant'))) {
         div++;
       }
       if (attributeAsBool(target, 'armureMagique')) {
@@ -29689,8 +29717,11 @@ var COFantasy2 = COFantasy2 || function() {
         let v = attr.get('current');
         switch (noml) {
           case 'atkcac_base':
+          case 'atkcac_carac':
           case 'atktir_base':
+          case 'atktir_carac':
           case 'atkmag_base':
+          case 'atkmag_carac':
           case 'pc_base':
           case 'pc_bonus':
           case 'pc':
@@ -29710,12 +29741,19 @@ var COFantasy2 = COFantasy2 || function() {
           case 'torseequipe':
           case 'init_div':
           case 'defdiv':
+          case 'defarmuremalus':
           case 'force':
+          case 'for_bonus':
           case 'dexterite':
+          case 'dex_bonus':
           case 'constitution':
+          case 'con_bonus':
           case 'intelligence':
+          case 'int_bonus':
           case 'charisme':
+          case 'cha_bonus':
           case 'sagesse':
+          case 'sag_bonus':
           case 'defense_si_attaque_risquee':
           case 'show_script':
           case 'statblock':
@@ -29724,6 +29762,9 @@ var COFantasy2 = COFantasy2 || function() {
           case 'version':
           case 'defarmureon':
           case 'defbouclieron':
+          case 'rd_percant':
+          case 'rd_contondant':
+          case 'sansEsprit':
             //on efface juste
             break;
           case 'niveau':
@@ -29942,8 +29983,8 @@ var COFantasy2 = COFantasy2 || function() {
       });
       if (attributsIgnores !== '') {
         setAttr('Attributs COF1 ignorés', attributsIgnores);
-        sendPlayer("Attributs ignorés pour " + nomPerso(perso), playerId);
-        sendPlayer(attributsIgnores, playerId);
+        log("Attributs ignorés pour " + nomPerso(perso));
+        log(attributsIgnores);
       } else {
         sendPlayer(nomPerso(perso) + " traduit.", playerId);
       }
@@ -31438,6 +31479,9 @@ var COFantasy2 = COFantasy2 || function() {
       fn: integerOption,
       default: 1,
     },
+    maladie: {
+      fn: dmgTypeOption
+    },
     mana: {
       fn: integerOption,
       min: 0,
@@ -31565,6 +31609,11 @@ var COFantasy2 = COFantasy2 || function() {
       fn: effetSubOption,
       champMax: 'valeurMax'
     },
+    vampirise: {
+      fn: integerOption,
+      min: 0,
+      max: 100,
+    },
     deBonus: boolDefaultOption,
     deMalus: boolDefaultOption,
     forceReset: boolDefaultOption,
@@ -31670,9 +31719,6 @@ var COFantasy2 = COFantasy2 || function() {
       fn: dmgTypeOption
     },
     poison: {
-      fn: dmgTypeOption
-    },
-    maladie: {
       fn: dmgTypeOption
     },
   };
