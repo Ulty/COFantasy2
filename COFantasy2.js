@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 12 mars 2026,  06:06
+//Dernière modification : dim. 15 mars 2026,  02:05
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1692,6 +1692,7 @@ var COFantasy2 = COFantasy2 || function() {
     'Attaque': attaqueAvecRedo,
     'degainer': degainerAvecRedo,
     'dmgDirects': dmgDirectsAvecRedo,
+    'effet': effetAvecRedo,
     'jetPerso': jetPersoAvecRedo,
     'Recuperation': recuperationAvecRedo,
     'Sprint': sprinterAvecRedo,
@@ -2558,8 +2559,8 @@ var COFantasy2 = COFantasy2 || function() {
     let defense = 0;
     if (ficheAttributeAsInt(perso, 'armure_eqp', 0) > 0)
       defense = ficheAttributeAsInt(perso, 'armure', 0);
-    else if (attributeAsBool(perso, 'armureDeMana')) {
-      defense = attributeAsInt(perso, 'armureDaMana', 0, 3);
+    else {
+      defense = attributeAsInt(perso, 'armureDeMana', 0, 3);
     }
     defense += defenseBouclier(perso);
     return defense;
@@ -2652,8 +2653,7 @@ var COFantasy2 = COFantasy2 || function() {
       formeDarbre = true;
       defense = 13;
     }
-    if (attributeAsBool(target, 'statueDeBois')) defense = 10;
-    else if (attributeAsBool(target, 'petrifie')) defense = 5;
+    if (attributeAsBool(target, 'petrifie')) defense = 5;
     // Autres modificateurs de défense
     if (target.protegeParAllie) {
       defense += target.protegeParAllie;
@@ -3236,11 +3236,6 @@ var COFantasy2 = COFantasy2 || function() {
   //TODO: revoir tous ces effets
   function bonusAttaqueEtDMA(attaquant, weaponStats, evt, explications, options) {
     let attBonus = 0;
-    if (attributeAsBool(attaquant, 'reactionViolente')) {
-      attBonus += 2;
-      options.reactionViolente = true;
-      messageAttaqueDM("Réaction violente", explications, options, 2, '+1' + options.d6);
-    }
     if (attributeAsBool(attaquant, 'drainDeForce')) {
       attBonus -= 2;
       messageAttaqueDM("Force drainée", explications, options, -2);
@@ -4658,7 +4653,6 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let explications = [];
     if (options.message) explications = [...options.message];
-    if (options.magieRapide) explications.push("Magie rapide");
     //On fait les tests pour les cibles qui bénéficieraient d'un sanctuaire
     let ciblesATraiter = cibles.length;
     let cibleTraitee = function() {
@@ -6882,9 +6876,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.armeMagiquePlus) {
       attDMBonusCommun += " + " + options.armeMagiquePlus;
     }
-    if (options.reactionViolente) {
-      attDMBonusCommun += " + 2";
-    }
     if (weaponStats.arc && predicateAsBool(attaquant, 'ajoutePERauxDMdArc')) {
       let bonus = modCarac(attaquant, 'per');
       if (bonus > 0) {
@@ -7724,39 +7715,6 @@ var COFantasy2 = COFantasy2 || function() {
                   };
                   let f = finDEffet(attr, ef.effet, attr.get('name'), target.charId, evt, feOptions);
                   if (f && f.newToken) target.token = f.newToken;
-                  return;
-                }
-                if (((options.sortilege || options.mana !== undefined) &&
-                    (predicateAsBool(target, 'liberteDAction') && (
-                      ef.effet == 'apeureTemp' ||
-                      ef.effet == 'endormiTemp' ||
-                      ef.effet == 'etourdiTemp' ||
-                      ef.effet == 'immobiliseTemp' ||
-                      ef.effet == 'paralyseTemp' ||
-                      ef.effet == 'ralentiTemp' ||
-                      ef.entrave
-                    ))) ||
-                  (ef.effet == 'paralyseGoule' &&
-                    (predicateAsBool(target, 'liberteDAction') || predicateAsBool(target, 'actionLibre'))
-                  ) ||
-                  (predicateAsBool(target, 'actionLibre') && (
-                    ef.effet == 'ralentiTemp' ||
-                    ef.effet == 'immobiliseTemp' ||
-                    ef.effet == 'paralyseTemp')) ||
-                  (ef.entrave && ef.effet != 'paralyseTemp' && ef.effet != 'paralyseGoule' && predicateAsInt(target, 'voieDeLArchange', 1) > 1 && attributeAsBool(target, 'formeDAnge'))
-                ) {
-                  target.messages.push(nomPerso(target) + " reste libre de ses mouvements !");
-                  return;
-                }
-                if (ef.effet == 'paralyseGoule' &&
-                  (
-                    (predicateAsInt(target, 'voieDeLArchange', 1) > 2 && attributeAsBool(target, 'formeDAnge')))
-                ) {
-                  target.messages.push(nomPerso(target) + " est immunisé à la paralysie des goules");
-                  return;
-                }
-                if (ef.effet == 'affaibliTemp' && estMortVivant(attaquant) && predicateAsInt(target, 'voieDeLArchange', 1) > 2 && attributeAsBool(target, 'formeDAnge')) {
-                  target.messages.push(nomPerso(target) + " est insensible aux affaiblissements des morts-vivants.");
                   return;
                 }
                 if (ef.save) {
@@ -12267,7 +12225,7 @@ var COFantasy2 = COFantasy2 || function() {
         b.nom = '[S] ' + b.nom;
         b.on = '1';
         if (b.limiteArmure && armureRestreinte(perso, b.limiteArmure)) {
-          if (options.limiteArmure) {//Permet de porter une meilleure armure
+          if (options.limiteArmure) { //Permet de porter une meilleure armure
             if (armureRestreinte(perso, options.limiteArmure)) b.on = '0';
           } else {
             b.on = '0';
@@ -12382,7 +12340,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Capacités d'une autre voie
     if (preds.capacite) {
       if (options.indirect) {
-        log(nomPerso(perso)+ " ne peut pas obtenir une capacité indirecte à partir d'une capacité indirecte ("+options.indirect+")");
+        log(nomPerso(perso) + " ne peut pas obtenir une capacité indirecte à partir d'une capacité indirecte (" + options.indirect + ")");
       } else {
         let raw = preds.capacite.nom;
         replaceSpecialInField(preds, 'capacite', numVoie, rmax, param);
@@ -12393,7 +12351,8 @@ var COFantasy2 = COFantasy2 || function() {
             log("Il manque le paramètre de la capacité " + capacite + " pour " + nomPerso(perso) + " (capacité à choisir)");
           }
         } else {
-          let opt = {...options};
+          let opt = {...options
+          };
           opt.indirect = capacite;
           opt.limiteArmure = cap.limiteArmure;
           opt.profil = cap.profil;
@@ -12404,7 +12363,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (preds.sortDeCapacite) {
       let raw = preds.sortDeCapacite;
-          let sort = replaceSpecialStrings(raw, numVoie, rmax, param);
+      let sort = replaceSpecialStrings(raw, numVoie, rmax, param);
       if (sort === '') {
         if (raw == 'PARAM' && !warnParam) {
           warnParam = false;
@@ -12477,7 +12436,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
-    if (profil) rangsParProfil[profil] = rangsParProfil[profil] || [0, 0, 0, 0, 0];
+    if (profil) rangsParProfil[profil] = rangsParProfil[profil] || {};
     //Puis les prédicats
     for (let rang = 1; rang < 6; rang++) { //rang sur la fiche
       let def = (numVoie < 4) && rang == 1;
@@ -12610,7 +12569,9 @@ var COFantasy2 = COFantasy2 || function() {
         }
         let rpp = rangsParProfil[ppvdr.profil];
         if (!rpp) return;
-        capacites[ppvdr.predicat] = toInt(capacites[ppvdr.predicat], ppvdr.def) + rpp[ppvdr.rang];
+        let bonus = toInt(rpp[ppvdr.rang], 0);
+        if (bonus)
+          capacites[ppvdr.predicat] = toInt(capacites[ppvdr.predicat], ppvdr.def) + bonus;
       });
       predicates.capacites = capacites;
       infos.armesMaitrisees = armesMaitrisees;
@@ -13258,6 +13219,7 @@ var COFantasy2 = COFantasy2 || function() {
         act.indexOf('--equipe') == -1 &&
         act.indexOf('--enVue') == -1 &&
         act.indexOf('--disque') == -1 &&
+        act.indexOf('--select ') == -1 &&
         act.indexOf('--cible ' + tid) == -1) {
         //Si on n'a pas de cible, on fait comme si le token était sélectionné.
         let add_token = " --select " + tid;
@@ -14308,6 +14270,7 @@ var COFantasy2 = COFantasy2 || function() {
     } else {
       if (stateCOF.combat) command += " --typeAction " + action.type;
     }
+    command += ' --acteur ' + perso.token.id;
     let bopt = {
       request
     };
@@ -14317,7 +14280,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function actionsParDefaut(perso, ligne, pageId, options) {
-    let actionsEnCombat;
+    let actionsEnCombat = false;
     let combat = stateCOF.combat;
     if (combat || options.actionsDeCombat) {
       actionsEnCombat = true;
@@ -15054,7 +15017,7 @@ var COFantasy2 = COFantasy2 || function() {
       getState(perso, 'mort') || getState(perso, 'surpris') ||
       getState(perso, 'assomme') || getState(perso, 'etourdi') ||
       getState(perso, 'paralyse') || getState(perso, 'endormi') ||
-      getState(perso, 'apeure') || attributeAsBool(perso, 'statueDeBois') ||
+      getState(perso, 'apeure') ||
       attributeAsBool(perso, 'souffleDeMort') || attributeAsBool(perso, 'petrifie');
     return !inactif;
   }
@@ -18488,7 +18451,6 @@ var COFantasy2 = COFantasy2 || function() {
               effet: effetRetarde,
               duree: 1,
               message: mEffetRetarde,
-              whisper: true,
             };
             iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
               let perso = {
@@ -18502,7 +18464,9 @@ var COFantasy2 = COFantasy2 || function() {
               }
               let duree = getIntValeurOfEffet(perso, efComplet, 1);
               ef.duree = duree;
-              setEffetTemporaire(perso, ef, duree, evt, {});
+              setEffetTemporaire(perso, ef, duree, evt, {
+                secret: true
+              });
             });
           } else {
             options.print = function(m) {}; //Pour ne pas afficher le message final.
@@ -18644,7 +18608,6 @@ var COFantasy2 = COFantasy2 || function() {
       case 'bloqueManoeuvre':
       case 'prisonVegetale':
       case 'toiles':
-      case 'statueDeBois':
       case 'petrifie':
       case 'paralysieRoublard':
         iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
@@ -18699,7 +18662,6 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Met un effet temporaire sur target. L'effet temporaire est spécifié dans ef
   // - effet : le nom de l'effet
-  // - whisper : true si on doit chuchoter l'effet, undefined si on n'affiche pas (mais dans ce cas, target.messages doit être défini)
   // - duree : true si c'est un effet à durée en tours
   // - effetIndetermine : true si l'effet a une durée indéterminée (pas combat)
   // - accumuleDuree : si la durée peut s'accumuler
@@ -18723,34 +18685,15 @@ var COFantasy2 = COFantasy2 || function() {
   // - activation: message à afficher quand l'effet s'active
   // - fin : message à afficher à la fin de l'effet
   function setEffetTemporaire(target, ef, duree, evt, options = {}) {
-    if (estImmuniseAEffet(target, ef.effet)) {
-      if (target.messages) {
-        target.messages.push(nomPerso(target) + " ne peut pas être affecté par l'effet de " + ef.effet);
-      } else {
-        sendPerso(target, "ne peut pas être affecté par l'effet de " + ef.effet, ef.whisper);
-      }
-      return;
+    if (options.aoe && options.pageId && ef.effet == 'prisonVegetale' && options.aoe.type == 'disque') {
+      options.terrainDifficile = options.terrainDifficile || {
+        duree,
+        nom: "Prison végétale",
+        imgsrc: stateCOF.options.images.val.prison_vegetale.val
+      };
+      ajouteTerrainDifficile(options, evt);
     }
-    if (ef.effet == 'saignementsSang' && immuniseAuxSaignements(target)) {
-      if (target.messages) {
-        target.messages.push(nomPerso(target) + " ne peut pas saigner");
-      } else {
-        sendPerso(target, "ne peut pas saigner", ef.whisper);
-      }
-      return;
-    }
-    let etat = effetEtatTemp(ef.effet);
-    if (etat) {
-      if (predicateAsBool(target, 'immunite_' + etat)) {
-        sendPerso(target, 'ne peut pas être ' + stringOfEtat(etat, target));
-        return;
-      }
-    } else if (ef.effet == 'paralyseGoule' || ef.effet == 'poisonParalysant') {
-      if (predicateAsBool(target, 'immunite_paralyse')) {
-        sendPerso(target, 'ne peut pas être ' + stringOfEtat('paralyse', target));
-        return;
-      }
-    }
+    if (estInsensibleAEffetTemp(target, ef.effet, ef.message, options)) return;
     if (ef.effet === 'lienDeSang') {
       if (ef.attaquant === undefined) {
         error("Effet de lien de sans sans attaquant", ef);
@@ -18796,12 +18739,8 @@ var COFantasy2 = COFantasy2 || function() {
       }
       let targetMsg = '';
       if (ef.message && !ef.pasDeMessageDActivation) {
-        let msgAct = messageActivation(target, ef.message, ef.effet);
-        if (ef.whisper === undefined) {
-          targetMsg = msgAct;
-        } else if (ef.whisper !== true) {
-          targetMsg = ef.whisper + msgAct;
-        }
+        targetMsg = messageActivation(target, ef.message, ef.effet);
+        if (!options.secret) targetMsg = nomPerso(target) + ' ' + targetMsg;
         if (stateCOF.options.affichage.val.duree_effets.val) targetMsg += " (" + duree + " tours)";
         let img = ef.image;
         if (img !== "" && img !== undefined && (img.toLowerCase().endsWith(".jpg") || img.toLowerCase().endsWith(".png") || img.toLowerCase().endsWith(".gif"))) {
@@ -18815,7 +18754,7 @@ var COFantasy2 = COFantasy2 || function() {
           targetMsg = undefined;
         }
       }
-      let secret = !(ef.message && ef.message.visible);
+      let secret = options.secret || !(ef.message && ef.message.visible);
       let opt = {
         msg: targetMsg,
         secret,
@@ -18933,11 +18872,122 @@ var COFantasy2 = COFantasy2 || function() {
       predicateAsBool(perso, 'controleSanguin');
   }
 
-  function estImmuniseAEffet(target, effet) {
-    if (predicateAsBool(target, 'immunite_' + effet)) return true;
-    if ((effet == 'statueDeBois' || effet == 'petrifie') &&
-      predicateAsBool(target, 'immunite_petrification')) return true;
+  function expliquerPerso(perso, msg, options) {
+    if (perso.messages) {
+      perso.messages.push(nomPerso(perso) + ' ' + msg);
+    } else {
+      sendPerso(perso, msg, options.secret);
+    }
+  }
+
+  function estInsensibleAEffetCombat(perso, effet, mEffet, options) {
+    if (effet == 'blessureQuiSaigne' && immuniseAuxSaignements(perso)) {
+      expliquerPerso(perso, "ne saigne pas", options);
+      return true;
+    }
     return false;
+  }
+
+  function estInsensibleAEtat(perso, etat, options = {}) {
+    if (predicateAsBool(perso, 'immunite_' + etat)) {
+      expliquerPerso(perso, 'ne peut pas être ' + stringOfEtat(etat, perso), options);
+      return true;
+    }
+    if (options.type && immuniseAuType(perso, options.type, options.acteur, options)) {
+      expliquerPerso(perso, "ne semble pas affecté" + eForFemale(perso) + " par " + stringOfType(options.type), options);
+      return true;
+    }
+    if (predicateAsBool(perso, 'liberteDAction') && (options.magique || options.mana != undefined) &&
+      (etat == 'apeure' ||
+        etat == 'endormi' ||
+        etat == 'etourdi' ||
+        etat == 'immobilise' ||
+        etat == 'paralyse' ||
+        etat == 'ralenti')
+    ) {
+      expliquerPerso(perso, "reste libre de ses mouvements !", options);
+      return true;
+    }
+    return false;
+  }
+
+  function estInsensibleAEffetTemp(perso, effet, mEffet, options = {}) {
+    if (predicateAsBool(perso, 'immunite_' + effet)) {
+      expliquerPerso(perso, "ne peut pas être affecté" + eForFemale(perso) + " par l'effet de " + effet, options);
+      return true;
+    }
+    if (options.type && immuniseAuType(perso, options.type, options.acteur, options)) {
+      expliquerPerso(perso, "ne semble pas affecté" + eForFemale(perso) + " par " + stringOfType(options.type), options);
+      return true;
+    }
+    if (effet == 'petrifie' && predicateAsBool(perso, 'immunite_petrification')) {
+      expliquerPerso(perso, "n'est pas affecté" + eForFemale(perso) + " par la prétrification", options);
+      return true;
+    }
+    if ((mEffet.seulementVivant || options.seulementVivant) &&
+      estNonVivant(perso)) {
+      expliquerPerso(perso, "ne semble pas affecté" + eForFemale(perso) + " par l'effet", options);
+      return true;
+    }
+    if (predicateAsBool(perso, 'liberteDAction') &&
+      (effet == 'confusion ' ||
+        effet == 'charme ' ||
+        effet == 'prisonVegetale' ||
+        effet == 'toiles' ||
+        effet == 'foretVivanteEnnemie' ||
+        ((options.magique || options.mana != undefined) &&
+          (effet == 'apeureTemp' ||
+            effet == 'endormiTemp' ||
+            effet == 'etourdiTemp' ||
+            effet == 'immobiliseTemp' ||
+            effet == 'paralyseTemp' ||
+            effet == 'paralyseGoule' ||
+            effet == 'ralentiTemp'))
+      )) {
+      expliquerPerso(perso, "reste libre de ses mouvements !", options);
+      return true;
+    }
+    if ((options.magique || options.mana != undefined || options.sortilege) &&
+      ((predicateAsBool(perso, 'actionLibre') &&
+          (effet == 'immobiliseTemp' ||
+            effet == 'paralyseTemp' ||
+            effet == 'paralyseGoule' ||
+            effet == 'poisonParalysant' ||
+            effet == 'ralentiTemp' ||
+            effet == 'toiles')) ||
+        (mEffet.entrave && effet != 'paralyseTemp' && effet != 'paralyseGoule' && predicateAsInt(perso, 'voieDeLArchange', 1) > 1 && attributeAsBool(perso, 'formeDAnge'))
+      )) {
+      expliquerPerso(perso, "reste libre de ses mouvements !", options);
+      return true;
+    }
+    if (effet == 'saignementsSang' && immuniseAuxSaignements(perso)) {
+      expliquerPerso(perso, "ne peut pas saigner", options);
+      return true;
+    }
+    let etat = effetEtatTemp(effet);
+    if (etat) {
+      if (predicateAsBool(perso, 'immunite_' + etat)) {
+        expliquerPerso(perso, 'ne peut pas être ' + stringOfEtat(etat, perso), options);
+        return true;
+      }
+    } else if (effet == 'paralyseGoule' || effet == 'poisonParalysant') {
+      if (predicateAsBool(perso, 'immunite_paralyse')) {
+        expliquerPerso(perso, 'ne peut pas être ' + stringOfEtat('paralyse', perso), options);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function estInsensibleAEffet(perso, typeEffet, effet, mEffet, options = {}) {
+    switch (typeEffet) {
+      case 'temp':
+        return estInsensibleAEffetTemp(perso, effet, mEffet, options);
+      case 'combat':
+        return estInsensibleAEffetCombat(perso, effet, mEffet, options);
+      case 'etat':
+        return estInsensibleAEtat(perso, effet, options);
+    }
   }
 
   function actionEffet(attr, effet, attrName, charId, pageId, evt, callBack) {
@@ -19171,202 +19221,106 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function effetCombat(cibles, effet, activer, valeur, playerId, pageId, options) {
-    const evt = {
-      type: 'Effet',
-      action: {
-        titre: "Effet " + effet,
-        playerId,
-        cibles,
-        effet,
-        activer,
-        valeur,
-        options
-      }
-    };
-    addEvent(evt);
-    let lanceur = options.acteur;
-    let mEffet = messageEffetCombat[effet];
+  function effetCombat(lanceur, perso, effet, activer, valeur, mEffet, playerId, pageId, evt, options) {
     let extraImg = afficheOptionImage(options);
     if (activer) {
-      if (limiteRessources(lanceur, options, effet, effet, evt)) {
-        return;
-      }
-      placerDansTurnOrder(cibles, evt);
-      cibles.forEach(function(perso) {
-        if (effet == 'blessureQuiSaigne' && immuniseAuxSaignements(perso)) {
-          sendPerso(perso, "ne saigne pas");
-          return;
-        }
-        let actMsg = messageActivation(perso, mEffet, effet) + extraImg;
-        let effetAttr;
-        if (options.valeurAjoutee) {
-          addToAttributeAsInt(perso, effet, 0, options.valeurAjoutee, evt);
-          //expliquer(effet + " varie de " + options.valeurAjoutee, options.secret);
-        } else {
-          effetAttr = setTokenAttr(perso, effet, valeur, evt, {
-            msg: actMsg,
-            secret: options.secret
-          });
-          effetEclaire(perso, mEffet, effet, evt);
-        }
-        if (options.acteur && options.mana !== undefined && mEffet.prejudiciable && effetAttr) {
-          addEffetTemporaireLie(options.acteur, effetAttr, evt);
-        }
-        if (options.valeur !== undefined) {
-          setTokenAttr(perso, effet + 'Valeur', options.valeur, evt, {
-            maxVal: options.valeurMax
-          });
-        }
-        if (options.optionsEffet !== undefined) {
-          setTokenAttr(perso, effet + 'Options', options.optionsEffet, evt);
-        }
-        if (options.saveParTour) {
-          setTokenAttr(perso, effet + 'SaveParTour', options.saveParTour.carac, evt, {
-            maxVal: options.saveParTour.seuil
-          });
-        }
-        if (options.saveActifParTour) {
-          setTokenAttr(perso, effet + 'SaveActifParTour', options.saveActifParTour.carac, evt, {
-            maxVal: options.saveActifParTour.seuil
-          });
-        }
-        if (options.tokenSide !== undefined) {
-          let oldSide = changeTokenSide(perso, options.tokenSide, evt);
-          if (oldSide !== undefined)
-            setTokenAttr(perso, effet + 'TokenSide', oldSide, evt);
-        }
-      });
-    } else { //on désactive
-      cibles.forEach(function(perso) {
-        let actMsg = messageFin(perso, mEffet, effet) + extraImg;
-        removeTokenAttr(perso, effet, evt, {
+      let actMsg = messageActivation(perso, mEffet, effet) + extraImg;
+      let effetAttr;
+      if (options.valeurAjoutee) {
+        addToAttributeAsInt(perso, effet, 0, options.valeurAjoutee, evt);
+        //expliquer(effet + " varie de " + options.valeurAjoutee, options.secret);
+      } else {
+        effetAttr = setTokenAttr(perso, effet, valeur, evt, {
           msg: actMsg,
           secret: options.secret
         });
-        removeTokenAttr(perso, effet + 'Valeur', evt);
-        removeTokenAttr(perso, effet + 'Options', evt);
-        removeTokenAttr(perso, effet + 'SaveParTour', evt);
-        removeTokenAttr(perso, effet + 'SaveActifParTour', evt);
-        removeTokenAttr(perso, effet + 'Activation', evt);
-        removeTokenAttr(perso, effet + 'Actif', evt);
-        removeTokenAttr(perso, effet + 'Fin', evt);
-        //On remet la face du token
-        let attrTS = tokenAttribute(perso, effet + 'TokenSide');
-        if (attrTS.length > 0) {
-          attrTS = attrTS[0];
-          let side = attrTS.get('current');
-          changeTokenSide(perso, side, evt);
-          deleteAttribute(attrTS, evt);
-        }
-      });
-    }
-    cibles.forEach(function(perso) {
-      effetsSpeciaux(lanceur, perso, options);
-    });
-    if (options.degainer !== undefined) {
-      if (lanceur) {
-        degainerArme(lanceur, options.degainer, evt);
-      } else if (cibles.length === 1) {
-        degainerArme(cibles[0], options.degainer, evt);
+        effetEclaire(perso, mEffet, effet, evt);
       }
-    }
-    let m = montrerActions(playerId, pageId, options);
-    if (!m && options.montreActions) {
-      if (lanceur) {
-        turnAction(lanceur, playerId, pageId);
-      } else if (cibles.length === 1) {
-        turnAction(cibles[0], playerId, pageId);
+      if (options.acteur && options.mana !== undefined && mEffet.prejudiciable && effetAttr) {
+        addEffetTemporaireLie(options.acteur, effetAttr, evt);
+      }
+      if (options.valeur !== undefined) {
+        setTokenAttr(perso, effet + 'Valeur', options.valeur, evt, {
+          maxVal: options.valeurMax
+        });
+      }
+      if (options.optionsEffet !== undefined) {
+        setTokenAttr(perso, effet + 'Options', options.optionsEffet, evt);
+      }
+      if (options.saveParTour) {
+        setTokenAttr(perso, effet + 'SaveParTour', options.saveParTour.carac, evt, {
+          maxVal: options.saveParTour.seuil
+        });
+      }
+      if (options.saveActifParTour) {
+        setTokenAttr(perso, effet + 'SaveActifParTour', options.saveActifParTour.carac, evt, {
+          maxVal: options.saveActifParTour.seuil
+        });
+      }
+      if (options.tokenSide !== undefined) {
+        let oldSide = changeTokenSide(perso, options.tokenSide, evt);
+        if (oldSide !== undefined)
+          setTokenAttr(perso, effet + 'TokenSide', oldSide, evt);
+      }
+    } else { //on désactive
+      let actMsg = messageFin(perso, mEffet, effet) + extraImg;
+      removeTokenAttr(perso, effet, evt, {
+        msg: actMsg,
+        secret: options.secret
+      });
+      removeTokenAttr(perso, effet + 'Valeur', evt);
+      removeTokenAttr(perso, effet + 'Options', evt);
+      removeTokenAttr(perso, effet + 'SaveParTour', evt);
+      removeTokenAttr(perso, effet + 'SaveActifParTour', evt);
+      removeTokenAttr(perso, effet + 'Activation', evt);
+      removeTokenAttr(perso, effet + 'Actif', evt);
+      removeTokenAttr(perso, effet + 'Fin', evt);
+      //On remet la face du token
+      let attrTS = tokenAttribute(perso, effet + 'TokenSide');
+      if (attrTS.length > 0) {
+        attrTS = attrTS[0];
+        let side = attrTS.get('current');
+        changeTokenSide(perso, side, evt);
+        deleteAttribute(attrTS, evt);
       }
     }
   }
 
-  function effetIndetermine(cibles, effet, activer, valeur, playerId, pageId, options) {
-    const evt = {
-      type: 'Effet',
-      action: {
-        titre: "Effet " + effet,
-        playerId,
-        cibles,
-        effet,
-        activer,
-        valeur,
-        options
-      }
-    };
-    addEvent(evt);
-    let lanceur = options.acteur;
-    let mEffet = messageEffetIndetermine[effet];
+  function effetIndetermine(lanceur, perso, effet, activer, valeur, mEffet, playerId, pageId, evt, options) {
     if (activer) {
-      if (limiteRessources(lanceur, options, effet, effet, evt)) {
-        return;
+      let opt = {
+        maxVal: options.dureeEnMinutes,
+        msg: messageActivation(perso, mEffet, effet),
+        secret: options.secret,
+        copy: mEffet.plusieurs,
+      };
+      if (options.valeurAjoutee) {
+        addToAttributeAsInt(perso, effet, 0, options.valeurAjoutee, evt);
+        expliquerPerso(perso, effet + " varie de " + options.valeurAjoutee, options.secret);
+      } else {
+        setTokenAttr(perso, effet, valeur, evt, opt);
+        effetEclaire(perso, mEffet, effet, evt);
       }
-      cibles.forEach(function(perso) {
-        let expliquer = function(s) {
-          sendPerso(perso, s);
-        };
-        let doit = function() {
-          let opt = {
-            maxVal: options.dureeEnMinutes,
-            msg: messageActivation(perso, mEffet, effet),
-            secret: options.secret,
-            copy: mEffet.plusieurs,
-          };
-          if (options.valeurAjoutee) {
-            addToAttributeAsInt(perso, effet, 0, options.valeurAjoutee, evt);
-            expliquer(effet + " varie de " + options.valeurAjoutee, options.secret);
-          } else {
-            setTokenAttr(perso, effet, valeur, evt, opt);
-            effetEclaire(perso, mEffet, effet, evt);
-          }
-          if (options.valeur !== undefined) {
-            setTokenAttr(perso, effet + 'Valeur', options.valeur, evt, {
-              maxVal: options.valeurMax
-            });
-          }
-          if (options.tokenSide !== undefined) {
-            let oldSide = changeTokenSide(perso, options.tokenSide, evt);
-            if (oldSide !== undefined)
-              setTokenAttr(perso, effet + 'TokenSide', oldSide, evt);
-          }
-          if (options.message) {
-            options.message.forEach(function(m) {
-              sendPlayer(m, playerId);
-            });
-          }
-          if (options.messagesMJ) {
-            options.messagesMJ.forEach(function(m) {
-              sendChar(perso.charId, '/w gm ' + m);
-            });
-          }
-        };
-        if (options.save) {
-          let msgPour = options.save.msgPour;
-          if (!msgPour) {
-            msgPour = " pour ";
-            if (mEffet.msgSave) msgPour += mEffet.msgSave;
-            else msgPour += "résister à l'effet " + effet;
-          }
-          let saveOpts = {
-            msgPour,
-            msgRate: ", raté.",
-            silencieuxSiPasAffecte: options.silencieuxSiPasAffecte,
-            attaquant: lanceur,
-            rolls: options.rolls,
-            chanceRollId: options.chanceRollId,
-            type: options.type,
-            regard: options.regard,
-          };
-          options.save.etat = effetEtatTemp(effet);
-          let saveId = 'effet_' + effet + "_" + perso.token.id;
-          save(options.save, perso, saveId, expliquer, saveOpts, evt,
-            function(reussite, rollText) {
-              if (!reussite) doit();
-            });
-        } else {
-          doit();
-        }
-      });
+      if (options.valeur !== undefined) {
+        setTokenAttr(perso, effet + 'Valeur', options.valeur, evt, {
+          maxVal: options.valeurMax
+        });
+      }
+      if (options.tokenSide !== undefined) {
+        let oldSide = changeTokenSide(perso, options.tokenSide, evt);
+        if (oldSide !== undefined)
+          setTokenAttr(perso, effet + 'TokenSide', oldSide, evt);
+      }
+      if (options.message) {
+        options.message.forEach(function(m) {
+          sendPlayer(m, playerId);
+        });
+      }
+      if (options.messagesMJ) {
+        options.messagesMJ.forEach(function(m) {
+          sendChar(perso.charId, '/w gm ' + m);
+        });
+      }
     } else {
       let whisper = '';
       if (options.secret && playerId) {
@@ -19376,12 +19330,9 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       options.whisper = whisper;
-      cibles.forEach(function(perso) {
-        finDEffetIndetermine(perso, effet, mEffet, pageId, evt, options);
-      });
+      finDEffetIndetermine(perso, effet, mEffet, pageId, evt, options);
     }
     //TODO: le faire quand le reste est vraiment terminé
-    montrerActions(playerId, pageId, options);
   }
 
   //Si options.terrainDifficile, doit avoir des champs imgsrc, nom et duree
@@ -19417,8 +19368,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  //Si display est défini, l'envoie dans le chat à la fin de l'appel
-  function activerEffetTemporaire(lanceur, cibles, effet, mEffet, duree, options, evt, whisper, explications, display) {
+  function activerEffetTemporaire(lanceur, perso, effet, mEffet, duree, options, evt, explications) {
     let ef = {
       effet: effet,
       duree: duree,
@@ -19429,7 +19379,6 @@ var COFantasy2 = COFantasy2 || function() {
       valeurMax: options.valeurMax,
       saveParTour: options.saveParTour,
       saveActifParTour: options.saveActifParTour,
-      whisper: whisper,
       attaquant: options.acteur,
       options: options.optionsEffet,
       tokenSide: options.tokenSide,
@@ -19437,179 +19386,46 @@ var COFantasy2 = COFantasy2 || function() {
       activation: options.activation,
       fin: options.fin
     };
-    if (display) ef.whisper = undefined;
-    let nbCibles = cibles.length;
-    let finalize = function() {
-      nbCibles--;
-      if (nbCibles === 0) { //affichage
-        if (display) {
-          cibles.forEach(function(cible) {
-            if (cible.messages.length > 0) {
-              if (cibles.length > 1 || (lanceur && cible.token.id != lanceur.token.id))
-                addLineToFramedDisplay(display, "<b>" + nomPerso(cible) + "</b> :");
-              cible.messages.forEach(function(expl) {
-                addLineToFramedDisplay(display, expl, 80);
-              });
-            }
-          });
-          explications.forEach(function(e) {
-            addLineToFramedDisplay(display, e);
-          });
-          sendFramedDisplay(display);
-        } else {
-          explications.forEach(function(e) {
-            sendChat('', e);
-          });
-        }
-        if (options.degainer !== undefined && lanceur) {
-          degainerArme(lanceur, options.degainer, evt);
-        }
+    let combat = stateCOF.combat;
+    let renew = attributeAsBool(perso, effet);
+    setEffetTemporaire(perso, ef, duree, evt, options);
+    if (!renew) {
+      effetEclaire(perso, mEffet, effet, evt);
+      if (effet.startsWith('forgeron(')) {
+        //Il faut dégainer l'arme si elle n'est pas en main, et ajouter une lumière
+        let labelArmeForgeron = effet.substring(9, effet.indexOf(')'));
+        degainerArme(perso, labelArmeForgeron, evt);
+      } else if (effet.startsWith('armeEnflammee(')) {
+        let labelArmeEnflammee = effet.substring(14, effet.indexOf(')'));
+        degainerArme(perso, labelArmeEnflammee, evt);
       }
-    };
-    let setOneEffect = function(perso, d) {
-      let expliquer = function(m) {
-        if (display) {
-          perso.messages.push(m);
-        } else sendPerso(perso, m, options.secret);
-      };
-      if (options.limiteCibleParJour) {
-        let ressource = effet;
-        if (options.limiteCibleParJourRessource)
-          ressource = options.limiteCibleParJourRessource;
-        ressource = "limiteParJour_" + ressource;
-        let utilisations = attributeAsInt(perso, ressource, options.limiteCibleParJour);
-        if (utilisations === 0) {
-          expliquer("ne peut plus bénéficier de " + effet + " aujourd'hui");
-          return;
-        }
-        setTokenAttr(perso, ressource, utilisations - 1, evt);
+    }
+    if (effet == 'cercleDeProtection') {
+      let protecteur = options.acteur || perso;
+      if (!attributeAsBool(protecteur, 'cercleDeProtectionActif')) {
+        setTokenAttr(protecteur, 'cercleDeProtectionActif', 1, evt, {
+          maxVal: 1
+        });
       }
-      let combat;
-      if (mEffet.dm || mEffet.prejudiciable) {
-        combat = entrerEnCombat(lanceur, cibles, explications, evt);
-      } else { //On met juste dans la liste d'initiative
-        let ini = [...cibles];
-        if (lanceur) ini.push(lanceur);
-        combat = entrerEnCombat(undefined, ini, explications, evt);
-      }
-      if (options.aoe && options.pageId && effet == 'prisonVegetale' && options.aoe.type == 'disque') {
-        options.terrainDifficile = options.terrainDifficile || {
-          duree,
-          nom: "Prison végétale",
-          imgsrc: stateCOF.options.images.val.prison_vegetale.val
+    }
+    if (effet == 'armeeDesMorts') {
+      if (!evt.combat) evt.combat = deepCopy(combat);
+      if (combat.armeesDesMorts) {
+        evt.combat.armeesDesMorts = {...combat.armeesDesMorts
         };
-        ajouteTerrainDifficile(options, evt);
-      }
-      let renew = attributeAsBool(perso, effet);
-      setEffetTemporaire(perso, ef, d, evt, options);
-      if (!renew) {
-        effetEclaire(perso, mEffet, effet, evt);
-        if (effet.startsWith('forgeron(')) {
-          //Il faut dégainer l'arme si elle n'est pas en main, et ajouter une lumière
-          let labelArmeForgeron = effet.substring(9, effet.indexOf(')'));
-          degainerArme(perso, labelArmeForgeron, evt);
-        } else if (effet.startsWith('armeEnflammee(')) {
-          let labelArmeEnflammee = effet.substring(14, effet.indexOf(')'));
-          degainerArme(perso, labelArmeEnflammee, evt);
-        }
-      }
-      if (effet == 'cercleDeProtection') {
-        let protecteur = options.acteur || perso;
-        if (!attributeAsBool(protecteur, 'cercleDeProtectionActif')) {
-          setTokenAttr(protecteur, 'cercleDeProtectionActif', 1, evt, {
-            maxVal: 1
-          });
-        }
-      }
-      if (effet == 'armeeDesMorts') {
-        if (!evt.combat) evt.combat = deepCopy(combat);
-        if (combat.armeesDesMorts) {
-          evt.combat.armeesDesMorts = {...combat.armeesDesMorts
-          };
-        } else {
-          evt.combat.armeesDesMorts = {};
-          combat.armeesDesMorts = {};
-        }
-        combat.armeesDesMorts[perso.token.id] = perso;
-      }
-      effetsSpeciaux(lanceur, perso, options);
-      if (options.degainer !== undefined && !lanceur) {
-        degainerArme(perso, options.degainer, evt);
-      }
-      finalize();
-    };
-    cibles.forEach(function(perso) {
-      if (display) perso.messages = perso.messages || [];
-      let expliquer = function(s) {
-        if (display) perso.messages.push(s);
-        else sendPerso(perso, s);
-      };
-      if (options.type && immuniseAuType(perso, options.type, lanceur, options)) {
-        expliquer("ne semble pas affecté par " + stringOfType(options.type));
-        finalize();
-        return;
-      }
-      if (options.save) {
-        let saveOpts = {
-          msgPour: options.save.msgPour || " pour résister à l'effet " + effet,
-          msgRate: ", raté.",
-          attaquant: lanceur,
-          rolls: options.rolls,
-          chanceRollId: options.chanceRollId,
-          type: options.type
-        };
-        options.save.etat = effetEtatTemp(effet);
-        options.save.entrave = mEffet.entrave;
-        let d = duree;
-        let saveId = 'effet_' + effet + "_" + perso.token.id;
-        save(options.save, perso, saveId, expliquer, saveOpts, evt,
-          function(reussite, rollText) {
-            if (reussite && options.save.demiDuree) {
-              reussite = false;
-              d = Math.ceil(d / 2);
-            }
-            if (reussite) {
-              if (effet == 'reactionViolente' && predicateAsBool(perso, 'violenceCiblee')) {
-                expliquer("résiste à la provocation, mais emmagasine de la violence");
-                addToAttributeAsInt(perso, 'pointsDeViolence', 0, 1, evt);
-              }
-              finalize();
-            } else setOneEffect(perso, d);
-          });
       } else {
-        setOneEffect(perso, duree);
+        evt.combat.armeesDesMorts = {};
+        combat.armeesDesMorts = {};
       }
-    });
+      combat.armeesDesMorts[perso.token.id] = perso;
+    }
   }
 
   //options doit être défini
-  function effetTemporaire(cibles, effet, mEffet, duree, playerId, pageId, options) {
-    const evt = {
-      type: 'effetTemp',
-      action: {
-        titre: "Effet Temporaire",
-        playerId: playerId,
-        cibles: cibles,
-        effet: effet,
-        mEffet: mEffet,
-        duree: duree,
-        options: options
-      }
-    };
-    let lanceur = options.acteur;
+  function effetTemporaire(lanceur, perso, effet, duree, mEffet, playerId, pageId, evt, options) {
     let explications = options.message || [];
-    if (options.magieRapide) explications.push("Magie rapide");
-    let whisper = '';
-    if (options.secret && playerId) {
-      let player = getObj('player', playerId);
-      if (player !== undefined) {
-        whisper = '/w "' + player.get('displayname') + '" ';
-      }
-    }
-    addEvent(evt);
-    if (limiteRessources(lanceur, options, effet, effet, evt)) return;
     if (duree > 0) {
-      activerEffetTemporaire(lanceur, cibles, effet, mEffet, duree, options, evt, whisper, explications);
+      activerEffetTemporaire(lanceur, perso, effet, mEffet, duree, options, evt, explications);
     } else { //On met fin à l'effet
       explications.forEach(function(e) {
         sendChat('', e);
@@ -19617,229 +19433,17 @@ var COFantasy2 = COFantasy2 || function() {
       let opt = {
         pageId,
       };
-      cibles.forEach(function(perso) {
-        let attr = tokenAttribute(perso, effet);
-        if (attr.length === 0) {
-          log(nomPerso(perso) + " n'a pas d'attribut " + effet);
-          return;
-        }
-        finDEffet(attr[0], effetTempOfAttribute(attr[0]), attr[0].get('name'), perso.charId, evt, opt);
-      });
-    }
-    let m = montrerActions(playerId, pageId, options);
-    if (!m && options.montreActions && cibles.length === 1)
-      turnAction(cibles[0], playerId, pageId);
-  }
-
-  function parseEffetTemporaire(effet, lanceur, selected, aoe, duree, cmd, playerId, pageId, options) {
-    if (!options.type && options.valeurMax && effet.startsWith('dotGen(')) {
-      options.type = options.valeurMax;
-    }
-    let pp = effet.indexOf('(');
-    let mEffet = (pp > 0) ? messageEffetTemp[effet.substring(effet, pp)] : messageEffetTemp[effet];
-    if (mEffet === undefined) {
-      error("Impossible de trouver l'effet " + effet, cmd);
-      return;
-    }
-    if (pp > 0) {
-      let pe = effet.indexOf(')', pp);
-      if (pe > pp && effet.startsWith('effetTempGenerique(')) {
-        let nomGenerique = effet.substring(pp + 1, pe);
-        options.actif = options.actif || nomGenerique;
-        options.activation = options.activation || "Début de " + nomGenerique;
-        options.fin = options.fin || "Fin de " + nomGenerique;
-      }
-    }
-    options.aoe = aoe;
-    if (lanceur === undefined) {
-      if (options.portee) {
-        error("Impossible de savoir l'origine de l'effet", options);
+      let attr = tokenAttribute(perso, effet);
+      if (attr.length === 0) {
+        log(nomPerso(perso) + " n'a pas d'attribut " + effet);
         return;
       }
-      if (selected.length == 1) {
-        lanceur = persoOfId(selected[0]._id);
-        if (lanceur) {
-          options.acteur = lanceur;
-        }
-      }
+      finDEffet(attr[0], effetTempOfAttribute(attr[0]), attr[0].get('name'), perso.charId, evt, opt);
     }
-    let cibles = [];
-    iterSelected(selected, function(perso) {
-      if (options.portee !== undefined) {
-        let dist = distanceCombat(lanceur.token, perso.token);
-        if (dist > options.portee) {
-          sendPerso(perso, " est trop loin de " + nomPerso(perso));
-          return;
-        }
-      }
-      if ((mEffet.seulementVivant || options.seulementVivant) &&
-        estNonVivant(perso)) {
-        sendPlayer("Cet effet n'affecte que les créatures vivantes", playerId);
-        return;
-      }
-      if (predicateAsBool(perso, 'liberteDAction') &&
-        (effet == 'confusion ' ||
-          effet == 'charme ' ||
-          effet == 'prisonVegetale' ||
-          effet == 'toiles' ||
-          effet == 'foretVivanteEnnemie' ||
-          ((options.magique || options.mana != undefined) &&
-            (effet == 'apeureTemp' ||
-              effet == 'endormiTemp' ||
-              effet == 'etourdiTemp' ||
-              effet == 'immobiliseTemp' ||
-              effet == 'paralyseTemp' ||
-              effet == 'paralyseGoule' ||
-              effet == 'ralentiTemp'))
-        )) {
-        sendPerso(perso, "reste libre de ses mouvements !");
-        return;
-      }
-      if ((options.magique || options.mana != undefined) &&
-        ((predicateAsBool(perso, 'actionLibre') &&
-            (effet == 'immobiliseTemp' ||
-              effet == 'paralyseTemp' ||
-              effet == 'paralyseGoule' ||
-              effet == 'poisonParalysant' ||
-              effet == 'ralentiTemp' ||
-              effet == 'toiles')) ||
-          (mEffet.entrave && effet != 'paralyseTemp' && effet != 'paralyseGoule' && predicateAsInt(perso, 'voieDeLArchange', 1) > 1 && attributeAsBool(perso, 'formeDAnge'))
-        )) {
-        sendPerso(perso, "reste libre de ses mouvements !");
-        return;
-      }
-      cibles.push(perso);
-    });
-    if (cibles.length == 0) {
-      return;
-    }
-    effetTemporaire(cibles, effet, mEffet, duree, playerId, pageId, options);
-  }
-
-
-  function parseEffetCombat(effet, lanceur, selected, activer, valeur, cmd, playerId, pageId, options) {
-    let cibles = [];
-    iterSelected(selected, function(perso) {
-      if (options.portee !== undefined) {
-        let dist = distanceCombat(lanceur.token, perso.token);
-        if (dist > options.portee) {
-          sendPerso(perso, " est trop loin de " + nomPerso(perso));
-          return;
-        }
-      }
-      if (activer && valeur === true) {
-        if (attributeAsBool(perso, effet)) {
-          sendPlayer("Effet déjà présent sur " + nomPerso(perso), playerId);
-          return;
-        }
-      } else if (!activer && valeur === false) {
-        if (!attributeAsBool(perso, effet)) {
-          sendPlayer("Effet déjà absent sur " + nomPerso(perso), playerId);
-          return;
-        }
-      }
-      cibles.push(perso);
-    });
-    if (cibles.length == 0) {
-      return;
-    }
-    if (activer === undefined) {
-      if (cibles.length > 1) {
-        sendPlayer("On ne peut sélectionner qu'un token si on ne précise pas si il faut activer ou désactiver l'effet", playerId);
-        return;
-      }
-      let perso = persoOfId(selected[0].id);
-      if (!perso) {
-        error("Token sélectionné non valide", selected);
-        return;
-      }
-      activer = !attributeAsBool(perso, effet);
-    }
-    effetCombat(cibles, effet, activer, valeur, playerId, pageId, options);
-  }
-
-  function parseEffetIndetermine(effet, lanceur, selected, activer, valeur, cmd, playerId, pageId, options) {
-    let cibles = [];
-    iterSelected(selected, function(perso) {
-      if (options.portee !== undefined) {
-        let dist = distanceCombat(lanceur.token, perso.token);
-        if (dist > options.portee) {
-          sendPerso(perso, " est trop loin de " + nomPerso(perso));
-          return;
-        }
-      }
-      if (activer && valeur === true) {
-        if (attributeAsBool(perso, effet)) {
-          sendPlayer("Effet déjà présent sur " + nomPerso(perso), playerId);
-          return;
-        }
-      } else if (!activer && valeur === false) {
-        if (!attributeAsBool(perso, effet)) {
-          sendPlayer("Effet déjà absent sur " + nomPerso(perso), playerId);
-          return;
-        }
-      }
-      cibles.push(perso);
-    });
-    if (cibles.length == 0) {
-      return;
-    }
-    if (activer === undefined) {
-      if (cibles.length > 1) {
-        sendPlayer("On ne peut sélectionner qu'un token si on ne précise pas si il faut activer ou désactiver l'effet", playerId);
-        return;
-      }
-      let perso = persoOfId(selected[0].id);
-      if (!perso) {
-        error("Token sélectionné non valide", selected);
-        return;
-      }
-      activer = !attributeAsBool(perso, effet);
-    }
-    effetIndetermine(cibles, effet, activer, valeur, playerId, pageId, options);
-  }
-
-  function parseEffetState(etat, lanceur, selected, activer, cmd, playerId, pageId, options) {
-    let cibles = [];
-    iterSelected(selected, function(perso) {
-      if (options.portee !== undefined) {
-        let dist = distanceCombat(lanceur.token, perso.token);
-        if (dist > options.portee) {
-          sendPerso(perso, " est trop loin de " + nomPerso(perso));
-          return;
-        }
-      }
-      if (activer) {
-        if (getState(perso, etat)) {
-          sendPlayer("État déjà présent sur " + nomPerso(perso), playerId);
-          return;
-        }
-      } else if (!activer) {
-        if (!getState(perso, etat)) {
-          sendPlayer("État déjà absent sur " + nomPerso(perso), playerId);
-          return;
-        }
-      }
-      cibles.push(perso);
-    });
-    if (cibles.length == 0) {
-      sendPlayer("Pas de cible valide pour le changement d'état", playerId);
-      return;
-    }
-    const evt = {
-      type: "Etat"
-    };
-    addEvent(evt);
-    if (limiteRessources(lanceur, options, etat, etat, evt)) {
-      return;
-    }
-    cibles.forEach(function(perso) {
-      setState(perso, etat, activer, evt, options);
-    });
   }
 
   function activeOuValeur(cmd, options) {
-    let activer = true;
+    let activer;
     let valeur = true;
     if (cmd.length > 2) {
       switch (cmd[2]) {
@@ -19861,7 +19465,7 @@ var COFantasy2 = COFantasy2 || function() {
         default:
           valeur = parseInt(cmd[2]);
           if (isNaN(valeur)) {
-            valeur = predicateAsInt(cmd[2], valeur);
+            if (options.acteur) valeur = predicateAsInt(options.acteur, cmd[2], valeur);
             if (isNaN(valeur)) {
               error("Option de !cof2-effet inconnue", cmd);
               return;
@@ -19892,6 +19496,59 @@ var COFantasy2 = COFantasy2 || function() {
       selected,
       aoe
     } = getSelected(pageId, options);
+    options.aoe = aoe;
+    let mEffet = {};
+    let typeEffet;
+    if (estEffetIndetermine(effet)) {
+      typeEffet = 'indetermine';
+      mEffet = messageEffetIndetermine[effet];
+    } else if (estEffetTemp(effet)) {
+      typeEffet = 'temp';
+      //La valeur doit être un nombre positif ou nul
+      if (activer) {
+        valeur = toInt(valeur, 1);
+        if (valeur < 0) valeur = 0;
+      } else {
+        valeur = 0;
+      }
+      let pp = effet.indexOf('(');
+      mEffet = (pp > 0) ? messageEffetTemp[effet.substring(effet, pp)] : messageEffetTemp[effet];
+      if (pp > 0) {
+        let pe = effet.indexOf(')', pp);
+        if (pe > pp) {
+          if (effet.startsWith('effetTempGenerique(')) {
+            let nomGenerique = effet.substring(pp + 1, pe);
+            options.actif = options.actif || nomGenerique;
+            options.activation = options.activation || "Début de " + nomGenerique;
+            options.fin = options.fin || "Fin de " + nomGenerique;
+          } else if (!options.type && options.valeurMax && effet.startsWith('dotGen(')) {
+            options.type = options.valeurMax;
+          }
+        }
+      }
+    } else if (estEffetCombat(effet)) {
+      typeEffet = 'combat';
+      mEffet = messageEffetCombat[effet];
+    } else if (cof_states[effet]) {
+      if (valeur === true || valeur === false || isNaN(valeur)) {
+        typeEffet = 'etat';
+      } else {
+        effet += 'Temp';
+        if (valeur < 0) {
+          valeur = 0;
+          activer = false;
+        }
+        typeEffet = 'temp';
+        mEffet = messageEffetTemp[effet];
+      }
+    } else {
+      sendPlayer(effet + " n'est pas un effet répertorié", playerId);
+      return;
+    }
+    if (mEffet === undefined) {
+      error("Impossible de trouver l'effet " + effet, cmd);
+      return;
+    }
     if (selected === undefined || selected.length === 0) {
       sendPlayer("Pas de cible sélectionée pour l'effet", playerId);
       return;
@@ -19908,31 +19565,177 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
-    if (estEffetIndetermine(effet)) {
-      parseEffetIndetermine(effet, lanceur, selected, activer, valeur, cmd, playerId, pageId, options);
-    } else if (estEffetTemp(effet)) {
-      let duree = 1;
-      if (activer) {
-        duree = toInt(valeur, 1);
-        if (duree < 0) duree = 0;
-      } else {
-        duree = 0;
+    let cibles = [];
+    iterSelected(selected, function(perso) {
+      if (options.portee !== undefined) {
+        let dist = distanceCombat(lanceur.token, perso.token);
+        if (dist > options.portee) {
+          sendPerso(perso, " est trop loin de " + nomPerso(perso));
+          return;
+        }
       }
-      parseEffetTemporaire(effet, lanceur, selected, aoe, duree, cmd, playerId, pageId, options);
-    } else if (estEffetCombat(effet)) {
-      parseEffetCombat(effet, lanceur, selected, activer, valeur, cmd, playerId, pageId, options);
-    } else if (cof_states[effet]) {
-      if (valeur === true || valeur === false || isNaN(valeur)) {
-        //faire un setState de toute les cibles avec activer
-        parseEffetState(effet, lanceur, selected, activer, cmd, playerId, pageId, options);
-      } else {
-        effet += 'Temp';
-        if (valeur < 0) valeur = 0;
-        parseEffetTemporaire(effet, lanceur, selected, aoe, valeur, cmd, playerId, pageId, options);
+      if (activer && valeur === true) {
+        if (attributeAsBool(perso, effet)) {
+          sendPlayer("Effet déjà présent sur " + nomPerso(perso), playerId);
+          return;
+        }
+      } else if (!activer && valeur === false) {
+        if (!attributeAsBool(perso, effet)) {
+          sendPlayer("Effet déjà absent sur " + nomPerso(perso), playerId);
+          return;
+        }
       }
-    } else {
-      sendPlayer(effet + " n'est pas un effet répertorié", playerId);
+      cibles.push(perso);
+    });
+    if (cibles.length == 0) {
+      sendPlayer("Pas de cible valide", playerId);
+      return;
     }
+    if (activer === undefined) {
+      if (cibles.length > 1) {
+        sendPlayer("On ne peut sélectionner qu'un token si on ne précise pas si il faut activer ou désactiver l'effet", playerId);
+        return;
+      }
+      activer = !attributeAsBool(cibles[0], effet);
+    }
+    let args = {
+      typeEffet,
+      lanceur,
+      cibles,
+      effet,
+      activer,
+      valeur,
+      mEffet,
+      playerId,
+      pageId,
+      options
+    };
+    effetAvecRedo(args);
+  }
+
+  function effetAvecRedo(args) {
+    let {
+      typeEffet,
+      lanceur,
+      cibles,
+      effet,
+      activer,
+      valeur,
+      mEffet,
+      playerId,
+      pageId,
+      options
+    } = args;
+    const evt = evtAvecRedo('effet', args);
+    if (limiteRessources(lanceur, options, effet, effet, evt)) return;
+    let nbCibles = cibles.length;
+    let finalize = function() {
+      nbCibles--;
+      if (nbCibles === 0) { //affichage
+        if (options.degainer !== undefined && lanceur) {
+          degainerArme(lanceur, options.degainer, evt);
+        }
+        let m = montrerActions(playerId, pageId, options);
+        if (!m && options.montreActions && cibles.length === 1)
+          turnAction(cibles[0], playerId, pageId);
+      }
+    };
+    let setOneEffect = function(perso, valeur) {
+      if (options.limiteCibleParJour) {
+        let ressource = effet;
+        if (options.limiteCibleParJourRessource)
+          ressource = options.limiteCibleParJourRessource;
+        ressource = "limiteParJour_" + ressource;
+        let utilisations = attributeAsInt(perso, ressource, options.limiteCibleParJour);
+        if (utilisations === 0) {
+          expliquerPerso(perso, "ne peut plus bénéficier de " + effet + " aujourd'hui", options);
+          return;
+        }
+        setTokenAttr(perso, ressource, utilisations - 1, evt);
+      }
+      if (mEffet.dm || mEffet.prejudiciable) {
+        let explications = [];
+        entrerEnCombat(lanceur, cibles, explications, evt);
+        explications.forEach(function(msg) {
+          expliquerPerso(perso, msg, options);
+        });
+      } else { //On met juste dans la liste d'initiative pour les effet temporaires et les effets de combat
+        if (typeEffet == 'temp' || typeEffet == 'combat') {
+          let ini = [...cibles];
+          if (lanceur) ini.push(lanceur);
+          placerDansTurnOrder(ini, evt);
+        }
+      }
+      //TODO: enlever les saves et changer cibles en perso dans les fonctions suivantes:
+      //TODO: passer la continuation en argument
+      switch (typeEffet) {
+        case 'indetermine':
+          effetIndetermine(lanceur, perso, effet, activer, valeur, mEffet, playerId, pageId, evt, options);
+          break;
+        case 'temp':
+          effetTemporaire(lanceur, perso, effet, valeur, mEffet, playerId, pageId, evt, options);
+          break;
+        case 'combat':
+          effetCombat(lanceur, perso, effet, activer, valeur, mEffet, playerId, pageId, evt, options);
+          break;
+        case 'etat':
+          setState(perso, effet, activer, evt, options);
+          break;
+      }
+      effetsSpeciaux(lanceur, perso, options);
+      if (options.degainer !== undefined && !lanceur) {
+        degainerArme(perso, options.degainer, evt);
+      }
+      finalize();
+    };
+    cibles.forEach(function(perso) {
+      let expliquer = function(s) {
+        expliquerPerso(perso, s, options);
+      };
+      if (options.save) {
+        if (estInsensibleAEffet(perso, typeEffet, effet, mEffet, options)) {
+          finalize();
+          return;
+        }
+        let msgPour = options.save.msgPour;
+        if (!msgPour) {
+          msgPour = " pour ";
+          if (mEffet.msgSave) msgPour += mEffet.msgSave;
+          else msgPour += "résister à l'effet " + effet;
+        }
+        let saveOpts = {
+          msgPour,
+          msgRate: ", raté.",
+          attaquant: lanceur,
+          rolls: options.rolls,
+          chanceRollId: options.chanceRollId,
+          type: options.type,
+          silencieuxSiPasAffecte: options.silencieuxSiPasAffecte,
+          regard: options.regard,
+        };
+        if (typeEffet == 'temp') {
+          options.save.etat = effetEtatTemp(effet);
+        } else if (typeEffet == 'etat') {
+          options.save.etat = effet;
+        }
+        options.save.entrave = mEffet.entrave;
+        let d = valeur;
+        let saveId = 'effet_' + effet + "_" + perso.token.id;
+        save(options.save, perso, saveId, expliquer, saveOpts, evt,
+          function(reussite, rollText) {
+            if (reussite && options.save.demiDuree) {
+              reussite = false;
+              d = Math.ceil(d / 2);
+            }
+            if (reussite) {
+              finalize();
+            } else setOneEffect(perso, d);
+          });
+      } else {
+        setOneEffect(perso, valeur);
+      }
+    });
+    //Pour savoir si affecté par un effet temp, estInsensibleAEffetTemp
   }
 
   // Ce qui concerne les positions et distance ------------------------------
@@ -28136,8 +27939,7 @@ var COFantasy2 = COFantasy2 || function() {
           !getState(target, 'etourdi')) {
           rd += 3;
         }
-        if (attributeAsBool(target, 'statueDeBois')) rd += 10;
-        else if (attributeAsBool(target, 'petrifie')) rd += 20;
+        if (attributeAsBool(target, 'petrifie')) rd += 20;
         if (attributeAsBool(target, 'mutationSilhouetteMassive')) rd += 3;
         if (crit) {
           let rdCrit = predicateAsInt(target, 'RD_critique', 0); //pour la compatibilité
@@ -30972,21 +30774,24 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function saveEffetOption(ctx, cmd, options, state, optionString, pageId) {
-    let lastEtat = state.lastEtat;
-    if (!lastEtat) {
-      if (!options.noError)
-        error("Pas d'effet auquel appliquer le save", optionString);
-      return;
-    }
-    if (lastEtat[cmd[0]]) {
-      if (!options.noError)
-        error("Redéfinition de la condition de save pour un effet", optionString);
-    }
     let saveParams = parseSave(cmd, options);
-    if (saveParams) {
-      saveParams.entrave =
-        lastEtat.etat == 'paralyse' || lastEtat.etat == 'immobilise' || lastEtat.etat == 'ralenti' || (lastEtat.message && lastEtat.message.entrave);
-      lastEtat[cmd[0]] = saveParams;
+    let lastEtat = state.lastEtat;
+    if (lastEtat) {
+      if (lastEtat[cmd[0]]) {
+        if (!options.noError)
+          error("Redéfinition de la condition de save pour un effet", optionString);
+      }
+      if (saveParams) {
+        saveParams.entrave =
+          lastEtat.etat == 'paralyse' || lastEtat.etat == 'immobilise' || lastEtat.etat == 'ralenti' || (lastEtat.message && lastEtat.message.entrave);
+        lastEtat[cmd[0]] = saveParams;
+      }
+    } else {
+      if (options.save) {
+        if (!options.noError)
+          error("Redéfinition de la condition de save", optionString);
+      }
+      options.save = saveParams;
     }
   }
 
