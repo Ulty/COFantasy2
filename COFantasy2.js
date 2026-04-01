@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 26 mars 2026,  04:59
+//Dernière modification : mer. 01 avr. 2026,  03:57
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12023,6 +12023,10 @@ var COFantasy2 = COFantasy2 || function() {
       teigneux: true,
       Restriction_teigneux: 'armure_guerrier',
     },
+    'prouesse': {
+      prouesse: true,
+      Restriction_prouesse: 'armure_guerrier',
+    },
     //Voies d'ensorceleur ///////////////////////////////////////////
     //Voie de l'envouteur
     injonction: {
@@ -21810,7 +21814,7 @@ var COFantasy2 = COFantasy2 || function() {
       error("Erreur interne du bouton de chance : on ne trouve pas le personnage", evt);
       return;
     }
-    if (!peutController(perso)) {
+    if (!peutController(perso, playerId)) {
       sendPlayer("pas le droit d'utiliser ce bouton", playerId);
       return;
     }
@@ -21834,6 +21838,61 @@ var COFantasy2 = COFantasy2 || function() {
     args.options.chanceRollId[rollId] = (args.options.chanceRollId[rollId] + 10) || 10;
     if (!redoEvent(evt, args))
       error("Type d'évènement pas encore géré pour la chance", evt);
+  }
+
+  function commandeBoutonProuesse(cmd, playerId, pageId, options, perso) {
+    if (!peutController(perso, playerId)) {
+      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+      return;
+    }
+    let testProuesse = testLimiteUtilisationsCapa(perso, 'prouesse', 'tour', "ne peut plus utiliser sa prouesse");
+    if (testProuesse === undefined) {
+      return;
+    }
+    let evt = findEvent(cmd[2]);
+    if (evt === undefined) {
+      error("L'action est trop ancienne ou éte annulée", cmd);
+      return;
+    }
+    let args = getEvtArgs(evt);
+    if (!args) {
+      error("Type d'évènement pas encore géré pour les prouesses", evt);
+      return;
+    }
+    let rollId = cmd[3];
+    let roll = args.rolls[rollId];
+    if (roll === undefined) {
+      error("Erreur interne du bouton de prouesse : roll non identifié", cmd);
+      return;
+    }
+    undoEvent(evt);
+    const evtProuesse = {
+      type: 'Prouesse'
+    };
+    addEvent(evtProuesse);
+    if (stateCOF.combat) utiliseCapacite(perso, testProuesse, evtProuesse);
+    args.options = args.options || {};
+    args.options.chanceRollId = args.options.chanceRollId || {};
+    args.options.chanceRollId[rollId] = (args.options.chanceRollId[rollId] + 5) || 5;
+    let de = rollDePlus(deEvolutif(perso));
+    let r = {
+      total: de.val,
+      type: 'normal',
+      display: de.roll
+    };
+    let explications = [];
+    let optDmg = {
+      ignoreTouteRD: true
+    };
+    dealDamage(perso, r, [], evtProuesse, false, optDmg, explications,
+      function(dmgDisplay, dmg) {
+        sendPerso(perso, "réalise une prouesse et perd " + dmgDisplay + " PV");
+        explications.forEach(function(expl) {
+          sendPerso(perso, expl);
+        });
+        if (!redoEvent(evt, args))
+          error("Type d'évènement pas encore géré pour la prouesse", evt);
+      });
   }
 
   function persoUtiliseRuneEnergie(perso, evt) {
@@ -22562,6 +22621,11 @@ var COFantasy2 = COFantasy2 || function() {
     return false;
   }
 
+  function prouessePossible(perso, carac, jet, seuil) {
+    if (carac != 'FOR' && carac != 'CON') return false;
+    return jet + 5 >= seuil && capaciteDisponible(perso, 'prouesse', 'tour');
+  }
+
   // Test de caractéristique
   // options : bonusAttrs, bonusPreds, bonus, roll, deBonus
   // Après le test, lance callback(testRes, explications
@@ -22574,14 +22638,14 @@ var COFantasy2 = COFantasy2 || function() {
   // testRes.modifiers pour les boutons qui peuvent être activés sur le roll, qu'il soit réussi ou non.
   // Pour que les boutons de rerolls fonctionnent, le type d'évènement doit être supporté par redoEvent()
   // ne rajoute pas evt à l'historique
-  function testCaracteristique(personnage, carac, seuil, testId, options, evt, callback) { //asynchrone
+  function testCaracteristique(perso, carac, seuil, testId, options, evt, callback) { //asynchrone
     options = options || {};
     let testRes = {};
     let explications = [];
-    let bonusCarac = bonusTestCarac(carac, personnage, options, evt, explications);
-    let jetCache = ficheAttributeAsBool(personnage, 'togm', false);
-    options.deBonus = options.deBonus || caracHeroique(carac, personnage);
-    let de = computeDice(personnage, options);
+    let bonusCarac = bonusTestCarac(carac, perso, options, evt, explications);
+    let jetCache = ficheAttributeAsBool(perso, 'togm', false);
+    options.deBonus = options.deBonus || caracHeroique(carac, perso);
+    let de = computeDice(perso, options);
     let plageEC = 1;
     let plageECText = '1';
     if (options.plageEchecCritique) {
@@ -22591,8 +22655,9 @@ var COFantasy2 = COFantasy2 || function() {
     let rollExpr = "[[" + de + "cs20cf" + plageECText + "]]";
     try {
       sendChat("", rollExpr, function(res) {
-        let roll = addRollResForRedo(res, testId, personnage, evt, options);
+        let roll = addRollResForRedo(res, testId, perso, evt, options);
         testRes.roll = roll;
+        testRes.rerolls = '';
         let d20roll = roll.results.total;
         let bonusText = (bonusCarac > 0) ? "+" + bonusCarac : (bonusCarac === 0) ? "" : bonusCarac;
         testRes.texte = jetCache ? d20roll + bonusCarac : buildinline(roll) + bonusText;
@@ -22608,18 +22673,21 @@ var COFantasy2 = COFantasy2 || function() {
         } else if (d20roll <= plageEC && (!chanceUtilisee || d20roll + bonusCarac < seuil)) {
           testRes.reussite = false;
           testRes.echecCritique = true;
-          diminueMalediction(personnage, evt);
+          diminueMalediction(perso, evt);
         } else if (d20roll + bonusCarac >= seuil) {
           testRes.reussite = true;
           testRes.reussiteAvecComplications = chanceUtilisee && d20roll <= plageEC;
         } else {
-          diminueMalediction(personnage, evt);
+          diminueMalediction(perso, evt);
           testRes.reussite = false;
+          if (prouessePossible(perso, carac, d20roll+bonusCarac, seuil)) {
+            testRes.rerolls += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso.token.id + ' ' + evt.id + " " + testId, "Prouesse");
+          }
         }
         testRes.valeur = d20roll + bonusCarac;
-        testRes.rerolls = '';
-        if (!chanceUtilisee && d20roll + bonusCarac + 10 >= seuil) {
-          let pc = pointsDeChance(personnage);
+        if (!testRes.reussite && !chanceUtilisee && 
+          (d20roll + bonusCarac + 10 >= seuil || prouessePossible(perso, carac, d20roll+bonusCarac+10, seuil))) {
+          let pc = pointsDeChance(perso);
           if (pc > 0) {
             testRes.rerolls += '<br/>' +
               boutonSimple("!cof2-bouton-chance " + evt.id + " " + testId, "Chance") +
@@ -23374,10 +23442,9 @@ var COFantasy2 = COFantasy2 || function() {
           ) {
             boutonsReroll += '<br/>' + boutonSimple("!cof2-bouton-rune-energie " + evt.id + " " + testId, "Rune d'énergie");
           }
-          if (stateCOF.combat &&
-            !rt.echecCritique && capaciteDisponible(perso, 'prouesse', 'tour') &&
-            (caracteristique == 'FOR' || caracteristique == 'AGI')) {
-            boutonsReroll += '<br/>' + boutonSimple("!cof-prouesse " + evt.id + " " + testId, "Prouesse");
+          if (!rt.echecCritique && capaciteDisponible(perso, 'prouesse', 'tour') &&
+            (caracteristique == 'FOR' || caracteristique == 'CON')) {
+            boutonsReroll += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso.token.id + ' ' + evt.id + " " + testId, "Prouesse");
           }
           if (caracteristique == 'FOR' && predicateAsBool(perso, 'tourDeForce')) {
             boutonsReroll += '<br/>' + boutonSimple("!cof-tour-force " + evt.id + " " + testId, "Tour De Force");
@@ -23714,9 +23781,9 @@ var COFantasy2 = COFantasy2 || function() {
                 texte1 += "<br/>" + boutonSimple("!cof2-bouton-chance " +
                   evt.id + " " + rollId + "_roll1", "Chance") + " (reste " + pcPerso1 + " PC)";
             }
-            if (stateCOF.combat && capaciteDisponible(perso1, 'prouesse', 'tour') &&
-              (carac1 == 'FOR' || carac1 == 'AGI')) {
-              texte1 += '<br/>' + boutonSimple("!cof-prouesse " + evt.id + " " + rollId + "_roll1", "Prouesse");
+            if (capaciteDisponible(perso1, 'prouesse', 'tour') &&
+              (carac1 == 'FOR' || carac1 == 'CON')) {
+              texte1 += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso1.token.id + ' ' + evt.id + " " + rollId + "_roll1", "Prouesse");
             }
             if (predicateAsBool(perso1, 'tourDeForce') && carac1 == 'FOR') {
               texte1 += '<br/>' + boutonSimple("!cof-tour-force " + evt.id + " " + rollId + "_roll1", "Tour de force");
@@ -23748,9 +23815,9 @@ var COFantasy2 = COFantasy2 || function() {
                 texte2 += "<br/>" + boutonSimple("!cof2-bouton-chance " +
                   evt.id + " " + rollId + "_roll2", "Chance") + " (reste " + pcPerso2 + " PC)";
             }
-            if (stateCOF.combat && capaciteDisponible(perso2, 'prouesse', 'tour') &&
-              (carac2 == 'FOR' || carac2 == 'AGI')) {
-              texte2 += '<br/>' + boutonSimple("!cof-prouesse " + evt.id + " " + rollId + "_roll2", "Prouesse");
+            if (capaciteDisponible(perso2, 'prouesse', 'tour') &&
+              (carac2 == 'FOR' || carac2 == 'CON')) {
+              texte2 += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso2.token.id + ' ' + evt.id + " " + rollId + "_roll2", "Prouesse");
             }
             if (predicateAsBool(perso2, 'tourDeForce') && carac2 == 'FOR') {
               texte2 += '<br/>' + boutonSimple("!cof-tour-force " + evt.id + " " + rollId + "_roll2", "Tour de force");
@@ -33286,6 +33353,11 @@ var COFantasy2 = COFantasy2 || function() {
     'bouton-chance': {
       fn: commandeBoutonChance,
       minArgs: 2
+    },
+    'bouton-prouesse': {
+      fn: commandeBoutonProuesse,
+      minArgs: 3,
+      acteur: 1,
     },
     'bouton-rune-energie': {
       fn: commandeBoutonRuneEnergie,
