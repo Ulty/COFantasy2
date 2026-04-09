@@ -1,4 +1,4 @@
-//Dernière modification : mer. 01 avr. 2026,  03:57
+//Dernière modification : jeu. 09 avr. 2026,  06:38
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11978,7 +11978,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Vivacité',
         attrib: 'init',
         //limiteArmure: 'guerrier', //TODO: mécanisme pour ajouter seulement quand on connaît les armures
-        value: 3
+        value: '3'
       }],
       vivacite: 3, //Bonus aux save contre immobilise et renverse. On n'utilise pas bonusSaveContre_ pour pouvoir limiter aux armures de guerrier
       Restriction_vivacite: 'armure_guerrier',
@@ -12236,6 +12236,7 @@ var COFantasy2 = COFantasy2 || function() {
   //Remplace NUMEROVOIE, SELONRANG, RANG
   //TODO: remplacer aussi PARAM ? Difficile d'avoir un message d'erreur aussi précis, dans ce cas.
   function replaceSpecialStrings(val, numVoie, rmax, param) {
+    val = val + '';
     val = val.replace(/PARAM/g, param);
     val = val.replace(/NUMEROVOIE/g, numVoie);
     val = replaceStringSelonRang(val, rmax);
@@ -14420,7 +14421,7 @@ var COFantasy2 = COFantasy2 || function() {
       });
       if (typeActionPossible(perso, 'M')) {
         if (!persoImmobilise(perso)) {
-          if (!estControlleParJoueur(perso.charId, {
+          if (predicateAsBool(perso, 'aucuneActionCombat') || !estControlleParJoueur(perso.charId, {
               saufMJ: true,
               online: true
             })) {
@@ -20273,8 +20274,8 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (mursTotal.total) return mursTotal.total;
     if (mursTotal.mursSeuls) {
-      murs = {...mursTotal.mursSeuls
-      };
+      murs = [...mursTotal.mursSeuls
+      ];
     } else {
       //Il faut toujours collecter les murs legacy dans les parties Jumpgate, au cas où on importe des pages de legacy.
       let mursLegacy = findObjs({
@@ -20438,8 +20439,8 @@ var COFantasy2 = COFantasy2 || function() {
           }
         });
       }
-      mursTotal.mursSeuls = {...murs
-      };
+      mursTotal.mursSeuls = [...murs
+      ];
     }
     if (mursTotal.portesSeules) {
       murs = murs.concat(mursTotal.portesSeules);
@@ -23558,6 +23559,11 @@ var COFantasy2 = COFantasy2 || function() {
     return res;
   }
 
+  const competencesSiPredicat = {
+    AGI: ['discretion'],
+    PER: ['vigilance'],
+  };
+
   //Par construction, msg.content ne doit pas contenir d'option --competence,
   //et commencer par !cof2-jet
   function boutonsCompetences(display, perso, carac, fond) {
@@ -23572,6 +23578,12 @@ var COFantasy2 = COFantasy2 || function() {
     let cell = boutonSimple(action, carac, charButtonStyle);
     addCellInFramedDisplay(display, cell, 60, true, fond);
     let comps = [...listeCompetences[carac].list];
+    let csp = competencesSiPredicat[carac];
+    if (csp) {
+      csp.forEach(function(comp) {
+        if (predicateAsBool(perso, 'bonusTest_'+comp)) comps.push(comp);
+      });
+    }
     //TODO: les compétences qui viennent de la fiche. Sous forme de prédicats ?
     cell = '';
     let sec = false;
@@ -24494,6 +24506,12 @@ var COFantasy2 = COFantasy2 || function() {
     if (!Array.isArray(selected)) selected = [selected];
     selected.forEach(function(perso) {
       if (!isActive(perso)) return;
+      if (estControlleParJoueur(perso.charId, {
+          saufMJ: true,
+          online: true
+        })) {
+        lockToken(perso, evt);
+      }
       if (predicateAsBool(perso, 'aucuneActionCombat')) return;
       let pageId = perso.token.get('pageid');
       combat.pageId = pageId;
@@ -24503,12 +24521,6 @@ var COFantasy2 = COFantasy2 || function() {
         let b = "!cof2-position-de-riposte " + perso.token.id;
         let msg = boutonSimple(b, "Se mettre en position de riposter", BS_BUTTON) + "à une attaque au contact ?";
         sendPerso(perso, msg, true, false);
-      }
-      if (estControlleParJoueur(perso.charId, {
-          saufMJ: true,
-          online: true
-        })) {
-        lockToken(perso, evt);
       }
       let init = persoInit(perso);
       // On place le token à sa place dans la liste du tour
@@ -33190,9 +33202,9 @@ var COFantasy2 = COFantasy2 || function() {
   function playerChanged(player, prev) {
     if (player.get('online') && !prev.online) {
       //le joueur se connecte
-      //Si en combat, on lock ses tokens dont ce n'est pas le tour.
+      //Si en combat, et que ce n'est pas le MJ, on lock ses tokens dont ce n'est pas le tour.
       let combat = stateCOF.combat;
-      if (!combat || !combat.activeTokenId) return;
+      if (!combat || !combat.activeTokenId || playerIsGM(player.id)) return;
       let pageId = combat.pageId;
       const evt = {
         type: 'connection'
@@ -33208,14 +33220,16 @@ var COFantasy2 = COFantasy2 || function() {
         if (!perso) return;
         if (peutController(perso, player.id)) lockToken(perso, evt);
       });
-      //Et on démarre un mouvement si le token actif est controllé par le joueur
+      //Et on démarre un mouvement et on affiche les actions si le token actif est controllé par le joueur
       let perso = persoOfId(combat.activeTokenId);
-      if (perso && peutController(perso, player.id) && !persoImmobilise(perso) && typeActionPossible(perso, 'M')) {
-        let optMvt = {
-          pasDePlacement: metresToPixels(1, combat.pageId),
-          playerId: player.id,
-        };
-        demarreMouvement(perso, vitessePerso(perso), evt, combat.pageId, optMvt);
+      if (perso && peutController(perso, player.id)) {
+        turnAction(perso);
+        if (!persoImmobilise(perso) && typeActionPossible(perso, 'M')) {
+          let optMvt = {
+            pasDePlacement: metresToPixels(1, combat.pageId),
+          };
+          demarreMouvement(perso, vitessePerso(perso), evt, combat.pageId, optMvt);
+        }
       }
     }
   }
