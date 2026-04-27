@@ -384,7 +384,7 @@ tr {line-height: 25px;}
                   <li><code>--save <i>carac seuil</i></code> : même effet que <code>--psave</code>, mais pour annuler le dernier <code>--effet</code> ou <code>etat</code> (aucun effet sur les DM). Si on rajoute un argument <code>demiDuree</code> au save, alors la réussite du save ne fait que diviser par 2 sa durée.</li>
                   <li><code>--saveDM <i>carac seuil</i></code> : même effet que <code>--psave</code>, mais pour annuler l'ensemble des dégâts.</li>
                   <li><code>--saveParTour <i>carac seuil</i></code> : même effet que <code>--save</code>, mais donne droit à un jet à la fin de chaque tour au lieu d'un jet au moment de l'attaque.</li>
-                  <li><code>--saveActifParTour <i>carac seuil</i></code> : même effet que <code>--save</code>, mais affiche un bouton pour faire le save dans la liste d'actions à chaque tour. Utile si les joueurs préfèrent jeter "eux-mêmes" le dé, ou si le save est sensé arriver au tour du joueur.</li>
+                  <li><code>--saveActifParTour <i>carac seuil action</i></code> : même effet que <code>--save</code>, mais affiche un bouton pour faire le save dans la liste d'actions à chaque tour. Utile si les joueurs préfèrent jeter "eux-mêmes" le dé, ou si le save est sensé arriver au tour du joueur.</li>
                   <li><code>--saveParJour <i>carac seuil</i></code> : même effet que <code>--save</code>, mais donne droit à un jet à la fin de chaque jour au lieu d'un jet au moment de l'attaque.</li>
                   <li><code>--fx <i>effet</i></code> : ajoute un <a href="https://wiki.roll20.net/Custom_FX">effet</a> qui part de l'attaquant à la cible. Si l'attaque rate, l'effet rate aussi, d'autant plus que le jet d'attaque est loin de la défense. Il est possible d'utiliser un effet que vous avez défini vous-même en utilisant l'option <code>--fx custom <i>nom</i></code>, où <i>nom</i> est le nom de votre effet.</li>
                   <li><code>--fxCible <i>effet</i></code> : ajoute un <a href="https://wiki.roll20.net/Custom_FX">effet</a> au niveau de la cible (l'effet ne doit pas être directionnel). Comme avec <code>--fx</code>, on peut utiliser un effet qu'on a créé.</li>
@@ -726,7 +726,7 @@ tr {line-height: 25px;}
                     <li><code>--depensePR</code>: demande de dépenser un point de récupération. Si un premier argument est ajouté, on enlève ce nombre aux PR au lieu de 1. Si un second argument est précisé, on enlève ce second argument aux PV quand le personnage n'a plus de PR.</li>
                     <li><code>--portee <i>id d</i></code> : impose aux cibles de l'effet d'être à moins de <i>d</i> mètres du token <i>id</i>. Si <code>--lanceur</code> est précisé, inutile de donner <i>id</i>.</li>
                     <li><code>--saveParTour <i>carac seuil</i></code> : la cible peut se sortir de l'effet chaque tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i>.</li>
-                    <li><code>--saveActifParTour <i>carac seuil</i></code> : la cible peut se sortir de l'effet à tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i> (utilisation dans bouton dans la liste d'actions).</li>
+                    <li><code>--saveActifParTour <i>carac seuil action</i></code> : la cible peut se sortir de l'effet à tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i>, et demandant une action de type <i>action</i> (utilisation dans bouton dans la liste d'actions).</li>
                     <li><code>--save <i>carac seuil</i></code> : la cible peut faire un jet pour échapper à l'effet. Si on ajoute l'argument <code>demiDuree</code>, alors réussir la sauvegarde ne fait que diviser la durée.</li>
                     <li><code>--seulementVivant</code> : l'effet ne peut s'appliquer qu'aux personnages vivants.</li>
                     <li><code>--vampirise <i>p</i></code> : soigne du pourcentage indiqué (<i>p</i>) DM infligés, quel que soit leur type. Par exemple, pour une attaque qui soigne de la moitié des dégâts infligés, on pourra mettre --vampirise 50. À noter que les soins se cumulent avec les dégâts de type drain.</li>
@@ -820,6 +820,15 @@ tr {line-height: 25px;}
                 Le principe est le suivant : on sélectionne un token, dans les abilities qui s'affichent en haut de la map, on clique sur <code>Suivre</code>, puis on sélectionne le token à suivre. À partir de ce moment, le script déplace le premier token à chaque fois qu'on déplace le second (en tenant compte des états qui empêchent le mouvement et des obstacles sur le layer de lumière, si ils doivent empêcher le mouvement). On peut aussi suivre un token qui en suit un autre. Et pour arrêter de suivre un token, il suffit de déplacer manuellement le premier token.
 
                 Ça permet donc d'avoir un familier qui suit un personnage, ou bien de faire automatiquement bouger un groupe de personnage dont l'ordre de marche est déterminé.
+              </div>
+              <h4 class="text-secondary" id="deplacement_combat">Déplacement en combat</h4>
+              <div class="decalage">
+                <p> Pour éviter les mouvements intempestifs, en combat, le script bloque les personnages contrôlés par des joueurs dont ce n'est pas le tour de jeu. Durant le tour de ces personnages, on peut les déplacer : si le déplacement est minime, c'est sans conséquence, mais au-delà d'un mètre, le script fait dépenser une action de mouvement et affiche le trajet ainsi qu'une aura qui montre jusqu'où le personnage peut encore se déplacer durant la même action de mouvement (en tenant compte de la vitesse du personnage, de son état et du terrain). Si le personnage se déplace en ligne droite et qu'on cherche à le déplacer plus loin que son mouvement normal (et qu'une action limitée est encore possible), le script propose de transformer le déplacement en sprint. Tout au long du mouvement, le script propose au joueur d'annuler son dernier segment de déplacement, et de mettre fin à son déplacement. Mettre fin au déplacement permet d'afficher une liste d'actions actualisée.</p>
+                <p>Pour les personnage qui ne sont contrôlés que par le MJ, le mouvement est toujours possible et non limité pour permettre plus de souplesse. Si le MJ veut faire dépenser une action de mouvement et bien controller les distances de déplacement, il peut utiliser un bouton qui s'affiche avec les actions du tour du personnage.</p>
+              </div>
+              <h4 class="text-secondary" id="terrain_difficile">Terrains difficiles</h4>
+              <div class="decalage">
+                Pour indiquer un terrain difficile (et ainsi diviser le mouvement des personnage), on peut soit activer un effet sur le personnage <code>!cof2-effet enTerrainDifficile</code>, soit utiliser les objets graphiques sur le layer des cartes. Pour cela, éditer l'objet, et ajouter dans les notes pour MJ une ligne <code>terrainDifficile</code>. Tout le dessin est considéré comme un terrain difficile. On peut restreindre la partie considérée comme difficile à un disque en écrivant <code>terrainDifficile: disque <i>n</i></code> où <i>n</i> est le diamètre du disque en pixels. À noter que la zone d'une prison végétale est considérée difficile par le script.
               </div>
               <!--
               <h4 class="text-secondary" id="multi-cartes">Déplacer un personnage sur plusieurs cartes</h4>
@@ -1081,9 +1090,25 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="druide">Druide</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie des animaux</h4>
+                <ol>
+                  <li><strong>Langage des animaux :</strong> aucun support particulier, sauf pour le bonus evolutifs pour influencer les animaux.</li>
+                  <li><strong>Petit compagnon :</strong></li>
+                </ol>
                 <h4 class="text-secondary">Voie du fauve</h4>
                 <ol>
                   <li><strong>Vitesse du félin :</strong> le script ajoute les bonus évolutifs pour les tests, et des bonus sur la fiche pour l'initiative et la défense.</li>
+                  <li><strong>Panthère :</strong> il faut indiquer le nom de la panthère dans les paramètres de la capacité. Le script va ensuite automatiquement créer la fiche et le token de la panthère.</li>
+                </ol>
+                <h4 class="text-secondary">Voie de la nature</h4>
+                <ol>
+                  <li><strong>Maître de la survie :</strong> ajoute la compétences évolutives de survie, et gère le bonus à la récupération en demandant si la nuit est passée en milieu naturel. Le script ne demande rien si le milieu des PJs est fixé.</li>
+                  <li><strong>Terrains difficiles :</strong> pour activer les bonus, il faut que le <a href='#terrain_difficile'>terrain soit reconnu comme difficile</a>.</li>
+                </ol>
+                <h4 class="text-secondary">Voie du protecteur</h4>
+                <ol>
+                  <li><strong>Baie magique :</strong> une action est proposée en dehors des combats, et les bonus évoltifs sont calculés.</li>
+                  <li><strong>Forêt vivante :</strong> le script propose une action qui ne va qu'afficher un message et faire baisser la mana. Pour affecter les déplacements et les jets d'un ennemi, utiliser <code>!cof2-effet foretVivanteEnnemie oui</code> en sélectionnant cet ennemi.</li>
                 </ol>
                 <h4 class="text-secondary">Voie des végétaux</h4>
                 <ol>
@@ -1188,7 +1213,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie du compagnon animal</h4>
                 <ol>
-                  <li><strong>Le loup :</strong> il faut indiquer le nom du loupdans les paramètres de la capacité. Le script va ensuite automatiquement créer la fiche et le token du loup.</li>
+                  <li><strong>Le loup :</strong> il faut indiquer le nom du loup dans les paramètres de la capacité. Le script va ensuite automatiquement créer la fiche et le token du loup.</li>
                   <li><strong>Travail d'équipe :</strong> le script ajoute le prédicat <code>travailDEquipe</code>, qui permet d'avoir les dé bonus appropriés.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la survie</h4>

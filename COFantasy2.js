@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 avr. 2026,  04:36
+//Dernière modification : lun. 27 avr. 2026,  01:27
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2417,20 +2417,22 @@ var COFantasy2 = COFantasy2 || function() {
       let pvMax = toInt(perso.token.get('bar1_max'), 0);
       let pv = toInt(perso.token.get('bar1_value'), pvMax);
       let explications = [];
-      if (pv < pvMax && dr > 0 && complete && !drGagne) {
-        //On a des DR, mais on n'en gagne aucun -> DR au max, on peut donc faire un repos court
-        //en début de nuit et récupérer le DR et se retrouver au max de DR
-        let explication = function(msg) {
-          explications.push(msg);
-          sendChat('COF', "/w GM " + msg);
-        };
-        lanceDRPourPV(perso, explication, evt);
-        pv = toInt(perso.token.get('bar1_value'), pvMax);
-      }
       let depenseDR = '';
       let finDepenseDR = '';
       if (pv < pvMax) {
-        if (dr > 0) {
+        if (complete && !drGagne) {
+          //On fait un repos complet en etant au max de DR
+          let opt = {};
+          let expliquer = function(msg) {
+            explications.push(msg);
+            sendPerso(perso, msg, true);
+            addCellInFramedDisplay(displayMJ, msg, 100, false, fond, "text-align:right;");
+          };
+          //Si il a des DR perso récupère le max du dé
+          if (drMax > 0) opt.max = true;
+          lanceDRPourPV(perso, expliquer, evt, opt);
+        } else if (dr > 0) {
+          //Soit on fait un repose court, soit on a récupéré un DR qu'on peut utiliser
           stateCOF.attenteDepenseDR = stateCOF.attenteDepenseDR || {};
           stateCOF.attenteDepenseDR[perso.token.id] = complete ? 'max' : 'jet';
           let cmd = "!cof2-depenser-dr " + perso.token.id;
@@ -2445,13 +2447,6 @@ var COFantasy2 = COFantasy2 || function() {
           depenseDR = boutonSimple(cmd, dr + ' DR', BS_BUTTON);
           finDepenseDR = boutonSimple("!cof2-fin-depense-dr " + perso.token.id, 'X', ' title="Trop tard pour dépenser le DR"');
           addCellInFramedDisplay(displayMJ, depenseDR + ' ' + finDepenseDR, 100, false, fond, "text-align:right;");
-        } else if (complete && drMax < 1) {
-          //Personnage sans DR, récupération des PVs
-          let explication = function(msg) {
-            explications.push(msg);
-            sendChat('COF', "/w GM " + msg);
-          };
-          lanceDRPourPV(perso, explication, evt);
         }
       } else if (drGagne) {
         addCellInFramedDisplay(displayMJ, "-> " + dr + "/" + drMax + " DR", 100, false, fond, "text-align:right;");
@@ -2822,10 +2817,6 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push("Chasseur de sorcière => +2 DEF");
       }
     }
-    if (attributeAsBool(target, 'prisonVegetale')) {
-      defense -= getIntValeurOfEffet(target, 'prisonVegetale', 2);
-      explications.push("Prison végétale => -2 DEF");
-    }
     if (attributeAsBool(target, 'toiles')) {
       defense -= getIntValeurOfEffet(target, 'toiles', 2);
       explications.push("Entravé => -2 DEF");
@@ -3052,15 +3043,6 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push('Danse des lames => +2 en DEF');
       defense += 2;
     }
-    let conditions = attributeAsInt(target, 'conditionsHostiles', 0, 2);
-    if (conditions > 0 && (!predicateAsBool(target, 'marcheSylvestre') || conditions > 4)) {
-      let msgConditions = "Conditions ";
-      if (conditions < 5) msgConditions += "hostiles";
-      else msgConditions += "extrêmes";
-      msgConditions += " : -" + conditions + " en DEF";
-      explications.push(msgConditions);
-      defense -= conditions;
-    }
     if (attributeAsBool(target, 'rage')) {
       explications.push("En rage => -2 en DEF");
       defense -= 2;
@@ -3100,12 +3082,19 @@ var COFantasy2 = COFantasy2 || function() {
     if (compagnonEnVue(target, 'familierMage')) {
       explications.push("Familier en vue => +2 en DEF");
       defense += 2;
+    } else if (compagnonEnVue(target, 'petitCompagnonDruide')) {
+      explications.push("Petit compagnon en vue => +2 en DEF");
+      defense += 2;
     }
     let paradeCroisee = predicateAsInt(target, 'paradeCroisee', 0, 1);
     if (paradeCroisee && target.arme && target.armeGauche) {
       if (attributeAsBool(target, 'paradeCroiseeDoublee')) paradeCroisee *= 2;
       explications.push("Combat à 2 armes => +" + paradeCroisee + " en DEF");
       defense += paradeCroisee;
+    }
+    if (predicateAsBool(target, 'bonusTerrainDifficile') && estEnTerrainDifficile(target)) {
+      explications.push("Terrain difficile => +1 en DEF");
+      defense += 1;
     }
     return defense;
   }
@@ -3562,10 +3551,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (attributeAsBool(personnage, 'armeBrulante')) {
       attBonus -= 2;
       explications.push("Arme brûlante => -2 en Attaque");
-    }
-    if (attributeAsBool(personnage, 'prisonVegetale')) {
-      attBonus -= getIntValeurOfEffet(personnage, 'prisonVegetale', 2);
-      explications.push("Prison végétale : -2 en Attaque");
     }
     if (attributeAsBool(personnage, 'toiles')) {
       attBonus -= getIntValeurOfEffet(personnage, 'toiles', 2);
@@ -4120,14 +4105,9 @@ var COFantasy2 = COFantasy2 || function() {
         attBonus -= 1;
       }
     }
-    let conditions = attributeAsInt(attaquant, 'conditionsHostiles', 0, 2);
-    if (conditions > 0 && (!predicateAsBool(attaquant, 'marcheSylvestre') || conditions > 4)) {
-      let msgConditions = "Conditions ";
-      if (conditions < 5) msgConditions += "hostiles";
-      else msgConditions += "extrêmes";
-      msgConditions += " : -" + conditions + " en attaque";
-      explications.push(msgConditions);
-      attBonus -= conditions;
+    if (predicateAsBool(attaquant, 'bonusTerrainDifficile') && estEnTerrainDifficile(attaquant)) {
+      explications.push("Terrain difficile => +1 en Attaque");
+      attBonus += 1;
     }
     return attBonus;
   }
@@ -9235,7 +9215,6 @@ var COFantasy2 = COFantasy2 || function() {
         return false;
       }
       if (target.distance > portee && (!options.deplaceDe || target.distance > portee + options.deplaceDe.max)) {
-
         if (options.deMalus) {
           sendPerso(target, "est trop loin");
           return false;
@@ -10872,7 +10851,7 @@ var COFantasy2 = COFantasy2 || function() {
           setTailleToken(tokenSpec, ficheAttribute(perso, 'taille', ''));
         };
         let treatToken = function(token) {
-          let mook = ficheAttributeAsInt(perso, 'mook', 0);
+          let mook = ficheAttributeAsInt(perso, 'mook', 1) && ficheAttribute(perso, 'sheet_type', 'pc') === 'npc';
           perso.token = token;
           linkToken(perso, character, mook, cof2e, playerId, evt);
           token.remove();
@@ -11664,6 +11643,10 @@ var COFantasy2 = COFantasy2 || function() {
 
   const descriptionBonus = {
     Evolutif: {
+      animaux: {
+        nom: 'Influencer les animaux',
+        description: "influencer un animal avec lequel on peut parler",
+      },
       armes: {
         nom: 'Expertise en armes',
         description: "estimer la valeur d'une arme ou la réputation martiale",
@@ -11674,7 +11657,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
       eclaireur: {
         nom: 'Éclaireur',
-        description: "En milieu naturel: discrétion, vigilance et pistage",
+        description: "En milieu naturel: discrétion et vigilance",
       },
       escalade: {
         nom: "Escalade",
@@ -11687,6 +11670,10 @@ var COFantasy2 = COFantasy2 || function() {
       mecanismes: {
         nom: 'Mécanismes',
         description: "réparer ou comprendre des mécanismes &#013;(y compris désamorcer des pièges mécaniques et manipuler des armes de siège)",
+      },
+      pistageNaturel: {
+        nom: 'Pistage',
+        description: "Pistage en milieu naturel",
       },
       plantes: {
         nom: 'Plantes',
@@ -11935,6 +11922,8 @@ var COFantasy2 = COFantasy2 || function() {
     'eclaireur': {
       bonusTestEvolutif_eclaireur: true,
       Restriction_bonusTestEvolutif_eclaireur: 'milieuNaturel',
+      bonusTestEvolutif_pistageNaturel: true,
+      Restriction_bonusTestEvolutif_pistageNaturel: 'milieuNaturel',
       DRAuLieuDePC: 'PARAM',
     },
     'attaque eclair': {
@@ -12132,6 +12121,36 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     //Voies de druide ////////////////////////////////////////////
+    //Voie des animaux
+    'langage des animaux': {
+      bonusTestEvolutif_animaux: true,
+    },
+    'petit compagnon': {
+      petitCompagnonDruide: 'PARAM', //Le nom du petit compagnon.
+      compagnon: {
+        id: 'petitCompagnonDruideId',
+        name: 'PARAM',
+        visionPartagee: true,
+        avatar: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
+        token: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
+        pvParNiveau: 2,
+        attributesFiche: {
+          taille: 'Très petite',
+          agi: 3,
+          agi_sup: 'S',
+          for: -4,
+          per: 2,
+          per_sup: 'S',
+          cha: -2,
+          int: -2,
+          vol: 2,
+          comp_def: '13+[rang_voieNUMEROVOIE]',
+          comp_pv_max: '[niveau]*2',
+          comp_init: '[init]',
+          predicats_script: 'aucuneActionCombat'
+        }
+      }
+    },
     //Voie du fauve
     'vitesse du felin': {
       bonusTestEvolutif_course: true,
@@ -12149,6 +12168,80 @@ var COFantasy2 = COFantasy2 || function() {
         value: '3',
       }],
     },
+    'panthere': {
+      compagnonPanthere: 'PARAM', //Le nom de la panthère
+      compagnon: {
+        id: 'compagnonPanthereId',
+        //TODO: mettre un avatar et un token de panthère.
+        avatar: "https://s3.amazonaws.com/files.d20.io/images/59094818/J0yWdxryZFKakJtNGJNNvw/max.jpg?1532612061",
+        token: "https://s3.amazonaws.com/files.d20.io/images/60183959/QAMH6WtyoK78aa4zX_mR_Q/thumb.png?1533898482",
+        name: 'PARAM',
+        pvParNiveau: 4,
+        attributesFiche: {
+          taille: 'Moyenne',
+          agi: 4,
+          agi_sup: 'S',
+          con: 2,
+          for: 2,
+          per: 2,
+          per_sup: 'S',
+          cha: -2,
+          int: -3,
+          vol: 2,
+          comp_def: '13+[rang_voieNUMEROVOIE]',
+          comp_pv_max: '[niveau]*4',
+          comp_init: '[init]',
+          comp_pnjatk: '[atkmag]',
+          predicats_script: 'quadrupede animal',
+          creature: 'Créature vivante',
+          peuple: 'Panthère',
+        },
+        attaques: [{
+          nom: 'Attaque au contact',
+          //atk devrait être donné par comp_pnjatk
+          dm: '1d4',
+          dmdiv: 2,
+          dmtype: 'morsure',
+          atktype: 'naturel',
+        }]
+      },
+    },
+    //Voie de la nature
+    'maitre de la survie': {
+      bonusTestEvolutif_survieRodeur: true,
+      Restriction_bonusTestEvolutif_survieRodeur: 'milieuNaturel',
+      bonusRecuperationMilieuNaturel: true,
+      Restriction_bonusRecuperationMilieuNaturel: 'armure_druide',
+    },
+    'terrains difficiles': {
+      ignoreTerrainsDifficiles: true,
+      Restriction_ignoreTerrainsDifficiles: 'armure_druide',
+      bonusTerrainDifficile: true,
+      Restriction_bonusTerrainDifficile: 'armure_druide',
+    },
+    //Voie du protecteur
+    'baies magiques': {
+      bonusTestEvolutif_eclaireur: true,
+      Restriction_bonusTestEvolutif_eclaireur: 'milieuNaturel',
+      action: {
+        nom: 'Baies magiques',
+        horsCombat: true,
+        type: 'L',
+        mana: 1,
+        limiteArmure: 'druide',
+        cmd: "!cof2-faire-pousser-baies-magiques @{selected|token_id} @{selected|PER} RANG",
+      }
+    },
+    'foret vivante': {
+      action: {
+        nom: 'Forêt vivante',
+        horsCombat: true,
+        type: 'L',
+        mana: 2,
+        limiteArmure: 'druide',
+        cmd: "!cof2-action éveille la forêt dans un rayon de RANG km --limiteParJour 1 foretVivante --acteur @{selected|token_id}",
+      }
+    },
     //Voie des végétaux
     "peau d’ecorce": {
       bonusTestEvolutif_plantes: true,
@@ -12160,6 +12253,15 @@ var COFantasy2 = COFantasy2 || function() {
         bufPersonnelNonCumulable: 'peauDEcorce',
         limiteArmure: 'druide',
         cmd: "!cof2-effet peauDEcorce SELONRANG(2,2,3,3,4) --dureeEnMinutes @{selected|PER} --select @{selected|token_id}"
+      }
+    },
+    'prison vegetale': {
+      action: {
+        nom: 'Prison végétale',
+        combat: true,
+        type: 'L',
+        mana: 2,
+        cmd: "!cof2-effet prisonVegetale true --dureeEnMinutes @{selected|PER} --acteur @{selected|token_id} --disque @{target|token_id} 5 20 --saufAllies @{selected|token_id} --saveActifParTour FOR [[10+@{selected|PER}]] A"
       }
     },
     //Voies de prêtre ////////////////////////////////////////////
@@ -13158,7 +13260,6 @@ var COFantasy2 = COFantasy2 || function() {
       case 'delivrance':
       case 'guerir':
       case 'guerison':
-      case 'consommer-baie':
       case 'zone-de-vie':
         picto = '<span style="font-family: \'Pictos\'">k</span> ';
         style = 'background-color:#ffe599;color:#333';
@@ -13236,6 +13337,7 @@ var COFantasy2 = COFantasy2 || function() {
     let opt = {
       transforme: true
     };
+    let isPotion;
     tmp.forEach(function(elem) {
       if (elem.startsWith('|')) {
         // attribut demandé
@@ -13243,7 +13345,13 @@ var COFantasy2 = COFantasy2 || function() {
         let carac = modOfCarac(attribute_name);
         let replacement;
         if (carac) {
+          if (isPotion === undefined) isPotion = act.indexOf('--potion') > 0;
           replacement = modCarac(perso, carac, opt);
+          if (isPotion) {
+            let bonusCON = modCarac(perso, 'CON', opt);
+            if (bonusCON > replacement) replacement = bonusCON;
+            if (replacement <= 0) replacement = 1;
+          }
         } else if (attribute_name == 'atkmag' || attribute_name == 'atkcac' || attribute_name == 'atktir') {
           replacement = attaquePerso(perso, attribute_name, opt);
         } else {
@@ -14352,10 +14460,61 @@ var COFantasy2 = COFantasy2 || function() {
     return actionsAAfficher;
   }
 
+  function estEnTerrainDifficile(perso) {
+    if (attributeAsBool(perso, 'enTerrainDifficile')) return true;
+    //Sinon, on regarde si le personnage est sur un graphique de la carte avec l'indication de terrain difficile.
+    let x = perso.token.get('left');
+    let y = perso.token.get('top');
+    let tokens = findObjs({
+      _type: 'graphic',
+      _pageid: perso.token.get('pageid'),
+      layer: 'map'
+    });
+    let res = tokens.find(function(token) {
+      let xt = token.get('left');
+      let yt = token.get('top');
+      let w = token.get('width');
+      let h = token.get('height');
+      if (xt - w / 2 <= x && x <= xt + w / 2 && yt - h / 2 <= y && y <= yt + h / 2) {
+        let gmNotes = token.get('gmnotes');
+        if (gmNotes === '') return false;
+        try {
+          gmNotes = _.unescape(decodeURIComponent(gmNotes)).replace('&nbsp;', ' ');
+          gmNotes = linesOfNote(gmNotes);
+          let r = gmNotes.find(function(l) {
+            if (l.startsWith('terrainDifficile')) {
+              let index = l.indexOf(':');
+              if (index < 1) return true;
+              l = l.substring(index + 1).trim().split(' ');
+              if (l.length > 1 && l[0] == 'disque') {
+                let rayon = parseInt(l[1]) / 2;
+                if (isNaN(rayon) || rayon < 0) {
+                  error("Rayon de terrain difficile non reconnu", l);
+                  return true;
+                }
+                return Math.sqrt((x - xt) * (x - xt) + (y - yt) * (y - yt)) <= rayon;
+              }
+              error("Zone de terrain difficile non reconnue", l);
+              return true;
+            }
+            return false;
+          });
+          return r !== undefined;
+        } catch (uriError) {
+          log("Erreur de décodage URI dans la note GM de " + token.get('name') + " : " + gmNotes);
+        }
+      }
+      return false;
+    });
+    return res !== undefined;
+  }
+
   function vitessePerso(perso) {
     let vitesse = ficheAttributeAsInt(perso, 'vitesse', 10);
-    if (getState(perso, 'essouffle') || getState(perso, 'invalide'))
-      vitesse = 5;
+    if (getState(perso, 'essouffle') || getState(perso, 'invalide')) vitesse = vitesse / 2;
+    if (attributeAsBool(perso, 'foretVivanteEnnemie')) vitesse = vitesse / 2;
+    if (attributeAsBool(perso, 'enTerrainDifficile') && !predicateAsBool(perso, 'ignoreTerrainsDifficiles'))
+      vitesse = vitesse / 2;
     return vitesse;
   }
 
@@ -14493,8 +14652,11 @@ var COFantasy2 = COFantasy2 || function() {
             msgPour += effetC.substring(7, effetC.indexOf(')'));
           else msgPour += effetC;
         }
-        //TODO: voir comment associer un type d'action au save.
-        ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '<br/>';
+        let carac = attr.get('current').split(' ');
+        if (carac.length < 2)
+          ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '<br/>';
+        else if (typeActionPossible(carac[1]))
+          ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '(' + carac[1] + ')<br/>';
       });
       if (typeActionPossible(perso, 'M')) {
         //Mouvement
@@ -14580,7 +14742,7 @@ var COFantasy2 = COFantasy2 || function() {
             };
             //Si l'action est impossible, va simplement afficher le nom de l'arme
             ligneArmePrincipale = boutonAttaque(perso, attaqueNaturelleNonVisible['arme-label'], bopt);
-          } else {
+          } else if (!predicateAsBool(perso, 'aucuneActionCombat')) {
             //Action normalement toujours possible
             let bopt = {
               attackStats: attaqueAMainsNues,
@@ -15230,7 +15392,6 @@ var COFantasy2 = COFantasy2 || function() {
       !isActive(perso) ||
       getState(perso, 'immobilise') ||
       attributeAsBool(perso, 'bloqueManoeuvre') ||
-      attributeAsBool(perso, 'prisonVegetale') ||
       attributeAsBool(perso, 'toiles') ||
       attributeAsBool(perso, 'estGobePar') ||
       attributeAsBool(perso, 'agrippeParUnDemon') ||
@@ -15947,6 +16108,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (!cr) {
       if (res && token !== undefined) token.set(cof_states[etat], false);
+      if (etat == 'immobilise' && attributeAsBool(perso, 'prisonVegetale')) return true;
       return false;
     }
     if (!res && token !== undefined) token.set(cof_states[etat], true);
@@ -17704,18 +17866,6 @@ var COFantasy2 = COFantasy2 || function() {
       actifF: "est prête à parer un coup avec son bouclier",
       fin: "n'est plus en position de parer le prochain coup sur son bouclier"
     },
-    prisonVegetale: {
-      activation: "voit des plantes pousser et s'enrouler autour de ses jambes",
-      actif: "est bloqué par des plantes",
-      actifF: "est bloquée par des plantes",
-      fin: "se libère des plantes",
-      msgSave: "se libérer des plantes",
-      prejudiciable: true,
-      statusMarker: 'green',
-      customStatusMarker: 'cof-prison-vegetale',
-      visible: true,
-      entrave: true
-    },
     saignementsSang: {
       activation: "commence à saigner du nez, des oreilles et des yeux",
       actif: "saigne de tous les orifices du visage",
@@ -17820,6 +17970,19 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "se détache de sa proie",
       visible: true
     },
+    enTerrainDifficile: {
+      activation: "entre en terrain difficile",
+      actif: "évolue en terrain difficile",
+      fin: "sort du terrain difficile",
+    },
+    foretVivanteEnnemie: {
+      activation: "est gêné par la forêt",
+      activationF: "est gênée par la forêt",
+      actif: "est désorienté par la forêt",
+      actifF: "est désorientée par la forêt",
+      fin: "n'est plus dans une forêt ennemie",
+      entrave: true
+    },
     inconscientApresPremiersSoins: {
       //courant: le nombre de PV qu'il aura en se réveillant
       activation: "reçoit les premiers soins",
@@ -17834,6 +17997,18 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "a la peau dure comme l'écorce",
       fin: "retrouve une peau normale",
       visible: true
+    },
+    prisonVegetale: {
+      activation: "voit des plantes pousser et s'enrouler autour de ses jambes",
+      actif: "est bloqué par des plantes",
+      actifF: "est bloquée par des plantes",
+      fin: "se libère des plantes",
+      msgSave: "se libérer des plantes",
+      prejudiciable: true,
+      statusMarker: 'green',
+      customStatusMarker: 'cof-prison-vegetale',
+      visible: true,
+      entrave: true
     },
     soinsEnAttente: {
       //courant: l'expression des soins
@@ -18206,6 +18381,14 @@ var COFantasy2 = COFantasy2 || function() {
     }
     removeTokenAttr(perso, effet + 'Valeur', evt);
     removeTokenAttr(perso, effet + 'Options', evt);
+    //Si on a un attrSave, alors on a déjà imprimé le message de fin d'effet
+    if (options.attrSave) { //on a un attribut associé à supprimer)
+      deleteAttribute(options.attrSave, evt);
+    } else if (options.gardeAutresAttributs === undefined) { //On cherche si il y en a un
+      removeTokenAttr(perso, effet + 'SaveParTour', evt);
+      removeTokenAttr(perso, effet + 'SaveActifParTour', evt);
+      removeTokenAttr(perso, effet + 'SaveParTourType', evt);
+    }
     //On remet la face du token
     let attrTS = tokenAttribute(perso, effet + 'TokenSide');
     if (attrTS.length > 0) {
@@ -18222,16 +18405,23 @@ var COFantasy2 = COFantasy2 || function() {
         unlockToken(perso, evt);
         break;
       case 'inconscientApresPremiersSoins':
+      case 'soinsEnAttente':
         {
-          let soins = attributeAsInt(perso, effet, 1);
-          soignePerso(perso, soins, evt,
+          let soinsExpr = attributeAsString(perso, effet, 1);
+          let de = parseDice(soinsExpr, perso);
+          if (!de) {
+            error("Expression de soins de l'effet " + effet + " incorrecte", soinsExpr);
+            return;
+          }
+          let soins = rollDePlus(de);
+          soignePerso(perso, soins.val, evt,
             function(s) {
               if (s < soins) sendPerso(perso, "récupère tous ses PV.");
               else
-                sendPerso(perso, "récupère " + s + " PV.");
+                sendPerso(perso, "récupère " + soins.roll + " PV.");
             });
           break;
-        }
+        } {}
     }
     removeTokenAttr(perso, effet, evt, {
       msg: messageFin(perso, mEffet, effet),
@@ -19048,10 +19238,11 @@ var COFantasy2 = COFantasy2 || function() {
         setTokenAttr(target, ef.effet + 'TokenSide', oldSide, evt);
     }
     if (ef.saveActifParTour) {
-      setTokenAttr(target, ef.effet + 'SaveActifParTour',
-        ef.saveActifParTour.carac, evt, {
-          maxVal: ef.saveActifParTour.seuil
-        });
+      let c = ef.saveActifParTour.carac;
+      if (ef.saveActifParTour.typeAction) c += ' ' + ef.saveActifParTour.typeAction;
+      setTokenAttr(target, ef.effet + 'SaveActifParTour', c, evt, {
+        maxVal: ef.saveActifParTour.seuil
+      });
       if (ef.typeDmg)
         setTokenAttr(target, ef.effet + 'SaveParTourType', ef.typeDmg, evt);
     }
@@ -19470,7 +19661,9 @@ var COFantasy2 = COFantasy2 || function() {
         });
       }
       if (options.saveActifParTour) {
-        setTokenAttr(perso, effet + 'SaveActifParTour', options.saveActifParTour.carac, evt, {
+        let c = options.saveActifParTour.carac;
+        if (options.saveActifParTour.typeAction) c += ' ' + options.saveActifParTour.typeAction;
+        setTokenAttr(perso, effet + 'SaveActifParTour', c, evt, {
           maxVal: options.saveActifParTour.seuil
         });
       }
@@ -19511,6 +19704,11 @@ var COFantasy2 = COFantasy2 || function() {
         secret: options.secret,
         copy: mEffet.plusieurs,
       };
+      if (options.message) {
+        options.message.forEach(function(m) {
+          sendPerso(perso, m);
+        });
+      }
       if (options.valeurAjoutee) {
         addToAttributeAsInt(perso, effet, 0, options.valeurAjoutee, evt);
         expliquerPerso(perso, effet + " varie de " + options.valeurAjoutee, options.secret);
@@ -19527,11 +19725,6 @@ var COFantasy2 = COFantasy2 || function() {
         let oldSide = changeTokenSide(perso, options.tokenSide, evt);
         if (oldSide !== undefined)
           setTokenAttr(perso, effet + 'TokenSide', oldSide, evt);
-      }
-      if (options.message) {
-        options.message.forEach(function(m) {
-          sendPlayer(m, playerId);
-        });
       }
       if (options.messagesMJ) {
         options.messagesMJ.forEach(function(m) {
@@ -19589,7 +19782,7 @@ var COFantasy2 = COFantasy2 || function() {
     let ef = {
       effet: effet,
       duree: duree,
-      acumuleDuree: options.accumuleDuree,
+      accumuleDuree: options.accumuleDuree,
       typeDmg: options.type,
       message: mEffet,
       valeur: options.valeur,
@@ -19680,15 +19873,21 @@ var COFantasy2 = COFantasy2 || function() {
           activer = false;
           break;
         default:
-          valeur = parseInt(cmd[2]);
-          if (isNaN(valeur)) {
-            if (options.acteur) valeur = predicateAsInt(options.acteur, cmd[2], valeur);
+          let asDice = parseDice(cmd[2], options.acteur);
+          if (asDice) {
+            valeur = cmd[2];
+            activer = asDice.nbDe !== 0 || asDice.bonus !== 0;
+          } else {
+            valeur = parseInt(cmd[2]);
             if (isNaN(valeur)) {
-              error("Option de !cof2-effet inconnue", cmd);
-              return;
+              if (options.acteur) valeur = predicateAsInt(options.acteur, cmd[2], valeur);
+              if (isNaN(valeur)) {
+                error("Option de !cof2-effet inconnue", cmd);
+                return;
+              }
             }
+            activer = valeur !== 0;
           }
-          activer = valeur !== 0;
           if (cmd[2].startsWith('+') || valeur < 0)
             options.valeurAjoutee = valeur;
       }
@@ -22244,7 +22443,14 @@ var COFantasy2 = COFantasy2 || function() {
     return res;
   }
 
-  function bonusAuxCompetences(perso, comp, expliquer) {
+  function ajouterDeBonus(options, champ) {
+    if (options[champ] === true) return;
+    options[champ] = options[champ] || 0;
+    options[champ]++;
+  }
+
+  //renvoie un bonus, mais peut aussi modifier les champs deBonus et deMalus des options
+  function bonusAuxCompetences(perso, comp, expliquer, options = {}) {
     let bonus = predicateAsInt(perso, 'bonusTest_' + comp, 0);
     let expl_comp = bonus !== 0;
     let bonus_evol = bonusEvolutif(perso, comp, expliquer);
@@ -22303,8 +22509,8 @@ var COFantasy2 = COFantasy2 || function() {
       case 'discrétion':
       case 'discretion':
         if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
-          expliquer("Forêt hostile : -5 en discrétion"); //TODO: changer en dé malus
-          bonus -= 5;
+          expliquer("Forêt hostile : dé malus en discrétion");
+          ajouterDeBonus(options, 'deMalus');
         }
         if (predicateAsBool(perso, 'toutPetit')) {
           expliquer("Tout petit : +5 en discrétion");
@@ -22371,14 +22577,14 @@ var COFantasy2 = COFantasy2 || function() {
         break;
       case 'orientation':
         if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
-          expliquer("Forêt hostile : -5 en orientation"); //TODO: changer en dé malus
-          bonus -= 5;
+          expliquer("Forêt hostile : dé malus en orientation");
+          ajouterDeBonus(options, 'deMalus');
         }
         break;
       case 'perception':
-        if (attributeAsBool(perso, 'foretVivanteEnnemie')) { //TODO: changer en dé malus
-          expliquer("Forêt hostile : -5 en perception");
-          bonus -= 5;
+        if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
+          expliquer("Forêt hostile : dé malus en perception");
+          ajouterDeBonus(options, 'deMalus');
         }
         break;
       case 'persuasion':
@@ -22403,8 +22609,8 @@ var COFantasy2 = COFantasy2 || function() {
         }
       case 'survie':
         if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
-          expliquer("Forêt hostile : -5 en survie"); //TODO: changer en dé malus
-          bonus -= 5;
+          expliquer("Forêt hostile : dé malus en survie");
+          ajouterDeBonus(options, 'deMalus');
         }
         break;
     }
@@ -22471,7 +22677,7 @@ var COFantasy2 = COFantasy2 || function() {
             bonus += bonusAttribut;
           }
           if (!options.competence || attr != options.competence.trim().toLowerCase())
-            bonus += bonusAuxCompetences(perso, attr, expliquer);
+            bonus += bonusAuxCompetences(perso, attr, expliquer, options);
         });
       }
       if (options.bonusPreds) {
@@ -22649,7 +22855,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let bonusCompetence;
     if (options && options.competence) {
-      bonus += bonusAuxCompetences(perso, options.competence, expliquer);
+      bonus += bonusAuxCompetences(perso, options.competence, expliquer, options);
       //TODO: implementer avec la nouvelle fiche
     }
     if (bonusCompetence === undefined) {
@@ -23344,7 +23550,12 @@ var COFantasy2 = COFantasy2 || function() {
         msgPour += effetC.substring(7, effetC.indexOf(')'));
       else msgPour += effetC;
     }
-    let carac = attr.get('current');
+    let carac = attr.get('current').trim();
+    let i = carac.indexOf(' ');
+    if (i > 0) {
+      if (!options.typeAction) options.typeAction = carac.substring(i + 1).trim();
+      carac = carac.substring(0, i);
+    }
     if (!isCarac(carac)) {
       error("Save par tour " + attrName + " mal formé", carac);
       return;
@@ -24409,6 +24620,7 @@ var COFantasy2 = COFantasy2 || function() {
     init += predicateAsInt(perso, 'bonusInitiative', 0);
     // Familier du mage
     if (compagnonEnVue(perso, 'familierMage', pageId)) init += 2;
+    if (predicateAsBool(perso, 'bonusTerrainDifficile') && estEnTerrainDifficile(perso)) init += 3;
     return init;
   }
 
@@ -24993,6 +25205,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let count = nbDes;
     let explose = options.deExplosif || false;
+    let nbExplosions = 0;
     let texteJetDeTotal = '';
     let jetTotal = 0;
     let deBonus = 0; //Positif: dés bonus, négatif: dé malus
@@ -25011,30 +25224,31 @@ var COFantasy2 = COFantasy2 || function() {
         jetDe = de;
         textJet = de;
       } else if (deBonus) {
+        textJet = '(' + textJet;
         do {
           let jetDe2 = randomInteger(de);
+          textJet += ',' + jetDe2;
           if ((deBonus > 0 && jetDe2 > jetDe) || (deBonus < 0 && jetDe2 < jetDe)) {
-            textJet = '(<font color="grey">' + textJet + '</font>,' + jetDe2 + ')';
             jetDe = jetDe2;
-          } else {
-            textJet = '(' + textJet + ',<font color="grey">' + jetDe2 + '</font>)';
           }
           if (deBonus > 0) deBonus--;
           else deBonus++;
         } while (deBonus);
+        textJet += ')';
       }
       texteJetDeTotal += textJet;
       jetTotal += jetDe;
-      explose = explose && (jetDe === de);
+      explose = explose && (jetDe === de) && nbExplosions < 100;
       if (explose) {
         texteJetDeTotal += ',';
+        nbExplosions++;
       } else {
         count--;
         if (count > 0) {
           texteJetDeTotal += ',';
         }
       }
-    } while ((explose || count > 0) && jetTotal < 1000);
+    } while (explose || count > 0);
     if (options.resultatDesSeuls) options.resultatDesSeuls = jetTotal;
     let res = {
       val: jetTotal + bonus
@@ -25076,7 +25290,7 @@ var COFantasy2 = COFantasy2 || function() {
   //parse les expressions du type 3d6+4
   //renvoie un structure avec les champs nbDe, dice et bonus
   function parseDice(expr, perso, msg) {
-    let dm = {
+    let res = {
       nbDe: 0,
       dice: 4,
       bonus: 0,
@@ -25086,10 +25300,10 @@ var COFantasy2 = COFantasy2 || function() {
     let exprDM = (expr + '').trim().toLowerCase();
     let indexD = exprDM.indexOf('d');
     if (indexD >= 0) {
-      if (indexD === 0) dm.nbDe = 1;
+      if (indexD === 0) res.nbDe = 1;
       else {
-        dm.nbDe = parseInt(exprDM.substring(0, indexD));
-        if (isNaN(dm.nbDe) || dm.nbDe < 0) {
+        res.nbDe = parseInt(exprDM.substring(0, indexD));
+        if (isNaN(res.nbDe) || res.nbDe < 0) {
           if (msg)
             error("Expression de " + msg + ' ' + exprDM + " mal formée", expr);
           return;
@@ -25101,30 +25315,30 @@ var COFantasy2 = COFantasy2 || function() {
       }
       indexD = exprDM.search(/[+\-]/);
       if (indexD <= 0) {
-        dm.dice = parseInt(exprDM);
-        if (isNaN(dm.dice) || dm.dice < 1) {
+        res.dice = parseInt(exprDM);
+        if (isNaN(res.dice) || res.dice < 1) {
           if (msg)
             error("Nombre de faces incorrect dans l'expression de " + msg, expr);
           return;
         }
-        return dm;
+        return res;
       }
       exprDM = exprDM.replace('+-', '-');
-      dm.dice = parseInt(exprDM.substring(0, indexD));
-      if (isNaN(dm.dice) || dm.dice < 1) {
+      res.dice = parseInt(exprDM.substring(0, indexD));
+      if (isNaN(res.dice) || res.dice < 1) {
         if (msg)
           error("Nombre de faces incorrect dans l'expression de " + msg, expr);
         return;
       }
       exprDM = exprDM.substring(indexD).trim();
     }
-    dm.bonus = parseInt(exprDM);
-    if (isNaN(dm.bonus)) {
+    res.bonus = parseInt(exprDM);
+    if (isNaN(res.bonus)) {
       if (msg)
         error("Expression de " + msg + " incorrecte", expr);
       return;
     }
-    return dm;
+    return res;
   }
 
   function augmenterLeTempsEnMinutes(duree, attrs, evt, pageId, options = {}) {
@@ -29504,6 +29718,26 @@ var COFantasy2 = COFantasy2 || function() {
       });
   }
 
+  function commandeFairePousserBaiesMagiques(cmd, playerId, pageId, options, perso) {
+    let nbr = toInt(cmd[2], 1);
+    if (nbr < 1) {
+      sendPlayer(nbr + " baie magique à faire pousser", playerId);
+      return;
+    }
+    const evt = {
+      type: "Faire pousser des baies"
+    };
+    addEvent(evt);
+    if (limiteRessources(perso, options, 'pousserBaiesMagiques', "faire pousser des baies magiques", evt)) return;
+    let rang = 0;
+    if (cmd.length > 3) rang = toInt(cmd[3], 0);
+    sendPerso(perso, "Fait pousser des baies magiques");
+    let actionBaie = "!cof2-effet soinsEnAttente 1d4E";
+    if (rang > 0) actionBaie += '+' + rang;
+    else if (rang < 0) actionBaie += rang;
+    actionBaie += " --dureeEnMinutes 1 --limiteParJour 1 baieMagique --message mange une baie magique et";
+    ajouterConsommable(perso, 'Baie magique', actionBaie, nbr, evt);
+  }
   // Informations et affichage ------------------------------------------------
 
   // Affiche des informations sur le personnage sélectionné
@@ -30695,6 +30929,7 @@ var COFantasy2 = COFantasy2 || function() {
   //Retourne un objet avec
   // - carac, et possiblement carac2 (si on a le choix)
   // - seuil
+  // - typeAction si présent
   function parseSave(cmd, options) {
     if (cmd.length < 3) {
       if (cmd.length > 0)
@@ -30718,35 +30953,42 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     if (cmd.length > 3) {
-      let optArgs = cmd.slice(3).join(' ');
-      optArgs = optArgs.split(' +');
-      optArgs.forEach(function(oa) {
-        oa = oa.trim().split(' ');
-        switch (oa[0]) {
-          case 'carac':
-          case 'carac2':
-          case 'seuil':
-            if (!options.noError)
-              error("Argument supplémentaire de save inconnu", cmd);
-            return;
-          case 'contact':
-            if (oa.length < 2) {
+      let optIndex = 3;
+      if (cmd[3] == 'G' || cmd[3] == 'M' || cmd[3] == 'A' || cmd[3] == 'L') {
+        optIndex = 4;
+        res.typeAction = cmd[3];
+      }
+      if (cmd.length > optIndex) {
+        let optArgs = cmd.slice(optIndex).join(' ');
+        optArgs = optArgs.split(' +');
+        optArgs.forEach(function(oa) {
+          oa = oa.trim().split(' ');
+          switch (oa[0]) {
+            case 'carac':
+            case 'carac2':
+            case 'seuil':
               if (!options.noError)
-                error("Il manque la difficulté pour les cibles au contact");
+                error("Argument supplémentaire de save inconnu", cmd);
               return;
-            }
-            let diff = parseInt(oa[1]);
-            if (isNaN(diff)) {
-              if (!options.noError)
-                error("La difficulté pour les cibles au contact n'est pas un nombre");
+            case 'contact':
+              if (oa.length < 2) {
+                if (!options.noError)
+                  error("Il manque la difficulté pour les cibles au contact");
+                return;
+              }
+              let diff = parseInt(oa[1]);
+              if (isNaN(diff)) {
+                if (!options.noError)
+                  error("La difficulté pour les cibles au contact n'est pas un nombre");
+                return;
+              }
+              res.contact = diff;
               return;
-            }
-            res.contact = diff;
-            return;
-          default:
-            res[oa[0]] = true;
-        }
-      });
+            default:
+              res[oa[0]] = true;
+          }
+        });
+      }
     }
     return res;
   }
@@ -31481,6 +31723,9 @@ var COFantasy2 = COFantasy2 || function() {
       champEntier: true,
       min: 1,
     },
+    acide: {
+      fn: dmgTypeOption
+    },
     acteur: {
       fn: persoOption,
     },
@@ -31633,6 +31878,9 @@ var COFantasy2 = COFantasy2 || function() {
     finEffet: {
       fn: effetOption,
       fin: true
+    },
+    froid: {
+      fn: dmgTypeOption
     },
     fx: {
       fn: fxOption,
@@ -31917,12 +32165,6 @@ var COFantasy2 = COFantasy2 || function() {
     },
     succes: stringDefaultOption,
     feu: {
-      fn: dmgTypeOption
-    },
-    froid: {
-      fn: dmgTypeOption
-    },
-    acide: {
       fn: dmgTypeOption
     },
   };
@@ -32901,6 +33143,9 @@ var COFantasy2 = COFantasy2 || function() {
       pt2.y = y;
       plusLoin = isActiveTurnPerso(perso);
     }
+    //TODO: vérifier qu'on ne traverse pas des zones qui ralentissent, comme la proximité d'un ennemi, ou passer à travers un allié.
+    //On regarde s'il y a des tokens sur le trajet, ca ça diminue la vitesse
+    //  voir     tokensSurTrajet, à adapter
     //On met à jour ligneDroite
     if (mvt.ligneDroite && (pt1.x != mvt.positionDepart.x || pt1.y != mvt.positionDepart.y) && d > 0) {
       let vec1 = vecteurUnitaire(mvt.positionDepart, pt1);
@@ -32939,7 +33184,6 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
-    //TODO: vérifier qu'on ne traverse pas des zones qui ralentissent, comme la proximité d'un ennemi, ou passer à travers un allié.
     //On vérifie que le dernier mouvement ne termine pas à moitié sur un autre token
     let rayonPerso = tokenSizeAsCircle(token) / 2;
     let allToks =
@@ -33521,7 +33765,9 @@ var COFantasy2 = COFantasy2 || function() {
       let [pc, pcMax] = ficheAttributeAsIntWithMax(perso, 'pc', 0);
       if (pc < pcMax) setFicheAttr(perso, 'pc', pcMax, evt);
       activateSheetWorkerCompagnon(perso, 'familierMage');
+      activateSheetWorkerCompagnon(perso, 'petitCompagnonDruide');
       activateSheetWorkerCompagnon(perso, 'compagnonLoup');
+      activateSheetWorkerCompagnon(perso, 'compagnonPanthere');
     } else if (attributeQuiAffecteMaitriseArmes.test(n)) {
       let infos = infosFiche[attr.get('characterid')];
       if (!infos) return;
@@ -33621,6 +33867,11 @@ var COFantasy2 = COFantasy2 || function() {
     'explosion': {
       fn: commandeExplosion,
       minArgs: 1
+    },
+    'faire-pousser-baies-magiques': {
+      fn: commandeFairePousserBaiesMagiques,
+      minArgs: 2,
+      acteur: 1,
     },
     'fin-combat': {
       fn: commandeFinCombat
