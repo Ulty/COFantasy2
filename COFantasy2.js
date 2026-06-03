@@ -1,4 +1,4 @@
-//Dernière modification : mer. 03 juin 2026,  03:55
+//Dernière modification : mer. 03 juin 2026,  05:18
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5794,93 +5794,67 @@ var COFantasy2 = COFantasy2 || function() {
       if (estMook(attaquant)) {
         error("Les munitions ne sont pas supportées pour les tokens qui ne sont pas liées à un personnage", attackingToken);
       }
-      if (options.munition.nom) { //Ancienne variante, obsolète depuis mars 2023
-        let munitionsAttr = findObjs({
-          _type: 'attribute',
-          _characterid: attackingCharId,
-          name: 'munition_' + options.munition.nom
+      let m = options.munition;
+      let typeMunition = fieldAsString(m, 'ammo-type', 'fleche');
+      let nom = fieldAsString(m, 'ammo-nom', typeMunition);
+      let munitions = fieldAsInt(m, 'ammo-qte', 1);
+      if (munitions < 1) {
+        sendPerso(attaquant,
+          "ne peut pas utiliser cette attaque, car " + sujetAttaquant +
+          " n'a plus de " + nom);
+        return;
+      }
+      let label = fieldAsString(m, 'labelmunition', '0'); //TODO
+      //On cherche si la munition est empoisonnée
+      let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_munition_' + label);
+      effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
+      let munitionsMax = fieldAsInt(m, 'ammo-qte_max', munitions);
+      munitions--;
+      let perte = 0;
+      let taux = fieldAsInt(m, 'ammo-taux', 100);
+      if (randomInteger(100) < taux) {
+        munitionsMax--;
+        perte++;
+      }
+      let msgm = "Il ";
+      if (munitions === 0) {
+        msgm += "ne reste plus de ";
+      } else {
+        msgm += "reste " + munitions + " ";
+      }
+      msgm += nom + " à " + attackerTokName;
+      if (taux < 100 && perte > 0) {
+        msgm += ", et ";
+        switch (typeMunition) {
+          case 'fleche': msgm += "la flèche utilisée"; break;
+          case 'carreau': msgm += "le carreau utilisé"; break;
+          case 'balle': msgm += "la balle utilisée"; break;
+          default: msgm += "la munition utilisée";
+        }
+        msgm += " n'est pas récupérable";
+      }
+      explications.push(msgm);
+      let name = m.prefixe + 'ammo-qte';
+      let attrQte = findObjs({
+        _type: 'attribute',
+        _characterid: attackingCharId,
+        name
+      }, {
+        caseInsensitive: true
+      });
+      if (attrQte.length > 0) {
+        attrQte = attrQte[0];
+        addAttributeToEvt(attrQte, evt, munitions, munitionsMax);
+        attrQte.set('current', munitions);
+        attrQte.set('max', munitionsMax);
+      } else {
+        attrQte = createObj('attribute', {
+          characterid: attackingCharId,
+          name,
+          current: munitions,
+          max: munitionsMax
         });
-        if (munitionsAttr.length === 0) {
-          sendPerso(attaquant, ": Pas de munition nommée " + options.munition.nom);
-          return;
-        }
-        munitionsAttr = munitionsAttr[0];
-        let munitions = munitionsAttr.get('current');
-        if (munitions < 1) {
-          sendPerso(attaquant,
-            "ne peut pas utiliser cette attaque, car " + sujetAttaquant +
-            " n'a plus de " + options.munition.nom.replace(/_/g, ' '));
-          return;
-        }
-        let munitionsMax = parseInt(munitionsAttr.get('max'));
-        if (isNaN(munitionsMax)) {
-          error("Attribut de munitions mal formé", munitionsMax);
-          return;
-        }
-        addAttributeToEvt(munitionsAttr, evt, munitions, munitionsMax);
-        //On cherche si la munition est empoisonnée
-        let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_munition_' + options.munition.nom);
-        effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
-        munitions--;
-        if (randomInteger(100) < options.munition.taux) munitionsMax--;
-        explications.push("Il reste " + munitions + " " +
-          options.munition.nom.replace(/_/g, ' ') + " à " + attackerTokName);
-        munitionsAttr.set('current', munitions);
-        munitionsAttr.set('max', munitionsMax);
-      } else { //Utilisation d'une munition de la fiche
-        let m = options.munition;
-        let typeMunition = fieldAsString(m, 'typemunition', 'Flèche');
-        let nom = fieldAsString(m, 'nommunition', typeMunition);
-        let munitions = fieldAsInt(m, 'qtemunition', 1);
-        if (munitions < 1) {
-          sendPerso(attaquant,
-            "ne peut pas utiliser cette attaque, car " + sujetAttaquant +
-            " n'a plus de " + nom);
-          return;
-        }
-        let label = fieldAsString(m, 'labelmunition', '0');
-        //On cherche si la munition est empoisonnée
-        let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_munition_' + label);
-        effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
-        let munitionsMax = fieldAsInt(m, 'qtemunition_max', munitions);
-        munitions--;
-        let perte = 0;
-        let taux = fieldAsInt(m, 'tauxmunition', 100);
-        if (randomInteger(100) < taux) {
-          munitionsMax--;
-          perte++;
-        }
-        let msgm = "Il ";
-        if (munitions === 0) {
-          msgm += "ne reste plus de ";
-        } else {
-          msgm += "reste " + munitions + " ";
-        }
-        msgm += nom + " à " + attackerTokName;
-        if (taux < 100 && perte > 0) msgm += ", et la munition utilisée n'est pas récupérable";
-        explications.push(msgm);
-        let name = m.prefixe + 'qtemunition';
-        let attrQte = findObjs({
-          _type: 'attribute',
-          _characterid: attackingCharId,
-          name
-        }, {
-          caseInsensitive: true
-        });
-        if (attrQte.length > 0) {
-          attrQte = attrQte[0];
-          addAttributeToEvt(attrQte, evt, munitions, munitionsMax);
-          attrQte.set('current', munitions);
-          attrQte.set('max', munitionsMax);
-        } else {
-          attrQte = createObj('attribute', {
-            characterid: attackingCharId,
-            name,
-            current: munitions,
-            max: munitionsMax
-          });
-          addCreatedAttributeToEvt(attrQte, evt);
-        }
+        addCreatedAttributeToEvt(attrQte, evt);
       }
     }
     // Armes chargées
@@ -10457,8 +10431,8 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function setPersoStatus(perso, statusMarker, val, evt) {
-      affectToken(perso.token, 'statusmarkers', perso.token.get('statusmarkers'), evt);
-      perso.token.set('status_' + statusMarker, val);
+    affectToken(perso.token, 'statusmarkers', perso.token.get('statusmarkers'), evt);
+    perso.token.set('status_' + statusMarker, val);
   }
 
   //Si evt est défini, alors on considère qu'il faut y mettre la valeur actuelle
@@ -13756,8 +13730,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     //Les modificateurs ne rendent jamais une attaque impossible
     addWeaponStatsToOptions(attaquant, attackStats, undefined, pageId, options);
-    //TODO quand on gérera les munitions
-    //act = demandeMunition(perso, attackStats, options, act);
+    act = demandeMunition(attaquant, attackStats, options, act);
     if (options.request) act += options.request;
     let {
       picto,
@@ -18067,19 +18040,19 @@ var COFantasy2 = COFantasy2 || function() {
   };
 
   function finSoinsEnAttente(perso, effet, newInit, evt, options) {
-          let soinsExpr = attributeAsString(perso, effet, 1);
-          let de = parseDice(soinsExpr, perso);
-          if (!de) {
-            error("Expression de soins de l'effet " + effet + " incorrecte", soinsExpr);
-            return;
-          }
-          let soins = rollDePlus(de);
-          soignePerso(perso, soins.val, evt,
-            function(s) {
-              if (s < soins) expliquerPerso(perso, "récupère tous ses PV.", options);
-              else
-                expliquerPerso(perso, "récupère " + soins.roll + " PV.", options);
-            });
+    let soinsExpr = attributeAsString(perso, effet, 1);
+    let de = parseDice(soinsExpr, perso);
+    if (!de) {
+      error("Expression de soins de l'effet " + effet + " incorrecte", soinsExpr);
+      return;
+    }
+    let soins = rollDePlus(de);
+    soignePerso(perso, soins.val, evt,
+      function(s) {
+        if (s < soins) expliquerPerso(perso, "récupère tous ses PV.", options);
+        else
+          expliquerPerso(perso, "récupère " + soins.roll + " PV.", options);
+      });
   }
 
   //Pour les effets à durée indéterminée, la valeur courante de l'attribut est true ou
@@ -18551,12 +18524,12 @@ var COFantasy2 = COFantasy2 || function() {
     //Effets avant d'enlever l'attribut
     if (mEffet.finFun) mEffet.finFun(perso, effet, newInit, evt, options);
     if (options.gardeAutresAttributs === undefined) {
-    removeTokenAttr(perso, effet + 'Valeur', evt);
-    removeTokenAttr(perso, effet + 'DureeAccumulee', evt);
-    removeTokenAttr(perso, effet + 'Options', evt);
-    removeTokenAttr(perso, effet + 'Activation', evt);
-    removeTokenAttr(perso, effet + 'Actif', evt);
-    removeTokenAttr(perso, effet + 'Fin', evt);
+      removeTokenAttr(perso, effet + 'Valeur', evt);
+      removeTokenAttr(perso, effet + 'DureeAccumulee', evt);
+      removeTokenAttr(perso, effet + 'Options', evt);
+      removeTokenAttr(perso, effet + 'Activation', evt);
+      removeTokenAttr(perso, effet + 'Actif', evt);
+      removeTokenAttr(perso, effet + 'Fin', evt);
     }
     let opt = {
       secret: !mEffet.visible,
@@ -18566,7 +18539,7 @@ var COFantasy2 = COFantasy2 || function() {
     removeTokenAttr(perso, effet, evt, opt);
     //Effets après avoir enlevé l'atribut, comme relacher les persos immobilisés
     if (mEffet.lock) {
-        unlockToken(perso, evt);
+      unlockToken(perso, evt);
     }
     if (options.message) {
       let whisper = options.whisper || '';
@@ -18592,7 +18565,7 @@ var COFantasy2 = COFantasy2 || function() {
   function finDEffetTemp(attr, effet, attrName, charId, evt, options = {}) {
     let res;
     let newInit = [];
-    let efComplet = effetComplet(effet, attrName);//Le nom avec la partie générique spécifiée
+    let efComplet = effetComplet(effet, attrName); //Le nom avec la partie générique spécifiée
     //Si on a un attrSave, alors on a déjà imprimé le message de fin d'effet
     if (options.attrSave) { //on a un attribut associé à supprimer)
       deleteAttribute(options.attrSave, evt);
@@ -18605,7 +18578,10 @@ var COFantasy2 = COFantasy2 || function() {
     if (mEffet === undefined) mEffet = messageEffetCombat[effet];
     if (mEffet && mEffet.statusMarker) {
       iterTokensOfAttribute(charId, options.pageId, effet, attrName, function(token) {
-        let perso = {charId, token};
+        let perso = {
+          charId,
+          token
+        };
         setPersoStatus(perso, mEffet.statusMarker, false, evt);
       }, {
         tousLesTokens: true
@@ -18804,95 +18780,95 @@ var COFantasy2 = COFantasy2 || function() {
       case 'demonInvoque':
       case 'arbreAnime': //effacer le personnage
         {
-        //On efface d'abord les attributs et les abilities
-        let charAttributes = findObjs({
-          _type: 'attribute',
-          _characterid: charId
-        });
-        charAttributes.forEach(
-          function(otherAttr) {
-            if (otherAttr.id != attr.id) otherAttr.remove();
-          }
-        );
-        let charAbilities = findObjs({
-          _type: 'ability',
-          _characterid: charId
-        });
-        charAbilities.forEach(
-          function(ab) {
-            ab.remove();
-          }
-        );
-        if (effet == 'arbreAnime') {
-          iterTokensOfAttribute(charId, options.pageId, effet, attrName,
-            function(token) {
+          //On efface d'abord les attributs et les abilities
+          let charAttributes = findObjs({
+            _type: 'attribute',
+            _characterid: charId
+          });
+          charAttributes.forEach(
+            function(otherAttr) {
+              if (otherAttr.id != attr.id) otherAttr.remove();
+            }
+          );
+          let charAbilities = findObjs({
+            _type: 'ability',
+            _characterid: charId
+          });
+          charAbilities.forEach(
+            function(ab) {
+              ab.remove();
+            }
+          );
+          if (effet == 'arbreAnime') {
+            iterTokensOfAttribute(charId, options.pageId, effet, attrName,
+              function(token) {
+                let perso = {
+                  token: token,
+                  charId: charId
+                };
+                let nA = removeFromTurnTracker(perso, evt);
+                if (nA) {
+                  res = res || {};
+                  res.oldTokenId = token.id;
+                  res.newTokenId = nA.nextId;
+                }
+                setToken(token, 'bar1_link', '', evt);
+                setToken(token, 'bar1_value', '', evt);
+                setToken(token, 'bar1_max', '', evt);
+                setToken(token, 'showplayers_bar1', false, evt);
+                setToken(token, 'represents', '', evt);
+                setToken(token, 'showname', false, evt);
+                setToken(token, 'showplayers_name', false, evt);
+                setToken(token, 'name', '', evt);
+              });
+          } else {
+            iterTokensOfAttribute(charId, options.pageId, effet, attrName, function(token) {
               let perso = {
                 token: token,
                 charId: charId
               };
-              let nA = removeFromTurnTracker(perso, evt);
-              if (nA) {
+              let nP = removeFromTurnTracker(perso, evt);
+              if (nP) {
                 res = res || {};
                 res.oldTokenId = token.id;
-                res.newTokenId = nA.nextId;
+                res.newTokenId = nP.nextId;
               }
-              setToken(token, 'bar1_link', '', evt);
-              setToken(token, 'bar1_value', '', evt);
-              setToken(token, 'bar1_max', '', evt);
-              setToken(token, 'showplayers_bar1', false, evt);
-              setToken(token, 'represents', '', evt);
-              setToken(token, 'showname', false, evt);
-              setToken(token, 'showplayers_name', false, evt);
-              setToken(token, 'name', '', evt);
+              deleteTokenWithUndo(token, evt);
             });
-        } else {
-          iterTokensOfAttribute(charId, options.pageId, effet, attrName, function(token) {
-            let perso = {
-              token: token,
-              charId: charId
-            };
-            let nP = removeFromTurnTracker(perso, evt);
-            if (nP) {
-              res = res || {};
-              res.oldTokenId = token.id;
-              res.newTokenId = nP.nextId;
-            }
-            deleteTokenWithUndo(token, evt);
-          });
-        }
-        attr.remove();
-        let msgFin = messageFin({
-          charId
-        }, mEffet, efComplet, attrName);
-        if (options.print && mEffet) options.print(msgFin);
-        else {
-          sendChar(charId, msgFin, true);
-          options.print = function(m) {};
-        }
-        character = getObj('character', charId);
-        if (character) {
-          evt.deletedCharacters = evt.deletedCharacters || [];
-          let deletedChar = {
-            id: charId,
-            name: character.get('name'),
-            avatar: character.get('avatar'),
-            attributes: charAttributes.map(function(a) {
-              return a.id;
-            }),
-            abilities: charAbilities,
-            allies: []
-          };
-          // Retrait du perso de toutes les listes d'alliés
-          for (const [perso, alliesPerso] of Object.entries(alliesParPerso)) {
-            if (alliesPerso.has(charId)) {
-              deletedChar.allies.push(perso);
-              alliesPerso.delete(charId);
-            }
           }
-          character.remove();
-          evt.deletedCharacters.push(deletedChar);
-        }
-        return res; //Pas besoin de faire le reste, car plus de perso
+          attr.remove();
+          let msgFin = messageFin({
+            charId
+          }, mEffet, efComplet, attrName);
+          if (options.print && mEffet) options.print(msgFin);
+          else {
+            sendChar(charId, msgFin, true);
+            options.print = function(m) {};
+          }
+          character = getObj('character', charId);
+          if (character) {
+            evt.deletedCharacters = evt.deletedCharacters || [];
+            let deletedChar = {
+              id: charId,
+              name: character.get('name'),
+              avatar: character.get('avatar'),
+              attributes: charAttributes.map(function(a) {
+                return a.id;
+              }),
+              abilities: charAbilities,
+              allies: []
+            };
+            // Retrait du perso de toutes les listes d'alliés
+            for (const [perso, alliesPerso] of Object.entries(alliesParPerso)) {
+              if (alliesPerso.has(charId)) {
+                deletedChar.allies.push(perso);
+                alliesPerso.delete(charId);
+              }
+            }
+            character.remove();
+            evt.deletedCharacters.push(deletedChar);
+          }
+          return res; //Pas besoin de faire le reste, car plus de perso
         }
       case 'formeDArbre':
         {
@@ -19099,13 +19075,13 @@ var COFantasy2 = COFantasy2 || function() {
     deleteAttribute(attr, evt);
     //Débloque les tokens si l'effet les immobilisait
     if (mEffet.lock) {
-        iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
-          let perso = {
-            token: token,
-            charId: charId
-          };
-          unlockToken(perso, evt);
-        });
+      iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
+        let perso = {
+          token: token,
+          charId: charId
+        };
+        unlockToken(perso, evt);
+      });
     }
     if (newInit.length > 0) placerDansTurnOrder(newInit, evt, true);
     return res;
@@ -19286,7 +19262,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
     }
     if (ef.message && ef.message.statusMarker) {
-        setPersoStatus(target, ef.message.statusMarker, true, evt);
+      setPersoStatus(target, ef.message.statusMarker, true, evt);
     }
     if (ef.valeur !== undefined) {
       setTokenAttr(target, ef.effet + 'Valeur', ef.valeur, evt, {
@@ -19736,9 +19712,9 @@ var COFantasy2 = COFantasy2 || function() {
         if (oldSide !== undefined)
           setTokenAttr(perso, effet + 'TokenSide', oldSide, evt);
       }
-    if (mEffet.statusMarker) {
+      if (mEffet.statusMarker) {
         setPersoStatus(perso, mEffet.statusMarker, true, evt);
-    }
+      }
       if (mEffet.lock) lockToken(perso, evt);
     } else { //on désactive
       let actMsg = messageFin(perso, mEffet, effet) + extraImg;
@@ -19806,9 +19782,9 @@ var COFantasy2 = COFantasy2 || function() {
           sendChar(perso.charId, '/w gm ' + m);
         });
       }
-    if (mEffet.statusMarker) {
+      if (mEffet.statusMarker) {
         setPersoStatus(perso, mEffet.statusMarker, true, evt);
-    }
+      }
       //Les effets secondaires
       if (mEffet.lock) lockToken(perso, evt);
     } else {
@@ -23749,7 +23725,9 @@ var COFantasy2 = COFantasy2 || function() {
             error("Attribut disparu dans saveEffetAvecRedo", args);
             return;
           }
-          let opt = {attrSave};
+          let opt = {
+            attrSave
+          };
           switch (typeEffet) {
             case 'temp':
             case 'combat':
@@ -25243,6 +25221,76 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  //------------------------------------------------ Les munitions --------------------------------
+
+  const munitionRegExpr = new RegExp(/^repeating_ammos_[^_]*_ammo-qte$/);
+
+  function recupererMunitions(attrs, evt) {
+    let msgAffiche = new Set();
+    attrs.forEach(function(a) {
+      const nom = a.get('name');
+      if (!munitionRegExpr.test(nom)) return;
+      const charId = a.get('characterid');
+      let m = parseInt(a.get('max'));
+      if (isNaN(m) || m < 0) {
+        error("Erreur dans les quantités de munitions", a);
+        a.remove();
+        return;
+      }
+      let n = parseInt(a.get('current'));
+      if (isNaN(n) || n < m) {
+        addAttributeToEvt(a, evt, n, m);
+        if (!msgAffiche.has(charId)) {
+          msgAffiche.add(charId);
+          whisperChar(charId, "récupère ses munitions");
+        }
+        a.set('current', m);
+      }
+    });
+  }
+
+  function listAllMunitions(perso) {
+    if (perso.munitions) return perso.munitions;
+    let rawList = extractRepeating(perso, 'ammos');
+    for (let pref in rawList) {
+      let ra = rawList[pref];
+      ra.labelmunition = pref; //Pour le moment, on va utiliser le prefix comme label
+      ra.prefixe = pref;
+    }
+    perso.munitions = rawList;
+    return rawList;
+  }
+
+  //Les options de l'arme doivent déjà être dans act
+  function demandeMunition(perso, weaponStats, options, act) {
+    if (act.includes('--munition')) return act;
+    let typeMunition;
+    if (weaponStats.arc) typeMunition = 'fleche';
+    else if (weaponStats.arbalete) typeMunition = 'carreau';
+    else if (weaponStats.poudre) typeMunition = 'balle';
+    else if (weaponStats.fronde) typeMunition = 'autre'; //TODO: ajouter le type bille sur la fiche
+    if (!typeMunition) return act;
+    let munitions = listAllMunitions(perso);
+    let munitionsDeType = [];
+    for (let label in munitions) {
+      let munition = munitions[label];
+      let tm = fieldAsString(munition, 'ammo-type', 'fleche');
+      if (tm == typeMunition) {
+        let nb = fieldAsInt(munition, 'ammo-qte', 1);
+        if (nb > 0) munitionsDeType.push(munition);
+      }
+    }
+    if (munitionsDeType.length === 0) return act;
+    let demande = ' ?{Munition|Normale,&amp;#32;';
+    munitionsDeType.forEach(function(m) {
+      demande += '|' +
+        fieldAsString(m, 'ammo-nom', typeMunition + ' ' + m.labelmunition) +
+        ', --munition ' + m.labelmunition;
+    });
+    return act + demande + '}';
+  }
+
+
   const couleurType = {
     'normal': {
       background: '#F1E6DA',
@@ -25853,7 +25901,9 @@ var COFantasy2 = COFantasy2 || function() {
             if (met.etat) {
               setState(perso, effetC, false, evt);
             } else {
-              finDEffetDeNom(perso, effetC, evt, {attrSave: attr});
+              finDEffetDeNom(perso, effetC, evt, {
+                attrSave: attr
+              });
             }
           }
         });
@@ -27381,7 +27431,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (combat.tour / 10 != Math.floor(combat.tour / 10)) {
       augmenterLeTempsEnMinutes(1, attrs, evt, combat.pageId);
     }
-    //recupererMunitions(attrs, evt); //TODO quand ce sera réglé sur la fiche
+    recupererMunitions(attrs, evt);
     recupererArmesDeJet(attrs, evt);
     let tokens = findObjs({ // Les tokens sur la page du combat
       _type: 'graphic',
@@ -27579,8 +27629,11 @@ var COFantasy2 = COFantasy2 || function() {
         let ms = mEffet.statusMarker;
         if (ms) {
           iterTokensOfAttribute(charId, combat.pageId, effet, attrName, function(token) {
-            let perso = {charId, token};
-          setPersoStatus(perso, ms, false, evt);
+            let perso = {
+              charId,
+              token
+            };
+            setPersoStatus(perso, ms, false, evt);
           });
         }
         if (effet == 'estGobePar') {
@@ -28914,8 +28967,8 @@ var COFantasy2 = COFantasy2 || function() {
             setState(target, 'apeure', false, evt);
           }
           if (bar1 <= 0) {
-  let fda = finDEffetDeNom(target, 'formeDArbre', evt);
-              if (fda) {
+            let fda = finDEffetDeNom(target, 'formeDArbre', evt);
+            if (fda) {
               if (fda.newToken) {
                 token = fda.newToken;
                 target.token = token;
@@ -31892,6 +31945,32 @@ var COFantasy2 = COFantasy2 || function() {
     options.deplaceDe = deplaceDe;
   }
 
+  function munitionOptions(ctx, cmd, options, state, optionString, pageId) {
+    if (options.munitions) {
+      error("Plusieurs options --munition. Seule la première est prise en compte", cmd);
+      return;
+    }
+    if (!options.acteur) {
+      error("Il manque le personnage actif pour l'utilisation de munitions", options);
+      return;
+    }
+    let attaquant = options.acteur;
+    if (cmd.length < 2) {
+      error("Pour les munitions, il faut préciser le label de la munition", cmd);
+      return;
+    }
+    let labelMunition = cmd[1];
+    let munitions = listAllMunitions(attaquant);
+    if (munitions[labelMunition]) {
+      options.munition = munitions[labelMunition];
+      let effetMunition = fieldAsString(options.munition, 'ammo-effet', '');
+      let optionsMunition = fieldAsString(options.munition, 'ammo-exteff', '');
+      if (optionsMunition.includes('--')) parseOptions(optionsMunition, pageId, options, state);
+      if (effetMunition)
+        addWeaponModToOptions(attaquant, effetMunition, options.playerId, pageId, options);
+    }
+  }
+
   const boolDefaultOption = {
     fn: booleanOption
   };
@@ -32034,6 +32113,9 @@ var COFantasy2 = COFantasy2 || function() {
       multiplicatif: true,
       default: 2,
     },
+    dm: {
+      fn: diceOption
+    },
     donneAction: stringDefaultOption,
     drain: {
       fn: dmgTypeOption
@@ -32157,6 +32239,9 @@ var COFantasy2 = COFantasy2 || function() {
     'multi-command': boolDefaultOption,
     modifiePortee: {
       fn: integerOption
+    },
+    munition: {
+      fn: munitionOptions,
     },
     nature: boolDefaultOption,
     naturel: {
@@ -32313,6 +32398,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: booleanOption,
       local: true,
     },
+    succes: stringDefaultOption,
     pressionMortelle: {
       fn: booleanOption,
       local: true,
@@ -32365,12 +32451,7 @@ var COFantasy2 = COFantasy2 || function() {
       min: 2,
       max: 20,
     },
-    dm: {
-      fn: diceOption
-    },
-    succes: stringDefaultOption,
   };
-  //TODO: munitions
 
   //Renseigne toujours options.playerId
   //state a forcément un champ scope, et peut avoir lastEtat et lastType
