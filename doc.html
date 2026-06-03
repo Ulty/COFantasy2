@@ -85,7 +85,10 @@ tr {line-height: 25px;}
                 <li><a class="text-info" href="#drakonide">Drakonide</a></li>
                 <li><a class="text-info" href="#elfe-des-profondeurs">Elfe des profondeurs</a></li>
                 <li><a class="text-info" href="#elfe-haut">Elfe haut</a></li>
+                <li><a class="text-info" href="#elfe-pale">Elfe pâle</a></li>
                 <li><a class="text-info" href="#elfe-sylvain">Elfe sylvain</a></li>
+                <li><a class="text-info" href="#felis">Félis</a></li>
+                <li><a class="text-info" href="#frouin">Frouïn</a></li>
                 <li><a class="text-info" href="#gnome">Gnome</a></li>
                 <li><a class="text-info" href="#gobelin">Gobelin</a></li>
                 <li><a class="text-info" href="#halfelin">Halfelin</a></li>
@@ -157,9 +160,9 @@ tr {line-height: 25px;}
             <h3 class="text-info" id="token_personnages">1.1 Tokens et personnages</h3>
             <div class="decalage">
             <p>Chaque token avec lequel vous souhaitez interagir doit représenter un personnage.</p>
-            <p>La barre 1 représente toujours les points de vie du token.<br />
+            <p>La barre 1 représente toujours les points de vie du personnage.<br />
             La barre 2 représente les points de mana.<br />
-            La barre 3 est utilisée pour donner un modificateur temporaire à l’attaque du token.<br />
+            La bulle 3 est utilisée pour donner un modificateur temporaire (numérique) à l’attaque du personnage. De plus, si cette bulle contient un <code>+</code> alors l'attaque se fait avec un dé bonus. Si elle se termine par un <code>-</code>, alors l'attaque se fait avec un dé malus.<br />
             La barre 4 est utilisée pour les dégâts temporaires (penser à activer son affichage). Elle est vide la plupart du temps, pour ne pas prendre trop de place.
             </p>
             <p>Il est possible de mettre automatiquement les bonnes valeurs sur le token par défaut en utilisant la commande <code>!cof2-link-token</code>. Cela peut se faireen sélectionnant un token sur la carte, mais il faut alors que le token représente la fiche, ou au moins qu'il ait le même nom. En utilisant <code>!cof2-link-token --selectChar @{<i>nom</i>|character_id}</code>, où <i>nom</i> est le nom de la fiche, on peut mettre tout à jour sans avir de token sur la carte : il suffit d'avoir mis une image de token sur la fiche. Il faut malgré tout que le script puisse utiliser l'image, c'est-à-dire que l'image doit être dans une bibliothèque personnelle, ça ne peut pas être une image directement prise du marketplace. Dans ce cas, il faut impérativement mettre le token sur la carte.</p>
@@ -334,7 +337,7 @@ tr {line-height: 25px;}
                 <p> En l'absence de label, on peut spécifier ces informations sous forme d'options d'attaque</p>
                 <div class="alert alert-success" role="alert">
                   <p>Exemple pour le sort "<i>Flèche enflammée</i>" :</p>
-                  <div class="decalage"><code>!cof2-attaque @{selected|token_id} @{target|token_id} Flèche de feu --toucher [[@{selected|atkmag}]] --dm 3d4e + [[@{selected|INT}]] --portee 30 --fx beam-fire --feu --sortilege --enflamme</code></div>
+                  <div class="decalage"><code>!cof2-attaque @{selected|token_id} @{target|token_id} Flèche de feu --toucher [[@{selected|atkmag}]] --dm 3d4e + [[@{selected|INT}]] --portee 30 --fx beam-fire --feu --sortilege --effet enflamme</code></div>
                 </div>
                 <p>Malus ou bonus temporaire à une attaque : utiliser la barre 3.</p>
                 <p>Toutes les attaques ayant une portée non nulles sont considérées par le script comme des attaques à distance.</p>
@@ -432,6 +435,7 @@ tr {line-height: 25px;}
                   <li><code>--sortilege</code> pour indiquer qu'il s'agit d'un sortilège, de façons à pouvoir appliquer tous les effets spécifiques aux sorts. Cette options devrait être passées pour toutes les capacités suivies d'une étoile dans le livre des règles. En particulier, tout sortilege ignore les malus d'obstacles. Pour les attaques qui n'utilisent pas une ligne d'attaque de la fiche, utilise l'attaque magique pour toucher par défaut.</li>
                   <li><code>--reroll1</code> : relance les 1 aux dés de dégats. À noter que cela ne concerne que les dés de base de l'attaque, pas les DM supplémentaire. </li>
                   <li><code>--explodeMax</code> : relance les valeurs maximum aux dés de DM de base, et rajoute le nouveau résultat (qui lui-même explose).</li>
+                  <li><code>--relanceSiMax</code> : relance les dés de DM une fois s'ils font le maximum.</li>
                   <li><code>--mana <i>n</i></code> : l'attaque coûte <i>n</i> points de mana. Si l'attaque provoque un effet temporaire, le script essaiera de le supprimer à la mort du lanceur (même avec un coût nul).</li>
                   <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette attaque à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof-effet-temp</code>). Par défaut, le nom de cette ressource est le label de l'attaque. On peut remplacer le nombre <i>n</i> par le nom d'un prédicat dont la valeur sera utilisée.</li>
                   <li><code>--limiteParCombat</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par combat.</li>
@@ -455,7 +459,6 @@ tr {line-height: 25px;}
                   <li><code>--difficultePV</code> : la difficulté du jet d'attaque est la valeur courante des PVs au lieu de la défense.</li>
                   <li><code>--difficulteCarac <i>carac</i></code> : la difficulté du jet d'attaque est une des caractéristiques de la cible (sous forme de code à 3 lettres, <code>FOR</code>, <code>DEX</code>, etc). Il est possible de prendre le meilleur de 2 caractéristiques en écrivant les 2 noms collés. Par exemple, pour viser le meilleur de l'intelligence et du charisme, on écrira <code>--difficuletCarac INTCHA</code>.</li>
                   <li><code>--affute</code> : augmente de 1 les chances de crit et +1d6 aux DM des crit.</li>
-                  <li><code>--enflamme</code> : enflamme la cible, lui infligeant 1d6 DM par tour. Les flammes s'éteindent sur un 1 ou 2. Si l'option <code>--puissant</code> est donnée en conjonction, les DM augmentent de 1.</li>
                   <li><code>--rate</code>, <code>--touche</code>, <code>--critique</code>, <code>--echecCritique</code>, <code>--pasDEchecCritique</code> : options pour tricher : le résultat des dés donne toujours le résultat voulu.</li>
                   <li><code>--ligne</code> : l'attaque porte sur toutes les cibles à portée, entre l'attaquant et le token ciblé. Si le token ciblé est plus proche que la portée de l'attaque, les tokens derrière le token ciblé sont aussi visés. Pour permettre de viser un point quelconque, on peut utiliser un personnage dédié avec un maximum de 0 pv. À chaque fois qu'un token représentant ce personnage est utilisé comme cible de <code>--ligne</code>, le token est enlevé de la carte.</li>
                   <li><code>--disque <i>r</i></code> : l'attaque porte sur toutes les cibles dans le disque de centre le token ciblé et de rayon <i>r</i>. Comme pour <code>--ligne</code>, on peut utiliser un token cible qui sera supprimé après l'attaque. À noter que l'attaquant lui-même peut prendre des dégâts, sauf si l'attaque a une portée nulle et que l'attaquant se cible lui-même (attaque centrée sur le lanceur). On peut donner en argument optionel le mot <code>souffleDeMort</code> pour ne valider l'attaque que si le centre du disque est un personnage mort depuis moins d'un tour et ne garder que les alliés de ce personnage de niveau inférieur ou égal.</li>
@@ -959,12 +962,24 @@ tr {line-height: 25px;}
                   <li><strong>Lumière intérieure :</strong> il y a une compétence de peuple <code>elfeHaut</code>. La partie vision comme de la pénombre sous un ciel étoilé doit être géré à la main par le MJ.</li>
                 </ol>
               </div>
+              <h3 class="text-info" id="elfe-pale">Elfe pâle</h3>
+              <div class="decalage">
+                Aucun support pour l'instant.
+              </div>
               <h3 class="text-info" id="elfe-sylvain">Elfe sylvain</h3>
               <div class="decalage">
                 <ol>
                   <li><strong>Lumière des étoiles :</strong> il y a une compétence de peuple <code>elfeSylvain</code>. La partie vision comme de la pénombre sous un ciel étoilé doit être géré à la main par le MJ.</li>
                   <li><strong>Enfant de la forêt :</strong> indiquer le nom de la capacité choisie en paramètre de la capacité.</li>
                 </ol>
+              </div>
+              <h3 class="text-info" id="felis">Félis</h3>
+              <div class="decalage">
+                Aucun support pour l'instant.
+              </div>
+              <h3 class="text-info" id="frouin">Frouïn</h3>
+              <div class="decalage">
+                Aucun support pour l'instant.
               </div>
               <h3 class="text-info" id="gnome">Gnome</h3>
               <div class="decalage">
@@ -1087,6 +1102,10 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="chevalier">Chevalier</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie du meneur d'hommes</h4>
+                <ol>
+                  <li><strong>Sans peur :</strong> ne pas oublier de définir les alliés du personnage pour la prise en compte du bonus aux jets contre la peur.</li>
+                </ol>
               </div>
                 <h3 class="text-info" id="druide">Druide</h3>
               <div class="decalage">
@@ -1141,6 +1160,7 @@ tr {line-height: 25px;}
                 <ol>
                   <li><strong>Armes de prédilection :</strong> ajouter en paramètre de la capacité la catégorie d'armes.</li>
                   <li><strong>Science du critique :</strong> tout est géré.</li>
+                  <li><strong>Spécialisation :</strong> pour l'instant, le script considère que c'est toujours la même arme qui est choisie à chaque rang 5. Si ça intéresse quelqu'un, j'ai un plan pour implémenter le choix d'arme, un jour.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la résistance</h4>
                 <ol>
@@ -1155,9 +1175,15 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="magicien">Magicien</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie des arcanes</h4>
+                <h4 class="text-secondary">Voie des arcanes exhumés</h4>
+                <h4 class="text-secondary">Voie des arcanes oubliés</h4>
+                <h4 class="text-secondary">Voie des arcanes perdus</h4>
                 <h4 class="text-secondary">Voie de la magie destructrice</h4>
                 <ol>
                   <li><strong>Arc de feu :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
+                  <li><strong>Saper les forces :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
+                  <li><strong>Flèche de feu :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la magie universelle</h4>
                 <ol>
@@ -1170,6 +1196,7 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="pretre">Prêtre</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie de la corruption</h4>
                 <h4 class="text-secondary">Voie de la foi</h4>
                 <ol>
                   <li><strong>Prédicateur :</strong> ajoute une compétence évolutive, mais le gain de PC n'est pas géré par le script.</li>
@@ -1234,6 +1261,7 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="sorcier">Sorcier</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie des arcanes osbcurs</h4>
               </div>
                 <h3 class="text-info" id="voleur">Voleur</h3>
               <div class="decalage">
@@ -1333,6 +1361,8 @@ tr {line-height: 25px;}
                   <li><strong>familierMage</strong> : un nom de familier. Quand le familier est visible du personnage, donne un bonus de +2 en initiative et en défense.</li>
                   <li><strong>hachesEtMarteaux</strong> : donne un bonus de +1 à l'attaque et aux DM avec une hache ou un marteau de guerre.</li>
                   <li><strong>insensibleALaDouleur</strong> : permet de faire encore une action A ou M après être mis à 0 PV.</li>
+                  <li><strong>intercepter</strong>: nombre de fois par tour que le personnage peut interpcepter une attaque.</li>
+                  <li><strong>intercepterRD</strong>: bonus à la RD quand le personnage intercepte une attaque.</li>
                   <li><strong>nomTestEvolutif_<i>nom</i></strong> : le nom à afficher pour bonus évolutif nommé <i>nom</i></li>
                   <li><strong>nomTestPeuple<i>nom</i></strong> : le nom à afficher pour bonus de peuple nommé <i>nom</i></li>
                   <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
@@ -1341,6 +1371,7 @@ tr {line-height: 25px;}
                   <li><strong>Prouesse</strong> : propose de relancer les jets de CON et FOR une fois par round, en échange de 1d4° PV.</li>
                   <li><strong>resistanceA_<i>type</i></strong> : divise par 2 les DM associés au type.</li>
                   <li><strong>resistanceALaMagieNaine</strong> : propose de résister une fois par jour à un sortilège.</li>
+                  <li><strong>sansPeur</strong>: immunise à la peur, et donne un bonus égal au CHA aux alliés pour résister à la peur.</li>
                   <li><strong>scienceDuCritique</strong> : augmente de 1 les chances de critique des armes de prédilection.</li>
                   <li><strong>teigneux</strong> : donne la possibilité d'attaquer quand un adversaire quitte le contact. Le mouvement de l'adversaire doit être contrôlé. C'est normalement toujours le cas pour les personnages contrôllés par les joueurs. Pour le MJ, il faut penser à utiliser les actions de mouvement</li>
                   <li><strong>tempsRecuperationRapide</strong> : le temps nécessaire à une récupération rapide</li>
