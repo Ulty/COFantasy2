@@ -1,4 +1,4 @@
-//Dernière modification : mer. 17 juin 2026,  05:29
+//Dernière modification : jeu. 18 juin 2026,  01:21
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13718,7 +13718,7 @@ var COFantasy2 = COFantasy2 || function() {
       picto,
       style
     } = pictoOfAttack(attackStats, opt);
-    if (options.typeAction && !opt.typeActon) act += ' --typeAction ' + options.typeAction;
+    if (options.typeAction && !opt.typeActon && !options.attaqueMultiple) act += ' --typeAction ' + options.typeAction;
     if (options.commande) {
       return {
         act,
@@ -14813,6 +14813,7 @@ var COFantasy2 = COFantasy2 || function() {
             text: nomCommande,
             typeAction: 'A',
           };
+          if (armePrincipale.attaqueMultiple) bopt.attaqueMultiple = true;
           //Si l'action est impossible, va simplement afficher le nom de l'arme
           ligneArmePrincipale = boutonAttaque(perso, labelArmePrincipale, bopt);
           if (bopt.actionImpossible) armeUtilisable = false;
@@ -21922,7 +21923,7 @@ var COFantasy2 = COFantasy2 || function() {
           error("Erreur interne du bouton de chance : roll sans token", cmd);
           return;
         }
-        perso = persoOfId(roll.token.id, roll.token.name, roll.token.pageId);
+        perso = persoOfId(roll.token.id);
         rollId = cmd[2];
         evt.rollId = rollId;
       }
@@ -26033,6 +26034,7 @@ var COFantasy2 = COFantasy2 || function() {
         let attMag = attaquePerso(perso, 'atkmag');
         if (attMag > weaponStats.attSkill) weaponStats.attSkill = attMag;
       }
+      weaponStats.attaqueMultiple = fieldAsInt(att, 'arme-multi', 0);
     } else {
       weaponStats.attSkill = fieldAsString(att, 'arme-atk', 'atkcac');
       weaponStats.attSkillDiv = fieldAsInt(att, 'arme-atkdiv', 0) + fieldAsInt(att, 'arme-buffatk', 0);
