@@ -1,4 +1,4 @@
-//Dernière modification : mer. 24 juin 2026,  01:22
+//Dernière modification : mer. 24 juin 2026,  01:25
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1059,7 +1059,8 @@ var COFantasy2 = COFantasy2 || function() {
   //Mise à jour de variables globales
   //C'est aussi là qu'on appelle la mise à jour des versions
   function initializeGlobalState() {
-    state.COFantasy = state.COFantasy || {
+    if (!state.COFantasy || !state.COFantasy.eventHistory) {
+    state.COFantasy = {
       combat: false,
       eventId: 0,
       version: scriptVersion,
@@ -1067,6 +1068,7 @@ var COFantasy2 = COFantasy2 || function() {
       murs: {},
       eventHistory: [],
     };
+    }
     let campaign = Campaign();
     if (campaign) {
       jumpgate = campaign.get('release') == 'jumpgate';
