@@ -1,4 +1,4 @@
-//Dernière modification : ven. 19 juin 2026,  04:49
+//Dernière modification : mer. 24 juin 2026,  01:13
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -31948,6 +31948,9 @@ var COFantasy2 = COFantasy2 || function() {
       fn: tricheOption
     },
     touteLaPage: {
+      fn: selectionOption
+    },
+    toutLeJeu: {
       fn: selectionOption
     },
     tranchant: boolDefaultOption,
