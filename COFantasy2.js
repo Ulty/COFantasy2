@@ -1,4 +1,4 @@
-//Dernière modification : mer. 24 juin 2026,  01:13
+//Dernière modification : mer. 24 juin 2026,  01:22
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -724,19 +724,8 @@ var COFantasy2 = COFantasy2 || function() {
         delete stateCOF.combat;
       }
     }
-    delete stateCOF.combat;
-    delete stateCOF.effetAuD20;
-    delete stateCOF.jetsEnCours;
-    delete stateCOF.currentAttackDisplay;
-    delete stateCOF.afterDisplay;
-    delete stateCOF.personnageCibleCree;
-    stateCOF.predicats = {};
-    stateCOF.eventId = 0;
-    stateCOF.version = scriptVersion;
-    stateCOF.eventHistory = [];
-    stateCOF.options = {};
-    stateCOF.murs = {};
-    initializeGlobalState();
+    delete state.COFantasy;
+    initializeGlobalState();//va réinitialiser state.COFantasy et stateCOF.
     log("stateCOf purgé");
     log(stateCOF);
     sendPlayer("État global de COFantasy2 purgé.", playerId);
