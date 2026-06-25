@@ -1,4 +1,4 @@
-//Dernière modification : mer. 24 juin 2026,  05:57
+//Dernière modification : jeu. 25 juin 2026,  05:38
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2069,10 +2069,11 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.max) {
       let gain = de + bonus;
       if ((options.milieuNaturel || stateCOF.milieu == 'naturel') && predicateAsBool(perso, 'bonusRecuperationMilieuNaturel')) {
-        let opt = {
+        let deArgs = {
+          dice: deEvolutif(perso),
           bonus: gain,
         };
-        recup = rollDePlus(deEvolutif(perso), opt);
+        recup = rollDePlus(deArgs);
       } else {
         recup = {
           val: gain,
@@ -2080,10 +2081,11 @@ var COFantasy2 = COFantasy2 || function() {
         };
       }
     } else {
-      let opt = {
+      let deArgs = {
+        dice: de,
         bonus
       };
-      recup = rollDePlus(de, opt);
+      recup = rollDePlus(deArgs);
     }
     soignePerso(perso, recup.val, evt,
       function(s) {
@@ -3430,7 +3432,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.sortilege) {
       let bonusSceptre = predicateAsInt(attaquant, 'sceptre');
       if (bonusSceptre) {
-      attBonus += bonusSceptre;
+        attBonus += bonusSceptre;
         messageAttaqueDM("Sort", explications, options, bonusSceptre);
       }
     }
@@ -5166,10 +5168,12 @@ var COFantasy2 = COFantasy2 || function() {
         let rendDecr; //attribute de rendement décroissant, si nécessaire
         let bonusDecr = 0;
         if (options.attaqueMagiqueOpposee) {
-          //TODO: améliorer l'affichage ?
-          let opt = deMalusBonusPerso(target, target.messages, options, true);
+          let deArgs = {
+            dice: 20
+          };
+          deMalusBonusPerso(target, target.messages, options, true, deArgs);
           let testIdOpp = 'attaqueMagiqueOpposee_' + target.token.id;
-          let r20def = addRollForRedo(() => rollDePlus(20, opt), testIdOpp, target, evt, options);
+          let r20def = addRollForRedo(() => rollDePlus(deArgs), testIdOpp, target, evt, options);
           let attSkillTarget = attaquePerso(target, 'atkmag');
           let optTarget = {
             pasDeDmg: true,
@@ -5203,10 +5207,12 @@ var COFantasy2 = COFantasy2 || function() {
             defenseTxt += ' +' + bonusDecr;
           }
         } else if (options.attaqueContactOpposee) {
-          //TODO: améliorer l'affichage ?
-          let opt = deMalusBonusPerso(target, target.messages, options, true);
           let testIdOpp = 'attaqueContactOpposee_' + target.token.id;
-          let r20def = addRollForRedo(() => rollDePlus(20, opt), testIdOpp, target, evt, options);
+          let deArgs = {
+            dice: 20
+          };
+          deMalusBonusPerso(target, target.messages, options, true, deArgs);
+          let r20def = addRollForRedo(() => rollDePlus(deArgs), testIdOpp, target, evt, options);
           let attSkillTarget = attaquePerso(target, 'atkcac');
           let optTarget = {
             pasDeDmg: true
@@ -5523,7 +5529,7 @@ var COFantasy2 = COFantasy2 || function() {
         target.critique = critique;
         target.attaqueCalculee = true;
         if (options.aoe === undefined && interchange.targets.length > 1) { //any target can be affected
-          let n = randomInteger(interchange.targets.length);
+          let n = rollDePlus(interchange.targets.length, "choix_interchangeables", evt).val;
           target.token = interchange.targets[n - 1];
         }
         if (target.touche) {
@@ -5784,7 +5790,7 @@ var COFantasy2 = COFantasy2 || function() {
         let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_' + attackLabel);
         effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
         let restant = weaponStats.nbArmesDeJet;
-        if (randomInteger(100) < weaponStats.tauxDePerte) {
+        if (rollDePlus(100, "perteArmeDeJet" + weaponStats.label, evt).val < weaponStats.tauxDePerte) {
           if (weaponStats.tauxDePerte < 100)
             explications.push(weaponName + " n'est pas récupérable");
           attr.set('max', max - 1);
@@ -5839,7 +5845,7 @@ var COFantasy2 = COFantasy2 || function() {
       munitions--;
       let perte = 0;
       let taux = fieldAsInt(m, 'ammo-taux', 100);
-      if (randomInteger(100) < taux) { //TODO: ajouter aux rolls, pour garder le même résultat en cas de chance.
+      if (rollDePlus(100, "perteMunition", evt) < taux) { //TODO: ajouter aux rolls, pour garder le même résultat en cas de chance.
         munitionsMax--;
         perte++;
       }
@@ -7472,13 +7478,6 @@ var COFantasy2 = COFantasy2 || function() {
             target.messages.push(attackerTokName + " bénéficie d'un bonus de +" + bonusDefi + " aux DMs contre " + nomPerso(target));
           }
         }
-        if (options.vicieux) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '2d6'
-          });
-          target.messages.push("Arme vicieuse => +2d6 DM");
-        }
         if (options.attaqueAssuree || options.echecTotal) {
           if (options.divise) options.divise *= 2;
           else options.divise = 2;
@@ -7872,27 +7871,6 @@ var COFantasy2 = COFantasy2 || function() {
                     } else {
                       target.dmgMessage += dmgDisplay;
                     }
-                    if (options.vicieux) {
-                      ciblesCount++;
-                      let dm = rollDePlus(6, {
-                        type: mainDmgType,
-                        nbDes: 1,
-                      });
-                      let r = {
-                        type: mainDmgType,
-                        display: dm.roll,
-                        total: dm.val
-                      };
-                      dealDamage(attaquant, r, [], evt, false, options,
-                        target.messages,
-                        function(dmgDisplay, dmg, dmgDrain) {
-                          let dmgMsg =
-                            "<b>" + attackerTokName + " subit :</b> " +
-                            dmgDisplay + " DM de l'arme vicieuse";
-                          target.messages.push(dmgMsg);
-                          finCibles();
-                        });
-                    }
                     if (options.contact) {
                       //Les DMs automatiques en cas de toucher une cible
                       if (attributeAsBool(target, 'sousTension')) {
@@ -8023,11 +8001,12 @@ var COFantasy2 = COFantasy2 || function() {
                       let typeCorpsElem = predicateAsBool(target, 'corpsElementaire');
                       if (typeCorpsElem && typeCorpsElem !== true) {
                         ciblesCount++;
-                        let nbDes = predicateAsInt(target, 'nbCorpsElementaire', 1);
-                        let dm = rollDePlus(6, {
+                        let de = {
+                          dice: 6,
+                          nbDe: predicateAsInt(target, 'nbCorpsElementaire', 1),
                           type: typeCorpsElem,
-                          nbDes
-                        });
+                        };
+                        let dm = rollDePlus(de);
                         let r = {
                           type: typeCorpsElem,
                           display: dm.roll,
@@ -8188,7 +8167,8 @@ var COFantasy2 = COFantasy2 || function() {
                       target.touche++;
                       if (target.percute) {
                         target.messages.push(nomPerso(target) + " est projeté à " +
-                          rollDePlus(6, {
+                          rollDePlus({
+                            dice: 6,
                             bonus: 1
                           }).roll + " mètres");
                         effets = effets || [];
@@ -11193,6 +11173,28 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function decrementeAttribut(perso, decrAttribute, evt, options) {
+    let da = decrAttribute;
+    let attr = getObj('attribute', da.id);
+    if (attr === undefined) {
+      error("Attribut introuvable", da.id);
+      return true;
+    }
+    let oldval = parseInt(attr.get('current'));
+    if (isNaN(oldval) || oldval < da.val) {
+      if (!options.testeRessources) {
+        let expliquer = sendChar;
+        if (options.secret) expliquer = whisperChar;
+        expliquer(attr.get('characterid'), "ne peut plus faire cela", true);
+      }
+      return true;
+    }
+    if (!options.testeRessources) {
+      addAttributeToEvt(attr, evt, oldval, attr.get('max'));
+      attr.set('current', oldval - da.val);
+    }
+  }
+
   //Retourne true si il existe une limite qui empêche de faire l'action
   //N'ajoute pas l'événement à l'historique
   //perso et explications sont optionnels
@@ -11283,6 +11285,81 @@ var COFantasy2 = COFantasy2 || function() {
       options.typeAction = 'M';
       //TODO: regarder si le personnage a une action L et une main libre, ou bien la potion en main
     }
+    if (perso && options.parchemin) {
+      if (combat && !options.typeAction) {
+        if (!typeActionPossible(perso, 'L')) {
+          if (!options.testeRessources) {
+            sendPerso(perso, "ne peut plus utiliser de parchemin pendant ce tour");
+          }
+          return true;
+        }
+        options.typeAction = 'L';
+      }
+      if (!options.testeRessources) {
+        let infos = getInfos(perso);
+        let profilP = options.parchemin.profil;
+        let diffTest;
+        if (infos.rangSortMax[profilP]) {
+          if (infos.rangSortMax[profilP] < options.parchemin.rang) diffTest = options.parchemin.rang;
+        } else {
+          let familleP = familleParProfil[profilP];
+          if (famillePerso(perso) == familleP) diffTest = options.parchemin.rang + 1;
+          else {
+            for (let profil in infos.rangSortMax) {
+              if (familleParProfil[profil] == familleP) {
+                diffTest = options.parchemin.rang + 1;
+                break;
+              }
+            }
+            //Impossible de lire le parchemin
+            expliquerPerso(perso, "ne peut pas lire ce parchemin");
+            return true;
+          }
+        }
+        if (diffTest) {
+          diffTest = diffTest * 5;
+          //Il faut faire un jet d'attaque magique
+          expliquerPerso(perso, "Jet d'attaque magique difficulté " + diffTest + " pour utiliser le parchemin");
+          let bonus = attaquePerso(perso, 'atkmag');
+          let deArgs = {
+            dice: 20,
+            bonus
+          };
+          deMalusBonusPerso(perso, explications, {}, false, deArgs);
+          let rollId = defResource+"parchemin";
+          let roll = rollDePlus(deArgs, rollId, evt);
+          if (options.chanceRollId && options.chanceRollId[rollId]) {
+            roll = {... roll};
+            roll.val += 10;
+            roll.roll += '+ 10';
+          }
+          if (roll.val - bonus == 1 || roll.val < diffTest) {
+            expliquerPerso(perso, roll.roll + " => échec !"); //TODO: proposer d'utliser la chance
+            //L'action est dépensée
+            if (combat) {
+              depenseAction(perso, options.typeAction, combat, evt);
+              if (isActiveTurnPerso(perso)) {
+                finDeplacementControle(perso, evt);
+              }
+            }
+            if (roll.val + 10 <= diffTest && options.decrAttribute) {
+              expliquerPerso(perso, "le parchemin devient inutilisable");
+              //Alors le parchemin est détruit
+              decrementeAttribut(perso, options.decrAttribute, evt, options);
+            }
+        if ((!options.chanceRollId || !options.chanceRollId[rollId]) && roll.val + 20 > diffTest) {
+          let pc = pointsDeChance(perso);
+          if (pc > 0) {
+            expliquerPerso(perso, boutonChance(perso, rollId, evt) + " (reste " + pc + " PC)");
+          }
+        }
+            return true;
+          } else {
+            expliquerPerso(perso, roll.roll + " => réussi");
+          }
+        }
+      }
+    }
     depMana = testLimitePar(perso, 'Jour', options, depMana, defResource, msg, evt, explications);
     if (!depMana) return true;
     depMana = testLimitePar(perso, 'Combat', options, depMana, defResource, msg, evt, explications);
@@ -11323,25 +11400,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (options.decrAttribute) {
-      let da = options.decrAttribute;
-      let attr = getObj('attribute', da.id);
-      if (attr === undefined) {
-        error("Attribut introuvable", da.id);
-        return true;
-      }
-      let oldval = parseInt(attr.get('current'));
-      if (isNaN(oldval) || oldval < da.val) {
-        if (!options.testeRessources) {
-          let expliquer = sendChar;
-          if (options.secret) expliquer = whisperChar;
-          expliquer(attr.get('characterid'), "ne peut plus faire cela", true);
-        }
-        return true;
-      }
-      if (!options.testeRessources) {
-        addAttributeToEvt(attr, evt, oldval, attr.get('max'));
-        attr.set('current', oldval - da.val);
-      }
+      if (decrementeAttribut(perso, options.decrAttribute, evt, options)) return true;
     }
     if (options.decrLimitePredicatParTour) {
       let pred = options.decrLimitePredicatParTour;
@@ -11682,6 +11741,41 @@ var COFantasy2 = COFantasy2 || function() {
     humain: ['diversite', 'instinct de survie', 'touche-a-tout', 'loup parmi les loups', 'polyvalence'],
     nain: ['habitant des tunnels', 'haches et marteaux', 'resistance a la magie nain', 'fils du roc', 'tenacite']
   };
+
+  const familleParProfil = {
+    'arquebusier': 'aventurier',
+    'barde': 'aventurier',
+    'caravanier': 'aventurier',
+    'rodeur': 'aventurier',
+    'voleur': 'aventurier',
+    'barbare': 'combattant',
+    'chevalier': 'combattant',
+    'guerrier': 'combattant',
+    'parangon': 'combattant',
+    'ensorceleur': 'mage',
+    'forgesort': 'mage',
+    'magicien': 'mage',
+    'primaliste': 'mage',
+    'sorcier': 'mage',
+    'chamane': 'mystique',
+    'druide': 'mystique',
+    'pretre': 'mystique',
+    'moine': 'mystique',
+  };
+
+  function famillePerso(perso) {
+    switch (ficheAttribute(perso, 'famille', '')) {
+      case 'Aventuriers':
+        return 'aventurier';
+      case 'Combattants':
+        return 'combattant';
+      case 'Mages':
+        return 'mage';
+      case 'Mystiques':
+        return 'mystique';
+    }
+    return familleParProfil[removeAccents(ficheAttribute(perso, 'profil', '').toLowerCase())];
+  }
 
   const descriptionBonus = {
     Evolutif: {
@@ -12118,7 +12212,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         horsCombat: true,
         type: 'M',
-        mana:2,
+        mana: 2,
         cmd: "!cof2-effet levitation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
       },
     },
@@ -12128,7 +12222,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         horsCombat: true,
         type: 'A',
-        mana:3,
+        mana: 3,
         cmd: "!cof2-effet formeGazeuse true --dureeEnMinutes 1 --select @{selected|token_id}"
       },
     },
@@ -12826,12 +12920,13 @@ var COFantasy2 = COFantasy2 || function() {
     addPredicatesTo(capacites, preds);
   }
 
-  function predicatsDeVoie(perso, numVoie, capacites, rangsParProfil, armesMaitrisees, actions, plusParVoieDeRang, buffs) {
+  function predicatsDeVoie(perso, numVoie, capacites, rangsParProfil, rangSortMax, armesMaitrisees, actions, plusParVoieDeRang, buffs) {
     //voie1nom: le nom de la voie
     //voie1-t1: le nom de la capacité
     //voie1r1_param: paramètre de capacité (préciser autre capa, etc)
     //voie1r1_props: propriétés. La fiche a déjà initial et doublon
     //v1r1: est-ce que la capacité est prise
+    //v1r1_spell: est-ce qu'on a un sort
     let v = 'v' + numVoie;
     let voie = 'voie' + numVoie;
     let profil = ficheAttribute(perso, v + 'profil', '');
@@ -12867,7 +12962,14 @@ var COFantasy2 = COFantasy2 || function() {
     for (let rang = 1; rang < 6; rang++) { //rang sur la fiche
       let def = (numVoie < 4) && rang == 1;
       if (!ficheAttributeAsBool(perso, v + 'r' + rang, def)) break;
-      if (profil) rangsParProfil[profil][rang]++;
+      if (profil) {
+        rangsParProfil[profil][rang]++;
+        if (ficheAttributeAsBool(perso, v + 'r' + rang + '_spell', false)) {
+          if (!rangSortMax[profil] || rangSortMax[profil] < rang) {
+            rangSortMax[profil] = rang;
+          }
+        }
+      }
       let propsRaw = ficheAttribute(perso, voie + 'r' + rang + '_props', '');
       let props = predicateOfRaw(propsRaw);
       let capaAuto = true;
@@ -12943,6 +13045,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (armes) armesMaitrisees = predicateOfRaw(armes);
       let actions = [];
       let rangsParProfil = {};
+      let rangSortMax = {}; //pour chaque profil, le rang de sort maximum maîtrisé
       let plusParVoieDeRang = []; //Les bonus par nombre de voies d'un certain rang
       let buffsRaw = extractRepeating(perso, 'buffs'); //Les buffs sur la fiche
       //On extrait les buffs provenant du script (nom commance par [S]
@@ -12958,7 +13061,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       for (let numVoie = 1; numVoie < 10; numVoie++) {
-        predicatsDeVoie(perso, numVoie, capacites, rangsParProfil, armesMaitrisees, actions, plusParVoieDeRang, buffs);
+        predicatsDeVoie(perso, numVoie, capacites, rangsParProfil, rangSortMax, armesMaitrisees, actions, plusParVoieDeRang, buffs);
       }
       //on supprime les buffs qui restent, ils ne correspondent plus à des capacités
       for (const nom in buffs) {
@@ -12987,7 +13090,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (!rpp) return;
         let bonus = toInt(rpp[ppvdr.rang], 0);
         if (bonus) {
-          if (ppvdr.max){
+          if (ppvdr.max) {
             let m = selectedToValue(ppvdr.max, 'selected', perso);
             if (!isNaN(m) && bonus > m) bonus = m;
           }
@@ -12997,6 +13100,7 @@ var COFantasy2 = COFantasy2 || function() {
       predicates.capacites = capacites;
       infos.armesMaitrisees = armesMaitrisees;
       infos.actions = actions;
+      infos.rangSortMax = rangSortMax;
       infos.rangsParProfil = rangsParProfil;
     }
     //Ensuite les objets équipés
@@ -14656,9 +14760,9 @@ var COFantasy2 = COFantasy2 || function() {
     if (getState(perso, 'essouffle') || getState(perso, 'invalide')) vitesse = vitesse / 2;
     if (attributeAsBool(perso, 'formeGazeuse')) vitesse = vitesse / 2;
     else {
-    if (attributeAsBool(perso, 'foretVivanteEnnemie')) vitesse = vitesse / 2;
-    if (attributeAsBool(perso, 'enTerrainDifficile') && !predicateAsBool(perso, 'ignoreTerrainsDifficiles'))
-      vitesse = vitesse / 2;
+      if (attributeAsBool(perso, 'foretVivanteEnnemie')) vitesse = vitesse / 2;
+      if (attributeAsBool(perso, 'enTerrainDifficile') && !predicateAsBool(perso, 'ignoreTerrainsDifficiles'))
+        vitesse = vitesse / 2;
     }
     return vitesse;
   }
@@ -16666,12 +16770,12 @@ var COFantasy2 = COFantasy2 || function() {
                       whisperChar(p.charId, "ne réussit pas à siphoner l'âme de " + token.get('name') + " un autre pouvoir l'a siphonée avant lui");
                       return true;
                     }
-                    let bonus = predicateAsInt(p, 'siphonDesAmes', 0);
-                    let nbDes = 1 + Math.floor(pvMax / 60);
-                    let soin = rollDePlus(6, {
-                      bonus,
-                      nbDes
-                    });
+                    let de = {
+                      dice: 6,
+                      bonus: predicateAsInt(p, 'siphonDesAmes', 0),
+                      nbDe: 1 + Math.floor(pvMax / 60),
+                    };
+                    let soin = rollDePlus(de);
                     let soinTotal = soin.val;
                     //Le montant total des soins ne peut excéder les pv max du personnage qui vient de mourrir.
                     let display = true;
@@ -19230,7 +19334,7 @@ var COFantasy2 = COFantasy2 || function() {
       predicateAsBool(perso, 'controleSanguin');
   }
 
-  function expliquerPerso(perso, msg, options) {
+  function expliquerPerso(perso, msg, options={}) {
     if (perso.messages) {
       perso.messages.push(nomPerso(perso) + ' ' + msg);
     } else {
@@ -21884,6 +21988,7 @@ var COFantasy2 = COFantasy2 || function() {
     setFicheAttr(perso, 'pc', chance, evtChance, {
       msg: " a dépensé un point de chance. Il lui en reste " + chance
     });
+    //TODO: noter la chance directement dans le roll
     args.options = args.options || {};
     args.options.chanceRollId = args.options.chanceRollId || {};
     args.options.chanceRollId[rollId] = (args.options.chanceRollId[rollId] + 10) || 10;
@@ -22661,8 +22766,10 @@ var COFantasy2 = COFantasy2 || function() {
   //calcul du total de dés malus et bonus
   // -> retourne une structure avec deBonus et deMalus, qui sont des nombres
   // Si estCible, on considere que perso est la cible des options
-  function deMalusBonusPerso(perso, explications, options = {}, estCible = false) {
-    let deMalus = 0;
+  // Si un dernier argument res est donné, le résultat y est écrit
+  function deMalusBonusPerso(perso, explications, options = {}, estCible = false, res = {}) {
+    let deMalus = res.deMalus || 0;
+    let deBonus = res.deBonus || 0;
     if (perso) {
       if (estAffaibli(perso)) {
         deMalus++;
@@ -22677,15 +22784,13 @@ var COFantasy2 = COFantasy2 || function() {
         deMalus++;
       }
     }
-    let deBonus = 0;
     if (estCible && options.controleMental && predicateAsBool(perso, 'vetementsSacres') && ficheAttributeAsInt(perso, 'armure_eqp', 0) === 0) {
       deBonus++;
       explications.push("Vêtements sacrés => dé bonus pour résister au controle mental");
     }
-    return {
-      deMalus,
-      deBonus
-    };
+    res.deMalus = deMalus;
+    res.deBonus = deBonus;
+    return res;
   }
 
   //Calcul de l'expression pour un dé de test (donc d20)
@@ -23814,13 +23919,14 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     let display;
-    let opt = {
+    let deArgs = {
+      dice: 6,
       deExplosif: true
-    };
+    }; //le bonus sera écrit pour chaque perso
     let tousLesJets = [];
     iterSelected(selected, function(perso) {
-      opt.bonus = ficheAttributeAsInt(perso, 'pc', 0);
-      let jet = rollDePlus(6, opt);
+      deArgs.bonus = ficheAttributeAsInt(perso, 'pc', 0);
+      let jet = rollDePlus(deArgs);
       if (!display) {
         if (selected.length < 2) {
           display = startFramedDisplay(playerId, "Jet de chance", perso, options);
@@ -25034,97 +25140,106 @@ var COFantasy2 = COFantasy2 || function() {
     },
   };
 
-  // options: bonus:int, deExplosif:bool, relanceSiMax:bool, nbDes:int, type, maxResult, deMalus:int, deBonus: int
-  //      resultatDesSeuls (rempli par la fonction si true)
-  //Renvoie 1dk + bonus, avec le texte
-  //champs val et roll
-  //de peut être un nombre > 0 ou bien le résultat de parseDice (avec les champs dice, nbDe et bonus)
-  function rollDePlus(de, options = {}) {
-    let nbDes = options.nbDes || 1;
-    let bonus = options.bonus || 0;
-    if (de.dice !== undefined) {
-      nbDes = options.nbDes || de.nbDe;
-      bonus = options.bonus || de.bonus || 0;
-      if (!nbDes) {
-        return {
-          val: bonus,
-          roll: '' + bonus
-        };
-      }
-      de = de.dice;
-    }
-    let count = nbDes;
-    let explose = options.deExplosif || options.relanceSiMax || false;
-    let maxExplosions = 100;
-    if (!options.deExplosif) maxExplosions = 1;
-    let nbExplosions = 0;
-    let texteJetDeTotal = '';
-    let jetTotal = 0;
-    let deBonus = 0; //Positif: dés bonus, négatif: dé malus
-    if (options.deBonus === true) {
-      if (!options.deMalus) deBonus = 1;
-    } else if (options.deMalus === true) {
-      if (!options.deBonus) deBonus = -1;
-    } else if (options.deBonus || options.deMalus) {
-      deBonus = options.deBonus || 0;
-      if (options.deMalus) deBonus -= options.deMalus;
-    }
-    do {
-      let jetDe = randomInteger(de);
-      let textJet = jetDe;
-      if (options.maxResult) {
-        jetDe = de;
-        textJet = de;
-      } else if (deBonus) {
-        textJet = '(' + textJet;
-        do {
-          let jetDe2 = randomInteger(de);
-          textJet += ',' + jetDe2;
-          if ((deBonus > 0 && jetDe2 > jetDe) || (deBonus < 0 && jetDe2 < jetDe)) {
-            jetDe = jetDe2;
-          }
-          if (deBonus > 0) deBonus--;
-          else deBonus++;
-        } while (deBonus);
-        textJet += ')';
-      }
-      texteJetDeTotal += textJet;
-      jetTotal += jetDe;
-      explose = explose && (jetDe === de) && nbExplosions < maxExplosions;
-      if (explose) {
-        texteJetDeTotal += ',';
-        nbExplosions++;
-      } else {
-        count--;
-        if (count > 0) {
-          texteJetDeTotal += ',';
+  //Renvoie
+  //  val: entier, 1dk + bonus
+  //  roll: un texte à afficher, de la bonne couleur, et avec tooltip
+  //args peut être un nombre > 0 (le nombre de faces) ou bien un objet compatible avec le résultat de parseDice:
+  //    nbDe (1 par défaut)
+  //    dice: nombre de faces, argument obligatoire
+  //    bonus
+  //    id
+  //    type (le type de dmg, pour la couleur du jet)
+  //    relanceSiMax,    deExplosif,    maxResult
+  //    deMalus: entier, deBonus: entier
+  function rollDePlus(args, rollId, evt) {
+    let rolls;
+    //On regarde si on refait evt, auquel cas il faut utiliser le jet précédent
+    if (evt) {
+      rollId = rollId || args.id;
+      if (rollId) {
+        let argsEvt = getEvtArgs(evt);
+        if (argsEvt) {
+          rolls = argsEvt.rolls;
+          let roll = rolls[rollId];
+          if (roll) return roll;
         }
       }
-    } while (explose || count > 0);
-    if (options.resultatDesSeuls) options.resultatDesSeuls = jetTotal;
+    }
+    if (args.dice === undefined) args = {
+      dice: args
+    };
+    const {
+      nbDe = 1, bonus = 0, type = 'normal', dice: de
+    } = args;
+    let texteJetDeTotal = '';
+    let jetTotal = 0;
+    if (nbDe > 0) {
+      let count = nbDe;
+      let explose = args.deExplosif || args.relanceSiMax || false;
+      let maxExplosions = 100;
+      if (!args.deExplosif) maxExplosions = 1;
+      let nbExplosions = 0;
+      let deBonus = args.deBonus || 0; //Positif: dés bonus, négatif: dé malus
+      if (args.deMalus) deBonus -= args.deMalus;
+      do {
+        let jetDe = randomInteger(de);
+        let textJet = jetDe;
+        if (args.maxResult) {
+          jetDe = de;
+          textJet = de;
+        } else if (deBonus) {
+          textJet = '(' + textJet;
+          do {
+            let jetDe2 = randomInteger(de);
+            textJet += ',' + jetDe2;
+            if ((deBonus > 0 && jetDe2 > jetDe) || (deBonus < 0 && jetDe2 < jetDe)) {
+              jetDe = jetDe2;
+            }
+            if (deBonus > 0) deBonus--;
+            else deBonus++;
+          } while (deBonus);
+          textJet += ')';
+        }
+        texteJetDeTotal += textJet;
+        jetTotal += jetDe;
+        explose = explose && (jetDe === de) && nbExplosions < maxExplosions;
+        if (explose) {
+          texteJetDeTotal += ',';
+          nbExplosions++;
+        } else {
+          count--;
+          if (count > 0) {
+            texteJetDeTotal += ',';
+          }
+        }
+      } while (explose || count > 0);
+    }
     let res = {
       val: jetTotal + bonus
     };
     let style = 'display: inline-block; border-radius: 5px; padding: 0 4px;';
-    let type = options.type || 'normal';
     let couleurs = couleurType[type];
     if (couleurs === undefined) couleurs = couleurType.normal;
     style += ' background-color: ' + couleurs.background + ';';
     style += ' color: ' + couleurs.color + ';';
     let msg = '<span style="' + style + '"';
-    msg += ' title="' + nbDes + 'd' + de;
-    if (options.deExplosif) msg += '!';
-    else if (options.relanceSiMax) msg += '!'; //Il n'y a pas de vrai syntaxe roll20 pour ça.
-    if (bonus > 0) {
-      msg += '+' + bonus;
-      texteJetDeTotal += '+' + bonus;
-    } else if (bonus < 0) {
-      msg += bonus;
-      texteJetDeTotal += bonus;
+    if (nbDe > 0) {
+      msg += ' title="';
+      msg += nbDe + 'd' + de;
+      if (args.deExplosif) msg += '!';
+      else if (args.relanceSiMax) msg += '!'; //Il n'y a pas de vrai syntaxe roll20 pour ça.
+      if (bonus > 0) {
+        msg += '+' + bonus;
+        texteJetDeTotal += '+' + bonus;
+      } else if (bonus < 0) {
+        msg += bonus;
+        texteJetDeTotal += bonus;
+      }
+      msg += ' = ' + texteJetDeTotal + '" class="a inlinerollresult showtip tipsy-n">';
     }
-    msg += ' = ' + texteJetDeTotal + '" class="a inlinerollresult showtip tipsy-n">';
     msg += res.val + "</span>";
     res.roll = msg;
+    if (rolls) rolls[rollId] = res;
     return res;
   }
 
@@ -25220,7 +25335,7 @@ var COFantasy2 = COFantasy2 || function() {
       _type: 'attribute'
     });
     options.tempsQuiPasse = true;
-    diminuerTempsEffetsIndetermines(duree * 10, attrs, evt);//On stoque les durées en dixième de minutes dans les effets indéterminés
+    diminuerTempsEffetsIndetermines(duree * 10, attrs, evt); //On stoque les durées en dixième de minutes dans les effets indéterminés
     //Soigner les DM temporaires
     let tokens = findObjs({
       _type: 'graphic',
@@ -25343,15 +25458,15 @@ var COFantasy2 = COFantasy2 || function() {
         selected.push(perso);
       }
       if (attributeAsBool(perso, 'enflamme')) {
-        let optFlammes = {
-          resultatDesSeuls: true,
+        let deFlammes = {
+          dice: 6,
           type: 'feu',
         };
         let {
           val,
           roll
-        } = rollDePlus(6, optFlammes);
-        let d6Enflamme = optFlammes.resultatDesSeuls;
+        } = rollDePlus(deFlammes, "flammes" + perso.token.id, evt);
+        let d6Enflamme = val;
         let dmgEnflamme = {
           type: 'feu',
           total: val,
@@ -25374,9 +25489,11 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       if (attributeAsBool(perso, 'estGobePar') && !getState(perso, 'mort')) {
-        let jet = rollDePlus(6, {
-          nbDes: 3
-        });
+        let de = {
+          dice: 6,
+          nbDe: 3
+        };
+        let jet = rollDePlus(de, "gobe" + perso.token.id, evt);
         let dmg = {
           type: 'normal', //correspond à de l'asphyxie
           total: jet.val,
@@ -25390,10 +25507,11 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (attributeAsBool(perso, 'blessureQuiSaigne') &&
         !getState(perso, 'mort') && !immuniseAuxSaignements(perso)) {
-        let bonus = getIntValeurOfEffet(perso, 'blessureQuiSaigne', 0);
-        let jetSaignement = rollDePlus(6, {
-          bonus
-        });
+        let de = {
+          dice: 6,
+          bonus: getIntValeurOfEffet(perso, 'blessureQuiSaigne', 0),
+        };
+        let jetSaignement = rollDePlus(de, "saignement" + perso.token.id, evt);
         let dmgSaignement = {
           type: 'normal',
           total: jetSaignement.val,
@@ -27587,10 +27705,12 @@ var COFantasy2 = COFantasy2 || function() {
     return false;
   }
 
-  function ajouteDe6Crit(x, first, max) {
-    let bonusCrit = rollDePlus(6, {
+  function ajouteDeEvolCrit(x, attaquant, rollId, evt, first, max) {
+    let de = {
+      dice: deEvolutif(attaquant),
       maxResult: max
-    });
+    };
+    let bonusCrit = rollDePlus(de, rollId, evt);
     if (first) x.dmgDisplay = "(" + x.dmgDisplay + ")";
     x.dmgDisplay += '+' + bonusCrit.roll;
     x.dmgTotal += bonusCrit.val;
@@ -27611,7 +27731,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if ((!options.spectral && attributeAsBool(target, 'intangible') && attributeAsInt(target, 'intangibleValeur', 1)) ||
       (!options.magique && !options.sortilege && attributeAsBool(target, 'formeGazeuse'))
-      ) {
+    ) {
       expliquer("L'attaque passe à travers de " + nomPerso(target));
       if (displayRes) displayRes('0', 0, 0);
       return 0;
@@ -27654,9 +27774,11 @@ var COFantasy2 = COFantasy2 || function() {
         expliquer("L'anneau de protection de " + nomPerso(target) + " le protège du critique");
       } else {
         if (options.sortilege && options.attaquant) {
-          let rollDmgCrit = rollDePlus(deEvolutif(options.attaquant), {
-            type: dmg.type
-          });
+          let de = {
+            dice: deEvolutif(options.attaquant),
+            type: dmg.type,
+          };
+          let rollDmgCrit = rollDePlus(de, "DegatsDesSortsCritiques", evt);
           let dmgCrit = {
             type: dmg.type,
             total: rollDmgCrit.val,
@@ -27705,15 +27827,9 @@ var COFantasy2 = COFantasy2 || function() {
         dmgDisplay,
         dmgTotal
       };
-      if (options.affute) {
-        ajouteDe6Crit(x, firstBonusCritique);
+      if (options.attanquant && options.affute) {
+        ajouteDeEvolCrit(x, options.attaquant, "affute", evt, firstBonusCritique);
         firstBonusCritique = false;
-      }
-      if (options.tirFatal) {
-        ajouteDe6Crit(x, firstBonusCritique);
-        if (options.tirFatal > 1) {
-          ajouteDe6Crit(x, false);
-        }
       }
       if (target.additionalCritDmg) {
         target.additionalCritDmg.forEach(function(dmSpec) {
@@ -28592,7 +28708,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (crit) { //Vulnérabilité aux critiues
             let vulnerableCritique = predicateAsInt(target, 'vulnerableCritique', 0);
             if (vulnerableCritique > 0) {
-              if (randomInteger(100) <= vulnerableCritique) {
+              if (rollDePlus(100, 'vulnerableCritique' + target.token.id, evt).val <= vulnerableCritique) {
                 expliquer("Le coup critique le fait voler en éclats");
                 if (bar1 > 0) {
                   dmgTotal += bar1;
@@ -29836,6 +29952,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (stateCOF.options.affichage.val.duree_effets.val || playerIsGM(playerId)) {
             let duree = parseInt(attr.get('max'));
             if (!isNaN(duree) && duree > 0) {
+              duree = Math.ceil(duree/10);
               explEffetMsg += " (reste " + duree + "')";
             }
           }
@@ -31210,6 +31327,23 @@ var COFantasy2 = COFantasy2 || function() {
     scope.effets[0].options = ' --' + cmd.slice(1).join(' ') + scope.effets[0].options;
   }
 
+  function parcheminOption(ctx, cmd, options, state, optionString, pageId) {
+    if (cmd.length < 3) {
+      if (!options.noError) error("Il manque des arguments pour --parchemin rang profil", cmd);
+      return;
+    }
+    let rang = parseInt(cmd[1]);
+    if (isNaN(rang) || rang < 0) {
+      if (!options.noError) error("Le rang du sort de parchemin doit être un nombre positif", cmd);
+      rang = 0;
+    }
+    let profil = removeAccents(cmd.slice(2).join(' ').trim().toLowerCase());
+    options.parchemin = {
+      rang,
+      profil
+    };
+  }
+
   function etatOption(ctx, cmd, options, state, optionString, pageId) {
     if (cmd.length < 3 && cmd[0] == 'etatSi') {
       if (!options.noError)
@@ -31714,6 +31848,11 @@ var COFantasy2 = COFantasy2 || function() {
     },
     contondant: boolDefaultOption,
     controleMental: boolDefaultOption,
+    crit: {
+      fn: integerOption,
+      min: 2,
+      max: 20,
+    },
     critique: {
       fn: tricheOption
     },
@@ -31877,6 +32016,9 @@ var COFantasy2 = COFantasy2 || function() {
     },
     optionEffet: {
       fn: effetOptionOption
+    },
+    parchemin: {
+      fn: parcheminOption
     },
     pasDEchecCritique: {
       fn: tricheOption
@@ -32075,11 +32217,6 @@ var COFantasy2 = COFantasy2 || function() {
     special: stringDefaultOption,
     toucher: {
       fn: integerOption
-    },
-    crit: {
-      fn: integerOption,
-      min: 2,
-      max: 20,
     },
   };
 
@@ -33677,21 +33814,21 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Retourne l'info s'il y en a
   function deletePredicatsCache(attr, champ) {
-      let infos = infosFiche[attr.get('characterid')];
-      if (!infos) return;
-      let predicats = infos.predicats;
-      if (predicats) {
-        delete predicats.total;
-        delete predicats.mooks;
-        delete predicats[champ];
-      }
+    let infos = infosFiche[attr.get('characterid')];
+    if (!infos) return;
+    let predicats = infos.predicats;
+    if (predicats) {
+      delete predicats.total;
+      delete predicats.mooks;
+      delete predicats[champ];
+    }
     return infos;
   }
 
   function deletePredicatsCapaciteCache(attr) {
-      let infos = deletePredicatsCache(attr, 'capacites');
-      if (!infos) return;
-      if (infos.actions) delete infos.actions;
+    let infos = deletePredicatsCache(attr, 'capacites');
+    if (!infos) return;
+    if (infos.actions) delete infos.actions;
     return infos;
   }
 
