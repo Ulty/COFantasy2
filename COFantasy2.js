@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 25 juin 2026,  05:38
+//Dernière modification : ven. 26 juin 2026,  10:05
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -7875,22 +7875,26 @@ var COFantasy2 = COFantasy2 || function() {
                       //Les DMs automatiques en cas de toucher une cible
                       if (attributeAsBool(target, 'sousTension')) {
                         ciblesCount++;
-                        let dm = '1d6';
+                          let type = 'electrique';
+                        let de = {
+                          dice: deEvolutif(target),
+                          nbDe: 1,
+                          type,
+                        };
                         let attrsVal = tokenAttribute(target, 'sousTensionValeur');
-                        if (attrsVal.length === 0) {
-                          if (predicateAsInt(target, 'voieDeLaMagieElementaliste', 0) > 3)
-                            dm = '2d6';
-                        } else
-                          dm = attrsVal[0].get('current');
-                        let exprSousTension = '[[' + dm + ']]';
-                        sendChat('', exprSousTension, function(res) {
-                          let rolls = res[0];
-                          let explRoll = rolls.inlinerolls[0];
-                          let r = {
-                            total: explRoll.results.total,
-                            type: 'electrique',
-                            display: buildinline(explRoll, 'electrique', true)
-                          };
+                        if (attrsVal.length > 0) {
+                          let deVal = parseDice(attrsVal[0].get('current'), target);
+                          if (deVal) {
+                            de = deVal;
+                            de.type = type;
+                          }
+                        }
+                        let dm = rollDePlus(de, "sousTention"+target.token.id, evt);
+                        let r = {
+                          type,
+                          display: dm.roll,
+                          total: dm.val
+                        };
                           dealDamage(attaquant, r, [], evt, false, options,
                             target.messages,
                             function(dmgDisplay, dmg, dmgDrain) {
@@ -7900,17 +7904,20 @@ var COFantasy2 = COFantasy2 || function() {
                               target.messages.push(dmgMsg);
                               finCibles();
                             });
-                        });
                       }
                       if (attributeAsBool(target, 'sangMordant')) {
                         ciblesCount++;
-                        sendChat("", "[[1d6]]", function(res) {
-                          let rolls = res[0];
-                          let explRoll = rolls.inlinerolls[0];
+                          let type = 'acide';
+                        let de = {
+                          dice: deEvolutif(target),
+                          nbDe: 1,
+                          type,
+                        };
+                        let dm = rollDePlus(de, "sangMordant"+target.token.id, evt);
                           let r = {
-                            total: explRoll.results.total,
-                            type: 'acide',
-                            display: buildinline(explRoll, 'acide', true)
+                            total: dm.val,
+                            type,
+                            display: dm.roll,
                           };
                           dealDamage(attaquant, r, [], evt, false, options,
                             target.messages,
@@ -7921,7 +7928,6 @@ var COFantasy2 = COFantasy2 || function() {
                               target.messages.push(dmgMsg);
                               finCibles();
                             });
-                        });
                       }
                       if (attributeAsBool(target, 'armureDeFeu')) {
                         ciblesCount++;
@@ -11908,8 +11914,41 @@ var COFantasy2 = COFantasy2 || function() {
     Prestige: {}
   };
 
-  //TODO: gérer les limtations d'armure, en particulier utile pour les profils hybrides.
 
+  //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
+  //Pour chaque capacité:
+  // action est un objet, est actions est une liste d'actions, avec les champs:
+  //  - nom : affiché quand on propose l'action
+  //  - type : L, A, M, G ou I, pas besoin si horsCombat
+  //  - mana : coût normal en mana
+  //  - cmd : la commande à exécuter quand on fait l'action
+  //  - combat : si true, l'action n'est affichée qu'en combat
+  //  - horsCombat: si true, l'action n'est affichée qu'hors combat
+  //  - debutDuTour: l'action n'est plus proposée si le pesonnage a déjà agit ce tour
+  //  - milieu: milieu dans lequel la capacité peut être montré
+  //  - inutileSiAttributBool: l'action n'est pas montrée si le personnage a cet attribut
+  //  - bufPersonnelNonCumulable : pareil que plus haut, sauf si l'attribut va se terminer dans moins de 2 tours
+  //  - seulementSiAttribut: on ne montre l'action que si l'attribut est vrai sur le perso
+  //  - bouclier : le personnage doit porter un bouclier pour faire l'action
+  //  - limiteArmure: limitation d'armure
+  //  - aPrtirDeRang: action disponible seulement à partir d'un certain rang dans la voie
+  // capacite : reproduit l'effet d'une capacité
+  //  - nom : le nom de la capacité
+  //  - profil : une liste de profils desquels la capacité peut provenir
+  //  - limiteArmure : redéfinit la limite d'armure pour cette capcité
+  // sortDeCapacite : reproduit l'action d'une capacité
+  // rang1DePeuple : donne le rang 1 de peuple du perso, en plus des effets de la capacite
+  // buffsSurFiche: liste de buffs de fiche
+  //  - nom : le nom du buff
+  //  - attrib : le nom de l'attribut buffé
+  //  - value : la valeur du buff
+  //  - limiteArmure
+  // compagnon objet indiquant un compagnon
+  // le reste, ce sont des prédicats, et le script va reconnaître et remplacer:
+  //  - PARAM : la valeur du champ paramètre de la capacité
+  //  - NUMEROVOIE
+  //  - RANG
+  //  - SELONRANG(x1, x2, x3, x4, x5)
   const predicatsParCapacite = {
     //Voies de peuple /////////////////////////////////////////////////
     //Voie du demi-orc
@@ -12173,13 +12212,54 @@ var COFantasy2 = COFantasy2 || function() {
       Restriction_prouesse: 'armure_guerrier',
     },
     //Voies d'ensorceleur ///////////////////////////////////////////
+    //Voie de l'air
+    'murmures dans le vent': {
+      buffsSurFiche: [{
+        nom: 'Murmures dans le vent (DEF)',
+        attrib: 'def',
+        value: '1',
+        limiteArmure: 'ensorceleur',
+      },
+        {
+        nom: 'Murmures dans le vent (init)',
+        attrib: 'init',
+        value: '1',
+        limiteArmure: 'ensorceleur',
+    }],
+      action: {
+        nom: 'Murmures dans le vent',
+        horsCombat: true,
+        type: 'G',
+        mana: 1,
+        limiteArmure: 'ensorceleur',
+        cmd: "!cof2-action chuchote un message à quelqu'un"
+      },
+    },
+    'sous tension': {
+      actions: [{
+        nom: 'Se mettre sous tension',
+        combat: true,
+        type: 'M',
+        mana: 2,
+        limiteArmure: 'ensorceleur',
+        bufPersonnelNonCumulable: 'sousTension',
+        cmd: '!cof2-effet sousTension true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
+      },
+        {
+          nom: 'Décharge électrique',
+          combat: true,
+          type: 'A',
+          seulementSiAttributBool: 'sousTension',
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Décharge électrique --toucher @{selected|atkmag} --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
+        }],
+    },
+    'telekinesie':{
+    },
     //Voie de l'envouteur
     injonction: {
       bonusTestEvolutif_injonction: true,
       action: {
         nom: 'Injonction',
-        combat: true,
-        horsCombat: true,
         type: 'A',
         mana: 1,
         limiteArmure: 'ensorceleur',
@@ -12209,20 +12289,18 @@ var COFantasy2 = COFantasy2 || function() {
     'levitation': {
       action: {
         nom: 'Lévitation',
-        combat: true,
-        horsCombat: true,
         type: 'M',
         mana: 2,
+        limiteArmure: 'magicien',
         cmd: "!cof2-effet levitation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
       },
     },
     'forme gazeuse': {
       action: {
         nom: 'Forme gazeuse',
-        combat: true,
-        horsCombat: true,
         type: 'A',
         mana: 3,
+        limiteArmure: 'magicien',
         cmd: "!cof2-effet formeGazeuse true --dureeEnMinutes 1 --select @{selected|token_id}"
       },
     },
@@ -12279,8 +12357,6 @@ var COFantasy2 = COFantasy2 || function() {
     'lumiere': {
       actions: [{
         nom: 'Lumière',
-        combat: true,
-        horsCombat: true,
         type: 'L',
         mana: 1,
         limiteArmure: 'magicien',
@@ -12323,8 +12399,6 @@ var COFantasy2 = COFantasy2 || function() {
     'invisibilite': {
       actions: [{
         nom: 'Invisibilité',
-        horsCombat: true,
-        combat: true,
         type: 'A',
         mana: 3,
         limiteArmure: 'magicien',
@@ -12332,8 +12406,6 @@ var COFantasy2 = COFantasy2 || function() {
       }, {
         aPartirDeRang: 5,
         nom: 'Invisibilité sur',
-        horsCombat: true,
-        combat: true,
         type: 'L',
         mana: 3,
         limiteArmure: 'magicien',
@@ -12551,8 +12623,6 @@ var COFantasy2 = COFantasy2 || function() {
       },
       action: {
         nom: "Récupération mineure",
-        combat: true,
-        horsCombat: true,
         type: 'A',
         mana: 1,
         cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --acteur @{selected|token_id} --select @{target|token_id} --portee 0',
@@ -12564,8 +12634,6 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Vigueur divine",
         type: 'L',
         mana: 2,
-        combat: true,
-        horsCombat: true,
         cmd: "!cof2-action soigne @{target|token_name} d'un poison ou d'une maladie --target @{target|token_id} --acteur @{selected|token_id} --portee 0",
       },
     },
@@ -12579,8 +12647,6 @@ var COFantasy2 = COFantasy2 || function() {
       },
       action: {
         nom: "Récupération majeure",
-        combat: true,
-        horsCombat: true,
         type: 'L',
         mana: 3,
         cmd: '!cof2-soin 3d4E+@{selected|CHA} --plusDeEvolPred bonusRecuperationMajeure --acteur @{selected|token_id} --select @{target|token_id} --portee 20',
@@ -12593,8 +12659,6 @@ var COFantasy2 = COFantasy2 || function() {
     'augure': {
       action: {
         nom: "Augure",
-        combat: true,
-        horsCombat: true,
         type: 'L',
         mana: 2,
         cmd: "!cof2-jet CHA --titre Augure --difficulte 10 --select @{selected|token_id}",
@@ -14796,16 +14860,16 @@ var COFantasy2 = COFantasy2 || function() {
   //Ajoute l'action à ligne, si elle est disponible
   function ajouterAction(perso, action, ligne, actionsEnCombat = true) {
     if (actionsEnCombat) {
-      if (!action.combat) return ligne;
+      if (action.horsCombat) return ligne;
       if (action.debutDuTour && !(isActiveTurnPerso(perso) && aucuneAction(perso, stateCOF.combat))) return ligne;
     } else {
-      if (!action.horsCombat) return ligne;
+      if (action.combat) return ligne;
     }
     if (action.milieu && stateCOF.milieu && action.milieu != stateCOF.milieu) return ligne;
     if (action.bufPersonnelNonCumulable && attributeAsBool(perso, action.bufPersonnelNonCumulable)) {
       if (estEffetIndetermine(action.bufPersonnelNonCumulable)) {
         let a = tokenAttribute(perso, action.bufPersonnelNonCumulable);
-        if (toInt(a[0].get('max'), 2) > 1) return ligne;
+        if (toInt(a[0].get('max'), 3) > 2) return ligne;
       } else if (estEffetTemp(action.bufPersonnelNonCumulable)) {
         if (attributeAsInt(perso, action.bufPersonnelNonCumulable, 3) > 2) return ligne;
       } else if (estEffetCombat(action.bufPersonnelNonCumulable)) {
@@ -14826,6 +14890,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (action.inutileSiAttributBool && attributeAsBool(perso, action.inutileSiAttributBool)) return ligne;
+    if (action.seulementSiAttributBool && !attributeAsBool(perso, action.seulementSiAttributBool)) return ligne;
     if (action.bouclier && !ficheAttributeAsBool(perso, 'bouclier_eqp', false)) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
     let request;
@@ -18564,6 +18629,14 @@ var COFantasy2 = COFantasy2 || function() {
       fin: '', //On fait un message sur mesure
       finFun: finSoinsEnAttente,
       plusieurs: true,
+    },
+    sousTension: {
+      activation: "se charge d'énergie électrique",
+      actif: "est chargé d'énergie électrique",
+      actifF: "est chargée d'énergie électrique",
+      fin: "n'est plus chargé d'énergie électrique",
+      finF: "n'est plus chargée d'énergie électrique",
+      visible: false
     },
     zoneDeVie: {
       activation: "enchante une zone autour de lui",
@@ -28166,10 +28239,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (attributeAsBool(target, 'protectionContreLesElements')) {
       rdElems =
         getIntValeurOfEffet(target, 'protectionContreLesElements', 1, 'voieDeLaMagieElementaire') * 2;
-      if (rdElems == 2) {
-        let v = predicateAsInt(target, 'voieDeLaMagieElementaliste');
-        if (v > 1) rdElems = 2 * v;
-      }
     }
     if (dmgTotal > 0 && immuniseAuType(target, mainDmgType, options.attaquant, options)) {
       if (expliquer && !target['msgImmunite_' + mainDmgType]) {
