@@ -1,4 +1,4 @@
-//Dernière modification : mar. 30 juin 2026,  04:54
+//Dernière modification : mar. 30 juin 2026,  06:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11722,6 +11722,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Escalade",
         description: "escalade",
       },
+      esquive: {
+        nom: "Esquive",
+        description: "Tests d'AGI destinés à esquiver",
+      },
       injonction: {
         nom: "Persuasion de l'envoûteur",
         description: "persuasion et séduction",
@@ -12049,6 +12053,25 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-effet paradeCroiseeDoublee 1',
       }
     },
+    //Voies de barbare
+    //Voie du pourfendeur
+    'reflexes eclair': {
+      bonusTestEvolutif_esquive: true,
+      buffsSurFiche: [{
+        nom: 'Réflexes éclairs (init)',
+        attrib: 'init',
+        limiteArmure: 'barbare', //TODO: mécanisme pour ajouter seulement quand on connaît les armures
+        value: '3'
+      }, {
+        nom: 'Réflexes éclairs (DEF)',
+        attrib: 'def',
+        limiteArmure: 'barbare', //TODO: mécanisme pour ajouter seulement quand on connaît les armures
+        value: 'SELONRANG(1,1,1,1,2)'
+      }],
+    },
+    'charge': {
+      capaciteAmbigue: true, //existe aussi dans la Voie du cogneur
+    },
     //Voies de guerrier ////////////////////////////////////////////
     //Voie du bouclier
     'proteger un allie': {
@@ -12124,6 +12147,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie du soldat
     'teigneux': {
+      capaciteAmbigue: true,//existe aussi dans la Voie de la teigne
       bonusTestEvolutif_teigneux: true,
       teigneux: true,
       Restriction_teigneux: 'armure_guerrier',
@@ -12719,15 +12743,13 @@ var COFantasy2 = COFantasy2 || function() {
     let indexPar = capacite.indexOf('(');
     if (indexPar > 0) capacite = capacite.substring(0, indexPar);
     capacite = capacite.trim();
-    let preds;
-    if (options.pnj) preds = predicatsParCapacite[capacite + ' PNJ'];
-    else preds = predicatsParCapacite[capacite];
-    if (!preds) {
+    let preds = predicatsParCapacite[capacite];
+    if (!preds || preds.capaciteAmbigue) {
       if (options.pnj) {
-        preds = predicatsParCapacite[capacite];
+        preds = predicatsParCapacite[capacite + ' PNJ'] || preds;
       } else {
         let nomVoie = ficheAttribute(perso, 'voie' + numVoie + 'nom', '');
-        preds = predicatsParCapacite[capacite + ' ' + removeAccents(nomVoie).toLowerCase().trim()];
+        preds = predicatsParCapacite[capacite + ' ' + removeAccents(nomVoie).toLowerCase().trim()] || preds;
       }
     }
     if (!preds) {
@@ -12745,6 +12767,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let warnParam = true;
     preds = deepCopy(preds);
+    delete preds.capaciteAmbigue;
     if (preds.action) {
       replaceSpecialInField(preds, 'action', numVoie, rmax, param);
       actions.push(preds.action);
