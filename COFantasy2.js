@@ -1,4 +1,4 @@
-//Dernière modification : mar. 30 juin 2026,  02:31
+//Dernière modification : mar. 30 juin 2026,  03:16
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -8215,7 +8215,12 @@ var COFantasy2 = COFantasy2 || function() {
 
   function afficherChoixTeigneux(attaquant, cible, evt) {
     let titre = "Attaquer " + nomPerso(cible) + " qui s'éloigne";
-    let ligneOptions = '--annuleMvtCible ' + cible.token.id + ' --decrLimitePredicatParTour teigneux';
+    let ligneOptions = '--annuleMvtCible ' + cible.token.id;
+    if (predicateAsBool(attaquant, 'briseGenou')) {
+      ligneOptions += ' --effet genouBrise true --save CON 15';
+    } else {
+      ligneOptions += ' --decrLimitePredicatParTour teigneux';
+    }
     let display = choixAttaquesOpportunite(attaquant, [cible], titre, ligneOptions);
     let action = "!cof2-laisser-partir " + attaquant.token.id + ' ' + cible.token.id;
     let l = boutonSimple(action, "Laisser") + nomPerso(cible) + " s'éloigner";
@@ -12605,6 +12610,15 @@ var COFantasy2 = COFantasy2 || function() {
     'enrage': {
       peutEnrage: true,
     },
+    //Voie de la teigne
+    'brise-genou': {
+      teigneux: true,//pour l'attaque gratuite
+      briseGenou: true,
+    },
+    // Autres capacités
+    'sans esprit': {
+      sansEsprit: true,
+    },
   };
 
   function removeAccents(s) {
@@ -14790,6 +14804,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (attributeAsBool(perso, 'foretVivanteEnnemie')) vitesse = vitesse / 2;
       if (attributeAsBool(perso, 'enTerrainDifficile') && !predicateAsBool(perso, 'ignoreTerrainsDifficiles'))
         vitesse = vitesse / 2;
+      if (attributeAsBool(perso, 'genouBrise')) vitesse = vitesse / 2;
     }
     return vitesse;
   }
@@ -18443,6 +18458,15 @@ var COFantasy2 = COFantasy2 || function() {
       dm: true,
       statusMarker: 'red',
       customStatusMarker: 'cof-flamme',
+      visible: true,
+    },
+    genouBrise: {
+      activation: "reçoit un coup dans les genoux !",
+      actif: "est blessé aux jambes",
+      actifF: "est blessée aux jambes",
+      fin: "peut à nouveau se déplacer normalement",
+      dureeCombat: true,
+      prejudiciable: true,
       visible: true,
     },
     petrifie: {
@@ -30078,6 +30102,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   const regPNJAtk = new RegExp("^repeating_pnjatk_([^_]*)_(.*)$");
+  const regActions = new RegExp("^repeating_actions(\d*)_([^_]*)_(.*)$");
   //Convertit les tokens sélectionnés de fiches COF1 vers fiches COF2
   function commandeDepuisCof1(cmd, playerId, pageId, options) {
     let {
@@ -30261,7 +30286,7 @@ var COFantasy2 = COFantasy2 || function() {
             setAttr('rd', v);
             break;
           default:
-            const m = regPNJAtk.exec(nom);
+            let m = regPNJAtk.exec(nom);
             if (m) {
               let pref = 'repeating_npcarmes_' + m[1];
               switch (m[2]) {
@@ -30374,12 +30399,38 @@ var COFantasy2 = COFantasy2 || function() {
                   log(nom + " pas reconnu ");
                   log(m);
               }
-            } else {
+              break;
+            }
+            m = regActions.exec(nom);
+            if (m) {
+              let r = 1;
+              if (m[1]) r = toInt(m[1],1) + 1;
+              let pref = 'repeating_actions' + r +'_'+m[2]+'_';
+              switch (m[3]) {
+                case 'actionoptflag':
+                case 'actionrang':
+                case 'actiontype':
+                case 'actioncondition':
+                  break;
+                case 'actionmontree':
+                  setAttr(pref+'action-on', v);
+                  break;
+                case 'actiontitre':
+                  setAttr(pref+'action-nom', v);
+                  break;
+                case 'actioncode':
+                  setAttr(pref+'action-cmd', v);
+                  break;
+                default:
+                  log(nom + " pas reconnu ");
+                  log(m);
+              }
+              break;
+            }
               attributsIgnores += nom + ' : ' + v;
               let max = attr.get('max');
               if (max) attributsIgnores += ' , ' + max;
               attributsIgnores += ' .\n';
-            }
         }
         deleteAttribute(attr, evt);
       });
