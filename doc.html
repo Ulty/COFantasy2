@@ -130,6 +130,7 @@ tr {line-height: 25px;}
               </ul>
               <li data-toggle="collapse" data-target="#autres_capacites"><a href="#Autres_capacités">Autres capacités</a></li>
               <ul id="autres_capacites" class="collapse">
+                <li><a class="text-info" href="#creatures">Créatures</a></li>
               </ul>
               <li data-toggle="collapse" data-target="#markers_personnalises"><a href="#Markers_personnalisés">Markers personnalisés</a></li>
               <ul id="markers_personnalises" class="collapse">
@@ -428,6 +429,7 @@ tr {line-height: 25px;}
                   <li><code>--magique</code> : les dégâts sont magiques. On peut passer en argument le niveau de magie. Il est utilisé contre les créatures immunisées aux armes. Le niveau par défaut est 1.</li>
                   <li><code>--+<i>k</i></code> : l'attaque utilise une arme magique +<i>k</i>. Pratique à mettre dans les modificateurs de l'attaque (dans ce cas, on n'a pas les <code>--</code>), cela rajoute les bonus au toucher et aux dégâts, et indique que les dégâts sont magiques. Si un niveau de magie est spécifié, rajoute <i>k</i> à ce niveau.</li>
                   <li><code>--feu</code>, <code>--acide</code>, <code>--electrique</code>, <code>--froid</code>, <code>--sonique</code>, --<code>poison</code>, --<code>maladie</code>, <code>--argent</code>, <code>--drain</code>, <code>--energie</code>&nbsp;: les dégâts sont de type feu, acide, électrique, froid, sonique, poison, maladie, argent, drain ou énergie. Le type spécifie uniquement le dernier <code>--plus</code> précédent cette option, ou si il n'y en a pas, celui des dégâts principaux. Seul le dernier type spécifié est pris en compte (pas de type multiple pour l'instant). Le type affecte différents attributs, et aussi la couleur d'affichage des dégâts.</li>
+                  <li><code>--peur <i>seuil duree</i></code> : fait un effet de peur si l'attaque touche. Le <i>seuil</i> sert pour le test de volonté de résistance à la peur (tient compte de la capacité <b>sans peur</b> du chevalier).</li>
                   <li><code>--beni</code> : les dégâts sont d'une source sainte ou bénie. Sert principalement à signaler pour les résistances aux dégâts qui peuvent dépendre de cela (genre RD 5/beni).</li>
                   <li><code>--spectral</code> : L'attaque peut toucher les créatures intangibles.</li>
                   <li><code>--tranchant</code>, <code>--perforant</code>, <code>--contondant</code> : précise le type d'arme (si pertinent), pour pouvoir utiliser les RD spécifiques à un type d'arme.</li>
@@ -1149,6 +1151,11 @@ tr {line-height: 25px;}
                 <ol>
                   <li><strong>Injonction :</strong> il y a une compétence évolutive nommée <code>injonction</code>. Le script ajoute aussi automatiquement le sort à lancer dans la liste des actions du tour (pas sur la fiche).</li>
                 </ol>
+                <h4 class="text-secondary">Voie des illusions</h4>
+                <ol>
+                  <li><strong>Mirage :</strong> ajoute une compétence évolutive nommée <code>supercherie</code>. Le sort associé fait simplement dépenser la mana, au MJ de gérer les autres conséquences ou la durée du sort.</li>
+                </ol>
+                </ol>
               </div>
                 <h3 class="text-info" id="forgesort">Forgesort</h3>
               <div class="decalage">
@@ -1283,6 +1290,21 @@ tr {line-height: 25px;}
               </div>
               <h2 class="text-primary" id="prestige">5. Voies de prestige</h2>
               <h2 class="text-primary" id="autres_capacites">6. Autres capacités</h2>
+              <h3 class="text-info" id="creatures">6.1 Voies de créatures</h3>
+              <div class="decalage">
+                <p>Toutes les capacités de PNJ peuvent être écrites dans l'onglet CAPACITÉS des traits. Elles sont normalement remplies automatiquement lorsqu'un statblock est importé. Le script n'infèrent pas automatiquement les caractéristiques supérieures venant des voies de créatures : ces caractéristiques sont normalement déjà notées comme telles dans les statblocks.</p>
+                <h4 class="text-secondary">Voie du champion</h4>
+                <ol>
+                  <li><strong>Imparable :</strong> tient compte de la réusssite automatique et ajoute les DM si le résultat du dé d'attaque est assez grand.</li>
+                  <li><strong>Riposte :</strong> ajout automatique d'un prédicat <code>riposte</code> qui proposera l'attaques.</li>
+                  <li><strong>Hausser le ton :</strong> ajout automatique d'un prédicat <code>hausserLeTon</code> qui activera les bonus.</li>
+                </ol>
+                <h4 class="text-secondary">Voie du chef d'armées</h4>
+                <ol>
+                  <li><strong>Sergent :</strong> ajout automatique d'un prédicat <code>sergent</code> et proposition d'une action pour donner des ordres. Le script ne vérifie pas que le bénéficiaire est un allié du sergent.</li>
+                </ol>
+              </div>
+                <h4 class="text-secondary">Voie du cogneur</h4>
               <h2 class="text-primary" id="Markers_personnalisés">7. Markers Personnalisés</h2>
               <h3 class="text-info" id="Markers_presentation">7.1 Présentation</h3>
               <div class="decalage">
@@ -1378,9 +1400,12 @@ tr {line-height: 25px;}
                   <li><strong>exemplaire</strong> : nombre de fois où on peut donner un dé bonus à l'attaque d'un allié contre un personnage à son contact, par tour.</li>
                   <li><strong>familierMage</strong> : un nom de familier. Quand le familier est visible du personnage, donne un bonus de +2 en initiative et en défense.</li>
                   <li><strong>hachesEtMarteaux</strong> : donne un bonus de +1 à l'attaque et aux DM avec une hache ou un marteau de guerre.</li>
+                  <li><strong>hausserLeTon</strong> : ajoute +3 RD, +3 attaque et +1d4° DM quand les PV sont en dessous de la moitié.</li>
+                  <li><strong>imparable</strong> : les attaques touchent automatiquement sur 15+ et on ajoute +2d4° DM à ces attaques.</li>
                   <li><strong>insensibleALaDouleur</strong> : permet de faire encore une action A ou M après être mis à 0 PV.</li>
                   <li><strong>intercepter</strong>: nombre de fois par tour que le personnage peut interpcepter une attaque.</li>
                   <li><strong>intercepterRD</strong>: bonus à la RD quand le personnage intercepte une attaque.</li>
+                  <li><strong>mortVivant</strong>: le personnage est mort-vivant, et possède les traits et résistantes communes aux morts-vivants.</li>
                   <li><strong>nomTestEvolutif_<i>nom</i></strong> : le nom à afficher pour bonus évolutif nommé <i>nom</i></li>
                   <li><strong>nomTestPeuple<i>nom</i></strong> : le nom à afficher pour bonus de peuple nommé <i>nom</i></li>
                   <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
@@ -1389,9 +1414,12 @@ tr {line-height: 25px;}
                   <li><strong>Prouesse</strong> : propose de relancer les jets de CON et FOR une fois par round, en échange de 1d4° PV.</li>
                   <li><strong>resistanceA_<i>type</i></strong> : divise par 2 les DM associés au type.</li>
                   <li><strong>resistanceALaMagieNaine</strong> : propose de résister une fois par jour à un sortilège.</li>
+                  <li><strong>riposte</strong> : propose une attaque de riposte quand le personnage est attaqué par un adversaire qu'il n'avait pas attaqué au tour précédent.</li>
+                  <li><strong>sansEsprit</strong>: le personnage est sans esprit et n'est pas effectée par les effets qui affectent l'esprit ou le mental.</li>
                   <li><strong>sansPeur</strong>: immunise à la peur, et donne un bonus égal au CHA aux alliés pour résister à la peur.</li>
                   <li><strong>sceptre</strong>: entier à ajouter aux attaques magiques et aux DM des sorts.</li>
                   <li><strong>scienceDuCritique</strong> : augmente de 1 les chances de critique des armes de prédilection.</li>
+                  <li><strong>sergent</strong> : ignore une attaque qui aurait dû ammener à 0 PV par combat.</li>
                   <li><strong>teigneux</strong> : donne la possibilité d'attaquer quand un adversaire quitte le contact. Le mouvement de l'adversaire doit être contrôlé. C'est normalement toujours le cas pour les personnages contrôllés par les joueurs. Pour le MJ, il faut penser à utiliser les actions de mouvement</li>
                   <li><strong>tempsRecuperationRapide</strong> : le temps nécessaire à une récupération rapide</li>
                   <li><strong>tirIgnoreCibleEngagee</strong>: les attaques à distance igorent les pénalités liées aux cible aux contact avec des alliés.</li>
