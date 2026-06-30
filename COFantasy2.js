@@ -1,4 +1,4 @@
-//Dernière modification : mar. 30 juin 2026,  03:16
+//Dernière modification : mar. 30 juin 2026,  04:14
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3393,7 +3393,7 @@ var COFantasy2 = COFantasy2 || function() {
         options.additionalDmg = options.additionalDmg || [];
         options.additionalDmg.push({
           type: options.type || 'normal',
-          value: '1d'+deEvolutif(attaquant),
+          value: '1d' + deEvolutif(attaquant),
         });
         messageAttaqueDM("Hausse le ton", explications, options, 5, '+1' + options.d6);
       }
@@ -3982,7 +3982,7 @@ var COFantasy2 = COFantasy2 || function() {
       let pc = bonus / 10;
       explications.push(pc + " point" + ((pc > 1) ? "s" : "") + " de chance dépensé => +" + bonus + " en Attaque");
     }
-    if (options.semonce && attributeAsInt(attaquant, 'attaqueADistanceRatee', 0) == 1) {
+    if (options.semonce && attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) == 1) {
       attBonus += 5;
     }
     if (persoEstPNJ(attaquant) && options.attaqueDeGroupe === undefined) {
@@ -5484,9 +5484,12 @@ var COFantasy2 = COFantasy2 || function() {
             evt.succes = false;
             diminueMalediction(attaquant, evt);
             if (options.distance && predicateAsBool(attaquant, 'tirDeSemonce')) {
-              setTokenAttr(attaquant, 'attaqueADistanceRatee', 2, evt, {
+              setTokenAttr(attaquant, 'attributDeCombat_attaqueADistanceRatee', 2, evt, {
                 maxVal: 1
               });
+            }
+            if (predicateAsBool(attaquant, 'teigne')) {
+              setTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', true, evt);
             }
           }
         }
@@ -5711,6 +5714,26 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push("Corps de " + typeCorpsElem + " => +" + nbDes + "d6 DM");
       }
     }
+    //Les attaques des teignes
+    if (predicateAsBool(attaquant, 'teigne') && attributeAsBool(attaquant, 'attributDeCombat_teigneRateAttaque')) {
+      let msg = "A raté sa dernière attaque =>";
+      if (!options.auto) {
+      if (options.deBonus === true) options.deBonus = 2;
+      else if (options.deBonus) options.deBonus++;
+      else options.deBonus = 1;
+        msg += " dé bonus";
+      }
+      if (!options.pasDeDmg) {
+      options.additionalDmg.push({
+        type: options.type || 'normal',
+        value: '2d' + deEvolutif(attaquant),
+      });
+        if (!options.auto) msg += " et";
+        msg+= " +2d4° DM";
+      }
+      explications.push(msg);
+      removeTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', evt);
+    }
     // Les armes de jet
     if (weaponStats.armeDeJet && !estMook(attaquant)) {
       if (weaponStats.nbArmesDeJet < 1) {
@@ -5863,7 +5886,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     // Armes chargées
-    if ((!options.semonce || attributeAsInt(attaquant, 'attaqueADistanceRatee', 0) != 1) && !options.tirDeBarrage) {
+    if ((!options.semonce || attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) != 1) && !options.tirDeBarrage) {
       if (attackLabel && options.recharge) {
         let nomCharges = 'attributDeCombat_charge_' + attackLabel;
         let currentCharge = attributeAsInt(attaquant, nomCharges, 1);
@@ -6992,7 +7015,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     // Les autres sources de dégâts
     if (options.distance) {
-      if (options.semonce && attributeAsInt(attaquant, 'attaqueADistanceRatee', 0) == 1) {
+      if (options.semonce && attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) == 1) {
         options.additionalDmg.push({
           type: mainDmgType,
           value: '1' + options.d6
@@ -7769,7 +7792,9 @@ var COFantasy2 = COFantasy2 || function() {
               let rollId = 'pietinement' + target.token.id;
               let seuil = 10 + modCarac(attaquant, 'FOR');
               let tr = testCaracteristique(target, 'FOR', seuil, rollId, {}, evt);
-              tr.explications.forEach(function(msg) {target.messages.push(msg);});
+              tr.explications.forEach(function(msg) {
+                target.messages.push(msg);
+              });
               if (tr.reussite) {
                 diminueMalediction(attaquant, evt);
                 target.messages.push(nomPerso(target) + " n'est pas piétiné.");
@@ -12612,8 +12637,11 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie de la teigne
     'brise-genou': {
-      teigneux: true,//pour l'attaque gratuite
+      teigneux: true, //pour l'attaque gratuite
       briseGenou: true,
+    },
+    'teigneux PNJ': {
+      teigne: true,
     },
     // Autres capacités
     'sans esprit': {
@@ -13898,7 +13926,7 @@ var COFantasy2 = COFantasy2 || function() {
         (attackStats.portee &&
           (opt.attaqueFlamboyante || opt.seulementContact)) ||
         (!opt.semonce && !opt.tirDeBarrage && armeDechargee(attaquant, attackStats)) ||
-        (opt.semonce && attributeAsInt(attaquant, 'attaqueADistanceRatee', 0) != 1) ||
+        (opt.semonce && attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) != 1) ||
         (options.typeAction && !typeActionPossible(attaquant, options.typeAction)) ||
         actionImpossible(attaquant, opt, label);
       options.actionImpossible = impossible;
@@ -16469,10 +16497,10 @@ var COFantasy2 = COFantasy2 || function() {
     if (!value) { //On enlève le save si il y en a un
       removeTokenAttr(perso, etat + 'Save', evt);
       removeTokenAttr(perso, etat + 'SaveParTour', evt);
-        if (!(options.fromTemp)) {
-          options.fromEtat = true;
-          finDEffetPerso(perso, etat + 'Temp', undefined, pageId, evt, options);
-        }
+      if (!(options.fromTemp)) {
+        options.fromEtat = true;
+        finDEffetPerso(perso, etat + 'Temp', undefined, pageId, evt, options);
+      }
     }
     if (etat == 'aveugle') {
       // On change la vision du token
@@ -30404,8 +30432,8 @@ var COFantasy2 = COFantasy2 || function() {
             m = regActions.exec(nom);
             if (m) {
               let r = 1;
-              if (m[1]) r = toInt(m[1],1) + 1;
-              let pref = 'repeating_actions' + r +'_'+m[2]+'_';
+              if (m[1]) r = toInt(m[1], 1) + 1;
+              let pref = 'repeating_actions' + r + '_' + m[2] + '_';
               switch (m[3]) {
                 case 'actionoptflag':
                 case 'actionrang':
@@ -30413,13 +30441,13 @@ var COFantasy2 = COFantasy2 || function() {
                 case 'actioncondition':
                   break;
                 case 'actionmontree':
-                  setAttr(pref+'action-on', v);
+                  setAttr(pref + 'action-on', v);
                   break;
                 case 'actiontitre':
-                  setAttr(pref+'action-nom', v);
+                  setAttr(pref + 'action-nom', v);
                   break;
                 case 'actioncode':
-                  setAttr(pref+'action-cmd', v);
+                  setAttr(pref + 'action-cmd', v);
                   break;
                 default:
                   log(nom + " pas reconnu ");
@@ -30427,10 +30455,10 @@ var COFantasy2 = COFantasy2 || function() {
               }
               break;
             }
-              attributsIgnores += nom + ' : ' + v;
-              let max = attr.get('max');
-              if (max) attributsIgnores += ' , ' + max;
-              attributsIgnores += ' .\n';
+            attributsIgnores += nom + ' : ' + v;
+            let max = attr.get('max');
+            if (max) attributsIgnores += ' , ' + max;
+            attributsIgnores += ' .\n';
         }
         deleteAttribute(attr, evt);
       });
