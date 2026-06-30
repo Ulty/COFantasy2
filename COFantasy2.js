@@ -1,4 +1,4 @@
-//Dernière modification : mar. 30 juin 2026,  04:14
+//Dernière modification : mar. 30 juin 2026,  04:54
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12719,10 +12719,12 @@ var COFantasy2 = COFantasy2 || function() {
     let indexPar = capacite.indexOf('(');
     if (indexPar > 0) capacite = capacite.substring(0, indexPar);
     capacite = capacite.trim();
-    let preds = predicatsParCapacite[capacite];
+    let preds;
+    if (options.pnj) preds = predicatsParCapacite[capacite + ' PNJ'];
+    else preds = predicatsParCapacite[capacite];
     if (!preds) {
       if (options.pnj) {
-        preds = predicatsParCapacite[capacite + ' PNJ'];
+        preds = predicatsParCapacite[capacite];
       } else {
         let nomVoie = ficheAttribute(perso, 'voie' + numVoie + 'nom', '');
         preds = predicatsParCapacite[capacite + ' ' + removeAccents(nomVoie).toLowerCase().trim()];
