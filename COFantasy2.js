@@ -1,4 +1,4 @@
-//Dernière modification : mar. 30 juin 2026,  01:59
+//Dernière modification : mar. 30 juin 2026,  02:31
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3287,9 +3287,9 @@ var COFantasy2 = COFantasy2 || function() {
         messageAttaqueDM("Forces sapées", explications, options, -malus);
       }
       if (attributeAsBool(attaquant, 'enrage')) {
-        attBonus += 5;
+        attBonus += 3;
         options.enrage = true;
-        messageAttaqueDM("Enragé", explications, options, 5, '+1' + options.d6);
+        messageAttaqueDM("Enragé", explications, options, 3, '+1d4°');
       }
       if (attributeAsBool(attaquant, 'rage')) {
         attBonus += 2;
@@ -5096,7 +5096,6 @@ var COFantasy2 = COFantasy2 || function() {
         target.tempDmg = target.tempDmg || options.tempDmg;
         target.malediction = target.malediction || options.malediction;
         target.pietine = target.pietine || options.pietine;
-        target.percute = target.percute || options.percute;
         target.maxDmg = target.maxDmg || options.maxDmg;
         //Les bonus d'attaque qui dépendent de la cible
         let bad = 0;
@@ -6952,7 +6951,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.enrage) {
       options.additionalDmg.push({
         type: mainDmgType,
-        value: '1' + options.d6
+        value: '1d' + deEvolutif(attaquant),
       });
     }
     if (options.contact && attributeAsBool(attaquant, 'memePasMalBonus')) {
@@ -7766,41 +7765,19 @@ var COFantasy2 = COFantasy2 || function() {
               peurOneToken(target, options.peur.seuil, options.peur.duree, opt, target.messages, evt);
             }
             //Le piétinnement
-            if ((target.pietine || target.percute) && estAussiGrandQue(attaquant, target)) {
+            if (target.pietine && estAussiGrandQue(attaquant, target)) {
               let rollId = 'pietinement' + target.token.id;
-              let {
-                resultat
-              } = testOppose(rollId, target, 'FOR', options, attaquant, 'FOR', options, target.messages, evt);
-              if (resultat == 2) {
+              let seuil = 10 + modCarac(attaquant, 'FOR');
+              let tr = testCaracteristique(target, 'FOR', seuil, rollId, {}, evt);
+              tr.explications.forEach(function(msg) {target.messages.push(msg);});
+              if (tr.reussite) {
+                diminueMalediction(attaquant, evt);
+                target.messages.push(nomPerso(target) + " n'est pas piétiné.");
+              } else {
                 target.messages.push(nomPerso(target) + " est piétiné par " + attackerTokName + ", dommages doublés");
                 setState(target, 'renverse', true, evt);
                 target.dmgCoef = (target.dmgCoef || 0) + 1;
                 target.touche++;
-                if (target.percute) {
-                  target.messages.push(nomPerso(target) + " est projeté à " +
-                    rollDePlus({
-                      dice: 6,
-                      bonus: 1
-                    }, "projection" + target.token.id, evt).display + " mètres");
-                  effets = effets || [];
-                  effets.push({
-                    effet: 'etourdiTemp',
-                    duree: 100,
-                    message: messageEffet.etourdiTemp,
-                    save: {
-                      carac: 'CON',
-                      seuil: 15
-                    },
-                    saveParTour: {
-                      carac: 'CON',
-                      seuil: 15
-                    }
-                  });
-                  savesEffets++;
-                }
-              } else {
-                if (resultat === 0) diminueMalediction(attaquant, evt);
-                target.messages.push(nomPerso(target) + " n'est pas piétiné.");
               }
             }
             if (effets && savesEffets > 0) {
@@ -12614,6 +12591,20 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-action reçoit un ordre à @{selected|token_name} --donneAction A --cible @{target|token_name} --acteur @{selected|token_id} --limiteParTour 1 ordreSergent',
       },
     },
+    //Voie du cogneur
+    'charge PNJ': {
+      action: {
+        nom: 'charge',
+        typeAction: 'L',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deplaceDe 20 --deBonus --pietine',
+      }
+    },
+    'tape dur': {
+      tapeDur: true,
+    },
+    'enrage': {
+      peutEnrage: true,
+    },
   };
 
   function removeAccents(s) {
@@ -16459,11 +16450,15 @@ var COFantasy2 = COFantasy2 || function() {
           }
       }
     }
+    let pageId = token.get('pageid');
     if (!value) { //On enlève le save si il y en a un
       removeTokenAttr(perso, etat + 'Save', evt);
       removeTokenAttr(perso, etat + 'SaveParTour', evt);
+        if (!(options.fromTemp)) {
+          options.fromEtat = true;
+          finDEffetPerso(perso, etat + 'Temp', undefined, pageId, evt, options);
+        }
     }
-    let pageId = token.get('pageid');
     if (etat == 'aveugle') {
       // On change la vision du token
       let page = getObj('page', pageId);
@@ -16489,10 +16484,6 @@ var COFantasy2 = COFantasy2 || function() {
         //pour suivre
         nePlusSuivre(perso, pageId, evt);
       } else {
-        if (!(options.fromTemp)) {
-          options.fromEtat = true;
-          finDEffetPerso(perso, 'aveugleTemp', undefined, pageId, evt, options);
-        }
         if (udl) {
           token.set('has_limit_field_of_vision', false);
           token.set('has_limit_field_of_night_vision', false);
@@ -22893,7 +22884,7 @@ var COFantasy2 = COFantasy2 || function() {
   // testRes.valeur pour la valeur totale du jet
   // testRes.rerolls pour le texte avec les boutons de rerolls adaptés.
   // testRes.modifiers pour les boutons qui peuvent être activés sur le roll, qu'il soit réussi ou non.
-  // testRes.explictions: des messages à afficher en lus pour expliquer le jet
+  // testRes.explications: des messages à afficher en lus pour expliquer le jet
   // Pour que les boutons de rerolls fonctionnent, le type d'évènement doit être supporté par redoEvent()
   // ne rajoute pas evt à l'historique
   function testCaracteristique(perso, carac, seuil, testId, options, evt) {
@@ -28711,12 +28702,9 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       }
-      if ((crit || bar1 < pvmax / 2) &&
-        predicateAsBool(target, 'peutEnrager') &&
-        !attributeAsBool(target, 'enrage')) {
+      if ((crit) && predicateAsBool(target, 'peutEnrager') && !attributeAsBool(target, 'enrage')) {
         setTokenAttr(target, 'enrage', true, evt);
         expliquer(nomPerso(target) + " devient enragé" + eForFemale(target) + ".");
-        finDEffetPerso(target, 'apeureTemp', undefined, pageId, evt);
         setState(target, 'apeure', false, evt);
       }
       if (bar1 <= 0) {
