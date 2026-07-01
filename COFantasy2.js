@@ -1,4 +1,4 @@
-//Dernière modification : mar. 30 juin 2026,  06:12
+//Dernière modification : mer. 01 juil. 2026,  08:46
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11853,8 +11853,9 @@ var COFantasy2 = COFantasy2 || function() {
   //  - milieu: milieu dans lequel la capacité peut être montré
   //  - inutileSiAttributBool: l'action n'est pas montrée si le personnage a cet attribut
   //  - bufPersonnelNonCumulable : pareil que plus haut, sauf si l'attribut va se terminer dans moins de 2 tours
-  //  - seulementSiAttribut: on ne montre l'action que si l'attribut est vrai sur le perso
+  //  - seulementSiAttributBool: on ne montre l'action que si l'attribut est vrai sur le perso
   //  - bouclier : le personnage doit porter un bouclier pour faire l'action
+  //  - pasAuContactAdversaire
   //  - limiteArmure: limitation d'armure
   //  - aPrtirDeRang: action disponible seulement à partir d'un certain rang dans la voie
   // capacite : reproduit l'effet d'une capacité
@@ -12071,6 +12072,13 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'charge': {
       capaciteAmbigue: true, //existe aussi dans la Voie du cogneur
+      action: {
+        nom: 'Charge',
+        typeAction: 'L',
+        combat: true,
+        pasAuContactAdversaire: true,
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deplaceDe 5 10 --deBonus --plus 1d4E',
+      },
     },
     //Voies de guerrier ////////////////////////////////////////////
     //Voie du bouclier
@@ -14923,6 +14931,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (action.inutileSiAttributBool && attributeAsBool(perso, action.inutileSiAttributBool)) return ligne;
     if (action.seulementSiAttributBool && !attributeAsBool(perso, action.seulementSiAttributBool)) return ligne;
     if (action.bouclier && !ficheAttributeAsBool(perso, 'bouclier_eqp', false)) return ligne;
+    if (action.pasAuContactAdversaire && ennemisAuContact(perso, perso.token.get('pageid')).length > 0) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
     let request;
     if (action.mana > 0) {
