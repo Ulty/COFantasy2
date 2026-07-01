@@ -1,4 +1,4 @@
-//Dernière modification : mer. 01 juil. 2026,  12:02
+//Dernière modification : mer. 01 juil. 2026,  02:34
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1873,7 +1873,7 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         //On crée un attribut de valeur minimale
         let niveau = 1;
-        if (createur) niveau = ficheAttributeAsInt(createur, 'niveau', 1);
+        if (createur) niveau = niveauPerso(createur);
         if (spec.pvParNiveau) niveau *= spec.pvParNiveau;
         let opt = {
           maxVal: niveau
@@ -2059,7 +2059,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function lanceDRPourPV(perso, explication, evt, options = {}) {
     let de = ficheAttributeAsInt(perso, 'drecup', 6);
-    let niveau = ficheAttributeAsInt(perso, 'niveau', 1);
+    let niveau = niveauPerso(perso);
     let bonus = Math.floor(niveau / 2);
     let recup;
     if (options.max) {
@@ -2415,7 +2415,7 @@ var COFantasy2 = COFantasy2 || function() {
           let cmd = "!cof2-depenser-dr " + perso.token.id;
           if (predicateAsBool(perso, 'bonusRecuperationMilieuNaturel') && !stateCOF.milieu) {
             let de = ficheAttributeAsInt(perso, 'drecup', 6);
-            let niveau = ficheAttributeAsInt(perso, 'niveau', 1);
+            let niveau = niveauPerso(perso);
             let gain = de + Math.floor(niveau / 2);
             if (pv + gain < pvMax) {
               cmd += " ?{repos en milieu naturel ?|Non,&#32;|Oui,--milieuNaturel}";
@@ -2776,7 +2776,7 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push("Posture de combat => +" + postureVal + " DEF");
       }
     }
-    let niveau = ficheAttributeAsInt(target, 'niveau', 1);
+    let niveau = niveauPerso(target);
     let instinctSurvie = predicateAsInt(target, 'instinctDeSurvie', 0, niveau * 5);
     if (instinctSurvie > 0 && target.token.get('bar1_value') <= instinctSurvie)
       defense += 5;
@@ -4277,7 +4277,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'NC':
         {
           let res = cibles.every(function(target) {
-            let nc = ficheAttributeAsInt(target, 'niveau', 0);
+            let nc = niveauPerso(target);
             switch (cond.comparateur) {
               case '<':
                 return nc < cond.valeur;
@@ -4723,7 +4723,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
       //Le test pour le sanctuaire
       if (attributeAsBool(cible, 'sanctuaire')) {
-        if (2 * ficheAttributeAsInt(attaquant, 'niveau', 1) < ficheAttributeAsInt(cible, 'niveau', 1)) {
+        if (2 * niveauPerso(attaquant) < niveauPerso(cible)) {
           sendPerso(attaquant, "ne peut se résoudre à attaquer " + nomPerso(cible));
           attaqueImpossible = true;
           return;
@@ -5530,7 +5530,7 @@ var COFantasy2 = COFantasy2 || function() {
             options.preDmg[target.token.id].runeForgesort_protection = true;
           }
           if (options.sortilege && !options.aoe && isActive(target) &&
-            2 * ficheAttributeAsInt(target, 'niveau', 1) > ficheAttributeAsInt(attaquant, 'niveau', 1)) {
+            2 * niveauPerso(target) > niveauPerso(attaquant)) {
             let test = testLimiteUtilisationsCapa(target, 'resistanceALaMagieNaine', 'jour');
             if (test) {
               options.preDmg = options.preDmg || {};
@@ -6380,7 +6380,7 @@ var COFantasy2 = COFantasy2 || function() {
   function commandeResistanceALaMagieNaine(cmd, playerId, pageId, options, perso) {
     annulerAttaqueGenerique(cmd, playerId, perso, "résister au sortilège", 'resistanceALaMagieNaine', 'jour', "ne peut plus résister à un sortilège", function(args) {
       return args.options.sortilege && args.attaquant &&
-        2 * ficheAttributeAsInt(perso, 'niveau', 1) > ficheAttributeAsInt(args.attaquant, 'niveau', 1);
+        2 * niveauPerso(perso) > niveauPerso(args.attaquant);
     });
   }
 
@@ -6498,7 +6498,7 @@ var COFantasy2 = COFantasy2 || function() {
           attBonus += modCarac(lanceur, 'for', options);
           break;
         default:
-          attBonus = ficheAttributeAsInt(lanceur, 'niveau', 1);
+          attBonus = niveauPerso(lanceur);
       }
       let weaponStats;
       if (opt && opt.arme && lanceur.arme) {
@@ -7980,7 +7980,7 @@ var COFantasy2 = COFantasy2 || function() {
                       if (predicateAsBool(attaquant, 'vampire')) {
                         let pointsDeSang = attributeAsInt(target, 'pointsDeSang', 0);
                         pointsDeSang++;
-                        if (pointsDeSang > ficheAttributeAsInt(target, 'niveau', 1)) {
+                        if (pointsDeSang > niveauPerso(target)) {
                           target.messages.push(
                             "tombe inconscient" + eForFemale(target) + ". " +
                             onGenre(target, "Il", "Elle") +
@@ -8992,8 +8992,7 @@ var COFantasy2 = COFantasy2 || function() {
               }
               options.aoe.souffleDeMort.allies = alliesParPerso[charId] || new Set();
               options.aoe.souffleDeMort.allies.add(charId);
-              options.aoe.souffleDeMort.niveau =
-                ficheAttributeAsInt(cadavre, 'niveau', 0);
+              options.aoe.souffleDeMort.niveau = niveauPerso(cadavre);
             }
             options.aoe.centre = options.aoe.centre || {
               left: targetToken.get('left'),
@@ -9032,7 +9031,7 @@ var COFantasy2 = COFantasy2 || function() {
               if (options.aoe.souffleDeMort) {
                 if (!options.aoe.souffleDeMort.allies.has(objCharId)) return;
                 if (estMortVivant(cible)) return;
-                if (ficheAttributeAsInt(cible, 'niveau', 0) > options.aoe.souffleDeMort.niveau) return;
+                if (niveauPerso(cible) > options.aoe.souffleDeMort.niveau) return;
               }
               cible.name = objChar.get('name');
               cible.tokName = obj.get('name');
@@ -10591,6 +10590,19 @@ var COFantasy2 = COFantasy2 || function() {
     ptest.pnj = (typePerso == 'npc');
     ptest.pj = !perso.pnj;
     return ptest.pnj;
+  }
+
+  function niveauPerso(perso) {
+    if (perso.niveau === undefined) {
+      if (persoEstPNJ(perso)) {
+        let n = ficheAttribute(perso, 'niveau', 0);
+        if (n == 0.5) perso.niveau = 0.5;//On peut avoir un NC de 1/2
+        else perso.niveau = toInt(n, 0);
+      } else {
+        perso.niveau = ficheAttributeAsInt(perso, 'niveau', 1);
+      }
+    }
+    return perso.niveau;
   }
 
   // retourne un tableau contenant la liste des ID de joueurs connectés controllant le personnage lié au Token
@@ -12694,6 +12706,15 @@ var COFantasy2 = COFantasy2 || function() {
     'enrage': {
       peutEnrage: true,
     },
+    //Voie de la magie maléfique
+    'vampirisation': {
+      siphonDesAmes: 2,
+      action: {
+        nom: 'Vampirisation',
+        type: 'A',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Vampirisation --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --seulementVivant --portee 30 --dm @{selected|demi_NC}d8 --drain',
+      },
+    },
     //Voie de la teigne
     'brise-genou': {
       teigneux: true, //pour l'attaque gratuite
@@ -13706,6 +13727,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (act.indexOf(pref) == -1) return act;
     act = act.replace(new RegExp(escapeRegExp(pref + 'token_id}'), 'g'), perso.token.id);
     act = act.replace(new RegExp(escapeRegExp(pref + 'token_name}'), 'g'), nomPerso(perso));
+    act = act.replace(new RegExp(escapeRegExp(pref + 'demi_NC}'), 'g'), Math.ceil(niveauPerso(perso)/2));
     let tmp = act.split('@{selected');
     let opt = {
       transforme: true
@@ -14477,7 +14499,7 @@ var COFantasy2 = COFantasy2 || function() {
       style = ' style="' + ps.style + BASIC_BUTTON_STYLE + '"';
     }
     let vitesse = vitessePerso(perso);
-    let niveau = ficheAttributeAsInt(perso, 1);
+    let niveau = niveauPerso(perso);
     let base_command = "!cof2-attaque " + perso.token.id + " @{target|token_id} ";
     let line = '';
     let optAgi = {
@@ -16855,7 +16877,7 @@ var COFantasy2 = COFantasy2 || function() {
                 });
               }
             }
-            if (!estNonVivant(perso)) {
+            if (!estNonVivant(perso) && niveauPerso(perso) > 0) {
               //Cherche si certains peuvent siphoner l'âme
               let allToks =
                 findObjs({
@@ -16885,11 +16907,8 @@ var COFantasy2 = COFantasy2 || function() {
                 if (isNaN(pvMax) || pvMax < 1) pvMax = 1;
                 if (estPJ(perso)) {
                   let siphoneur = prioriteSiphon[0].perso;
-                  let bonus = predicateAsInt(siphoneur, 'siphonDesAmes', 0);
-                  let jetSiphon = "(1d6";
-                  if (bonus > 0) jetSiphon += '+' + bonus;
-                  jetSiphon += ")";
-                  sendChat('COF', "/w GM " + perso.token.get('name') + " est un personnage joueur, possible qu'il ne soit pas vraiment mort mais juste inconscient. S'il est vraiment mort, faire le siphon des âmes par " + siphoneur.token.get('name') + " à la main " + jetSiphon);
+                  let mult = predicateAsInt(siphoneur, 'siphonDesAmes', 1);
+                  sendChat('COF', "/w GM " + perso.token.get('name') + " est un personnage joueur, possible qu'il ne soit pas vraiment mort mais juste inconscient. S'il est vraiment mort, faire le siphon des âmes par " + nomPerso(siphoneur) + " à la main " + mult + "x" + niveauPerso(perso));
                 } else {
                   prioriteSiphon.sort(function(a, b) {
                     return b.priorite - a.priorite;
@@ -16907,32 +16926,25 @@ var COFantasy2 = COFantasy2 || function() {
                       whisperChar(p.charId, "ne réussit pas à siphoner l'âme de " + token.get('name') + " un autre pouvoir l'a siphonée avant lui");
                       return true;
                     }
-                    let de = {
-                      dice: 6,
-                      bonus: predicateAsInt(p, 'siphonDesAmes', 0),
-                      nbDe: 1 + Math.floor(pvMax / 60),
-                    };
-                    let soin = rollDePlus(de);
-                    let soinTotal = soin.total;
+                    let soinTotal = predicateAsInt(p, 'siphonDesAmes', 2) * niveauPerso(perso);
+                    if (soinTotal < 1) soinTotal = 1;
                     //Le montant total des soins ne peut excéder les pv max du personnage qui vient de mourrir.
                     let display = true;
                     if (soinTotal > pvMax) {
                       soinTotal = pvMax;
                       display = false;
                     }
-                    if (soinTotal < 1) soinTotal = 1;
-                    soin.total = soinTotal;
-                    soin.total = Math.ceil(soin.total * fractionPriorite / 100);
-                    soignePerso(p, soin.total, evt,
+                    let soin = Math.ceil(soinTotal * fractionPriorite / 100);
+                    soignePerso(p, soinTotal, evt,
                       function(s) {
                         let siphMsg = "siphone l'âme de " + token.get('name') +
                           ". " + onGenre(p, 'Il', 'Elle') + " récupère ";
                         if (s == soinTotal) {
-                          if (display) siphMsg += soin.display + " pv.";
-                          else siphMsg += s + " pv (jet " + soin.display + ").";
+                          if (display) siphMsg += soin + " pv.";
+                          else siphMsg += s + " pv.";
                           fraction = 0;
                         } else {
-                          siphMsg += s + " pv (jet " + soin.display + ").";
+                          siphMsg += s + " pv (jet " + soin + ").";
                           fraction -= Math.ceil(s * 100 / soinTotal);
                         }
                         pvMax -= s;
@@ -24765,8 +24777,8 @@ var COFantasy2 = COFantasy2 || function() {
         if (!persoA) return;
         let persoB = persoOfId(b.id);
         if (!persoB) return;
-        let niveauA = ficheAttributeAsInt(persoA, 'niveau', 1);
-        let niveauB = ficheAttributeAsInt(persoB, 'niveau', 1);
+        let niveauA = niveauPerso(persoA);
+        let niveauB = niveauPerso(persoB);
         if (niveauA < niveauB) return 1;
         if (niveauB < niveauA) return -1;
         // Priorité aux joueurs
@@ -25405,7 +25417,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function deEvolutif(perso) {
     if (perso.deEvolutif) return perso.deEvolutif;
-    let niveau = ficheAttributeAsInt(perso, 'niveau', 1);
+    let niveau = niveauPerso(perso);
     let de = 4;
     if (niveau > 14) de = 12;
     else if (niveau > 11) de = 10;
@@ -26257,7 +26269,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (atkcac === undefined) {
           if (atk === undefined)
-            atkcac = ficheAttributeAsInt(attaquant, 'niveau', 0) + modCarac(attaquant, 'force');
+            atkcac = niveauPerso(attaquant) + modCarac(attaquant, 'force');
           else atkcac = atk;
         }
         return atkcac;
@@ -26279,7 +26291,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (atktir === undefined) {
           if (atk === undefined)
-            atktir = ficheAttributeAsInt(attaquant, 'niveau', 0) + modCarac(attaquant, 'agi');
+            atktir = niveauPerso(attaquant) + modCarac(attaquant, 'agi');
           else atktir = atk;
         }
         return atktir;
@@ -26294,7 +26306,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (atkmag === undefined) {
           //Alors c'est forcément NC + VOL
-          atkmag = ficheAttributeAsInt(attaquant, 'niveau', 0) + modCarac(attaquant, 'vol');
+          atkmag = niveauPerso(attaquant) + modCarac(attaquant, 'vol');
         }
         atkmag += predicateAsInt(attaquant, 'bonusAttaqueMagique', 0);
         return atkmag;
@@ -28254,8 +28266,8 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (options.attaquant && predicateAsBool(target, 'auDessusDeLaMelee')) {
-      let na = ficheAttributeAsInt(options.attaquant, 'niveau', 1);
-      let nc = ficheAttributeAsInt(target, 'niveau', 1);
+      let na = niveauPerso(options.attaquant);
+      let nc = niveauPerso(target);
       if (nc >= 2 * na) {
         if (!target.afficheAuDessusDeLaMelee) {
           target.afficheAuDessusDeLaMelee = true;
@@ -29055,7 +29067,7 @@ var COFantasy2 = COFantasy2 || function() {
     let exprSoins;
     if (soigneur) {
       charId = soigneur.charId;
-      niveau = ficheAttributeAsInt(soigneur, 'niveau', 1);
+      niveau = niveauPerso(soigneur);
     }
     let effet = "soin";
     let argSoin = cmd[1];
@@ -32154,6 +32166,7 @@ var COFantasy2 = COFantasy2 || function() {
     pasDEchecCritique: {
       fn: tricheOption
     },
+    pietine: boolDefaultOption,
     perforant: boolDefaultOption,
     peur: {
       fn: peurOption,
@@ -32249,6 +32262,9 @@ var COFantasy2 = COFantasy2 || function() {
     },
     touche: {
       fn: tricheOption
+    },
+    toucher: {
+      fn: integerOption
     },
     touteLaPage: {
       fn: selectionOption
@@ -32346,9 +32362,6 @@ var COFantasy2 = COFantasy2 || function() {
     titre: stringDefaultOption,
     nom: stringDefaultOption,
     special: stringDefaultOption,
-    toucher: {
-      fn: integerOption
-    },
   };
 
   //Renseigne toujours options.playerId
@@ -33930,7 +33943,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   const attributeQuiAffecteMaitriseArmes = new RegExp('^v[1-9]r2$|^v[1-9]profil$|^maitrises_armes$');
-  const attributeQuiAffecteCapacite = new RegExp('^v[1-9]r[1-9]$');
+  const attributeQuiAffecteCapacite = new RegExp('^v[1-9]r[1-9]$|^repeating_npcrolls_[^_]*_npcroll-name');
   const attributeQuiAffectePredEquip = new RegExp('^repeating_equipement_[^_]*_equip-predicats');
 
   function activateSheetWorkerCompagnon(perso, compagnon) {
