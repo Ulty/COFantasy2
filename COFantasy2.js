@@ -1,4 +1,4 @@
-//Dernière modification : mer. 01 juil. 2026,  08:46
+//Dernière modification : mer. 01 juil. 2026,  12:02
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4577,7 +4577,7 @@ var COFantasy2 = COFantasy2 || function() {
     let explications = [];
     if (options.message) explications = [...options.message];
     //On cherche si un allié exemplaire peut donner un dé bonus
-    if (!options.auto) {
+    if (!options.auto && !attributeAsBool(attaquant, 'chargeFantastique')) {
       let allies = alliesParPerso[attaquant.charId];
       if (allies) {
         let exemplaires = [];
@@ -5733,6 +5733,24 @@ var COFantasy2 = COFantasy2 || function() {
       }
       explications.push(msg);
       removeTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', evt);
+    }
+    if (attributeAsBool(attaquant, 'chargeFantastique')) {
+      let msg = "Charge fantastique =>";
+      if (!options.auto) {
+      if (options.deBonus === true) options.deBonus = 2;
+      else if (options.deBonus) options.deBonus++;
+      else options.deBonus = 1;
+        msg += " dé bonus";
+      }
+      if (!options.pasDeDmg) {
+      options.additionalDmg.push({
+        type: options.type || 'normal',
+        value: '1d' + deEvolutif(attaquant),
+      });
+        if (!options.auto) msg += " et";
+        msg+= " +1d4° DM";
+      }
+      explications.push(msg);
     }
     // Les armes de jet
     if (weaponStats.armeDeJet && !estMook(attaquant)) {
@@ -11261,7 +11279,7 @@ var COFantasy2 = COFantasy2 || function() {
             roll.total += 10;
             roll.display += '+ 10';
           }
-          if (roll.total - bonus == 1 || roll.total < diffTest) {
+          if (roll.deVal == 1 || (roll.total < diffTest && roll.deVal != 20)) {
             expliquerPerso(perso, roll.display + " => échec !"); //TODO: proposer d'utliser la chance
             //L'action est dépensée
             if (combat) {
@@ -12074,10 +12092,32 @@ var COFantasy2 = COFantasy2 || function() {
       capaciteAmbigue: true, //existe aussi dans la Voie du cogneur
       action: {
         nom: 'Charge',
-        typeAction: 'L',
+        type: 'L',
         combat: true,
         pasAuContactAdversaire: true,
+        limiteArmure: 'barbare',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deplaceDe 5 10 --deBonus --plus 1d4E',
+      },
+    },
+    //Voies de chevalier ////////////////////////////////////////////
+    //Voie du meneur d'hommes
+    'sans peur': {
+      sansPeur: true,
+      bonusTestEvolutif_strategie: true,
+    },
+    'intercepter': {
+      intercepter: true,
+      intercepterRD: 'RANG',
+    },
+    'exemplaire': {
+      exemplaire: true,
+    },
+    'charge fantastique': {
+      action: {
+        nom: 'Charge fantastique',
+        type: 'G',
+        debutDuTour: true,
+        cmd: '!cof2-effet chargeFantastique 1 --select @{selected|token_id} --alliesEnVue --limiteParCombat 1 chargeFantastique --message lance une charge fantastique !',
       },
     },
     //Voies de guerrier ////////////////////////////////////////////
@@ -12113,7 +12153,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: '<span title="Action de mouvement suppélementaire">Vivacité</span>',
         limitArmure: 'guerrier',
-        cmd: "!cof2-action est très vif --donneAction EM --acteur @{selected|token_id} --decrLimitePredicatParCombat mouvementVivacite"
+        cmd: "!cof2-action est très vif --donneAction EM --decrLimitePredicatParCombat mouvementVivacite"
       }
     },
     'manoeuvre': { //TODO: vérifier carac quand copié-collé
@@ -12328,7 +12368,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 1,
         limiteArmure: 'magicien',
-        cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10 --acteur @{selected|token_id}',
+        cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10',
       }, {
         nom: 'Lumière dans les yeux',
         combat: true,
@@ -12377,21 +12417,8 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 3,
         limiteArmure: 'magicien',
-        cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --acteur @{selected|token_id} --select @{target|token_id}',
+        cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{target|token_id}',
       }],
-    },
-    //Voies de chevalier ////////////////////////////////////////////
-    //Voie du meneur d'hommes
-    'sans peur': {
-      sansPeur: true,
-      bonusTestEvolutif_strategie: true,
-    },
-    'intercepter': {
-      intercepter: true,
-      intercepterRD: 'RANG',
-    },
-    'exemplaire': {
-      exemplaire: 1
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des animaux
@@ -12512,7 +12539,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 2,
         limiteArmure: 'druide',
-        cmd: "!cof2-action éveille la forêt dans un rayon de RANG km --limiteParJour 1 foretVivante --acteur @{selected|token_id}",
+        cmd: "!cof2-action éveille la forêt dans un rayon de RANG km --limiteParJour 1 foretVivante",
       }
     },
     //Voie des végétaux
@@ -12534,7 +12561,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'L',
         mana: 2,
-        cmd: "!cof2-prison-vegetale @{target|token_id} 10 @{selected|PER} --acteur @{selected|token_id} --portee 20",
+        cmd: "!cof2-prison-vegetale @{target|token_id} 10 @{selected|PER} --portee 20",
       }
     },
     //Voies de prêtre ////////////////////////////////////////////
@@ -12548,7 +12575,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'A',
         mana: 2,
-        cmd: 'cof2-soin 1d4E --cibleInconsciente --acteur @{selected|token_id} --select @{target|token_id} --portee 0',
+        cmd: 'cof2-soin 1d4E --cibleInconsciente --select @{target|token_id} --portee 0',
       }
     },
     //Voie de la guerre sainte
@@ -12566,7 +12593,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'L',
         mana: 1,
-        cmd: '!cof2-effet benediction SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --alliesEnVue --acteur @{selected|token_id}',
+        cmd: '!cof2-effet benediction SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --alliesEnVue',
       }
     },
     'sanctuaire': {
@@ -12576,7 +12603,7 @@ var COFantasy2 = COFantasy2 || function() {
         bufPersonnelNonCumulable: 'sanctuaire',
         type: 'L',
         mana: 2,
-        cmd: 'cof2-effet sanctuaire 10 --select @{selected|token_id} --acteur @{selected|token_id}',
+        cmd: 'cof2-effet sanctuaire 10 --select @{selected|token_id}',
       }
     },
     //Voie des soins
@@ -12593,7 +12620,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Récupération mineure",
         type: 'A',
         mana: 1,
-        cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --acteur @{selected|token_id} --select @{target|token_id} --portee 0',
+        cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --select @{target|token_id} --portee 0',
       },
     },
     'vigueur divine': {
@@ -12602,7 +12629,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Vigueur divine",
         type: 'L',
         mana: 2,
-        cmd: "!cof2-action soigne @{target|token_name} d'un poison ou d'une maladie --cible @{target|token_id} --acteur @{selected|token_id} --portee 0",
+        cmd: "!cof2-action soigne @{target|token_name} d'un poison ou d'une maladie --cible @{target|token_id} --portee 0",
       },
     },
     'recuperation majeure': {
@@ -12617,7 +12644,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Récupération majeure",
         type: 'L',
         mana: 3,
-        cmd: '!cof2-soin 3d4E+@{selected|CHA} --plusDeEvolPred bonusRecuperationMajeure --acteur @{selected|token_id} --select @{target|token_id} --portee 20',
+        cmd: '!cof2-soin 3d4E+@{selected|CHA} --plusDeEvolPred bonusRecuperationMajeure --select @{target|token_id} --portee 20',
       },
     },
     //Voie de la spiritualité
@@ -12650,14 +12677,14 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Donner une action",
         type: 'G',
-        cmd: '!cof2-action reçoit un ordre à @{selected|token_name} --donneAction A --cible @{target|token_name} --acteur @{selected|token_id} --limiteParTour 1 ordreSergent',
+        cmd: '!cof2-action reçoit un ordre à @{selected|token_name} --donneAction A --cible @{target|token_name} --limiteParTour 1 ordreSergent',
       },
     },
     //Voie du cogneur
     'charge PNJ': {
       action: {
         nom: 'charge',
-        typeAction: 'L',
+        type: 'L',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deplaceDe 20 --deBonus --pietine',
       }
     },
@@ -14900,7 +14927,7 @@ var COFantasy2 = COFantasy2 || function() {
   function ajouterAction(perso, action, ligne, actionsEnCombat = true) {
     if (actionsEnCombat) {
       if (action.horsCombat) return ligne;
-      if (action.debutDuTour && !(isActiveTurnPerso(perso) && aucuneAction(perso, stateCOF.combat))) return ligne;
+      if (action.debutDuTour && !aucuneAction(perso, stateCOF.combat)) return ligne;
     } else {
       if (action.combat) return ligne;
     }
@@ -15020,7 +15047,12 @@ var COFantasy2 = COFantasy2 || function() {
             let vitesse = vitessePerso(perso);
             let picto = '<span style="font-family: \'Pictos\'">4</span> ';
             let style = 'style="background-color:#272751"';
-            let commande = "!cof2-mvt " + perso.token.id + " " + vitesse + " --typeAction M";
+            let commande = "!cof2-mvt " + perso.token.id + " " + vitesse;
+            if (aucuneAction(perso, combat) && attributeAsBool(perso, 'chargeFantastique') && attributeAsInt(perso, 'limiteParTour_mouvementChargeFantastique', 1)) {
+              commande += " --limiteParTour 1 mouvementChargeFantastique";
+            } else {
+              commande += " --typeAction M";
+            }
             ligne += boutonSimple(commande, picto, style) + " Se déplacer de " + vitesse + " m (M)";
             if (typeActionPossible(perso, 'L')) {
               //On proposer de sprinter (page 211)
@@ -18390,6 +18422,12 @@ var COFantasy2 = COFantasy2 || function() {
       dureeEnTours: true,
       visible: true,
     },
+    chargeFantastique: {
+      activation: "participe à la charge fantastique !",
+      actif: "charge fantastique",
+      fin: "fin de la charge",
+      dureeEnTours: true,
+    },
     dotGen: {
       activation: "subit un effet",
       actif: "subit régulièrement des dégâts",
@@ -20031,6 +20069,11 @@ var COFantasy2 = COFantasy2 || function() {
     } = args;
     const evt = evtAvecRedo('effet', args);
     if (limiteRessources(lanceur, options, effet, effet, evt)) return;
+    if (lanceur && options.message) {
+        options.message.forEach(function(m) {
+          sendPerso(lanceur, m, options.secret);
+        });
+    }
     cibles.forEach(function(perso) {
       let expliquer = function(s) {
         expliquerPerso(perso, s, options);
@@ -20100,7 +20143,7 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         setState(perso, effet, activer, evt, options);
       }
-      if (options.message) {
+      if (!lanceur && options.message) {
         options.message.forEach(function(m) {
           sendPerso(perso, m, options.secret);
         });
@@ -22994,7 +23037,7 @@ var COFantasy2 = COFantasy2 || function() {
     let roll = rollDePlus(de, testId, evt);
     testRes.roll = roll;
     testRes.rerolls = '';
-    let d20roll = roll.total;
+    let d20roll = roll.deVal;
     let bonusText = (bonusCarac > 0) ? "+" + bonusCarac : (bonusCarac === 0) ? "" : bonusCarac;
     testRes.texte = jetCache ? d20roll + bonusCarac : roll.display + bonusText;
     let chanceUtilisee;
@@ -23641,7 +23684,7 @@ var COFantasy2 = COFantasy2 || function() {
       plageEC = options.plageEchecCritique;
     }
     let roll = rollDePlus(de, testId, evt);
-    let d20roll = roll.total;
+    let d20roll = roll.deVal;
     let rtext = jetCache ? d20roll + bonusCarac : roll.display + bonusText;
     let chanceUtilisee;
     if (options.chanceRollId && options.chanceRollId[testId]) {
@@ -25225,6 +25268,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Renvoie
   //  total: entier, de valeur 1dk + bonus
+  //  deVal: la valeur de la partie dé seule
   //  display: un texte à afficher, de la bonne couleur, et avec tooltip
   //  type: le type donne en argument, pour pouvoir passer ça directement à dealDamage. Si pas donné en arg, c'est 'normal'
   //args peut être un nombre > 0 (le nombre de faces) ou bien un objet compatible avec le résultat de parseDice:
@@ -25307,6 +25351,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let res = {
       total: jetTotal + bonus,
+      deVal: jetTotal,
       type
     };
     let style = 'display: inline-block; border-radius: 5px; padding: 0 4px;';
@@ -25578,7 +25623,7 @@ var COFantasy2 = COFantasy2 || function() {
           type: 'feu',
         };
         let dmgEnflamme = rollDePlus(deFlammes, "flammes" + perso.token.id, evt);
-        let d6Enflamme = dmgEnflamme.total;
+        let d6Enflamme = dmgEnflamme.deVal;
         if (getState(perso, 'mort')) {
           if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " continue de brûler");
         } else {
@@ -33260,7 +33305,11 @@ var COFantasy2 = COFantasy2 || function() {
         }
         //Vrai mouvement et action de mouvement possible
         delete mvt.pasDePlacement;
+        if (aucuneAction(perso, combat) && attributeAsBool(perso, 'chargeFantastique') && attributeAsInt(perso, 'limiteParTour_mouvementChargeFantastique', 1)) {
+          setTokenAttr(perso, 'limiteParTour_mouvementChargeFantastique',0, evt);
+        } else {
         depenseAction(perso, 'M', combat, evt);
+        }
         sendPerso(perso, "se déplace, action de mouvement dépensée.", true);
         proposerDeDegainerPendantMouvement(perso);
       } else {
