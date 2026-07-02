@@ -1,4 +1,4 @@
-//Dernière modification : mer. 01 juil. 2026,  02:34
+//Dernière modification : jeu. 02 juil. 2026,  03:26
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5718,18 +5718,18 @@ var COFantasy2 = COFantasy2 || function() {
     if (predicateAsBool(attaquant, 'teigne') && attributeAsBool(attaquant, 'attributDeCombat_teigneRateAttaque')) {
       let msg = "A raté sa dernière attaque =>";
       if (!options.auto) {
-      if (options.deBonus === true) options.deBonus = 2;
-      else if (options.deBonus) options.deBonus++;
-      else options.deBonus = 1;
+        if (options.deBonus === true) options.deBonus = 2;
+        else if (options.deBonus) options.deBonus++;
+        else options.deBonus = 1;
         msg += " dé bonus";
       }
       if (!options.pasDeDmg) {
-      options.additionalDmg.push({
-        type: options.type || 'normal',
-        value: '2d' + deEvolutif(attaquant),
-      });
+        options.additionalDmg.push({
+          type: options.type || 'normal',
+          value: '2d' + deEvolutif(attaquant),
+        });
         if (!options.auto) msg += " et";
-        msg+= " +2d4° DM";
+        msg += " +2d4° DM";
       }
       explications.push(msg);
       removeTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', evt);
@@ -5737,18 +5737,18 @@ var COFantasy2 = COFantasy2 || function() {
     if (attributeAsBool(attaquant, 'chargeFantastique')) {
       let msg = "Charge fantastique =>";
       if (!options.auto) {
-      if (options.deBonus === true) options.deBonus = 2;
-      else if (options.deBonus) options.deBonus++;
-      else options.deBonus = 1;
+        if (options.deBonus === true) options.deBonus = 2;
+        else if (options.deBonus) options.deBonus++;
+        else options.deBonus = 1;
         msg += " dé bonus";
       }
       if (!options.pasDeDmg) {
-      options.additionalDmg.push({
-        type: options.type || 'normal',
-        value: '1d' + deEvolutif(attaquant),
-      });
+        options.additionalDmg.push({
+          type: options.type || 'normal',
+          value: '1d' + deEvolutif(attaquant),
+        });
         if (!options.auto) msg += " et";
-        msg+= " +1d4° DM";
+        msg += " +1d4° DM";
       }
       explications.push(msg);
     }
@@ -7809,15 +7809,20 @@ var COFantasy2 = COFantasy2 || function() {
             if (target.pietine && estAussiGrandQue(attaquant, target)) {
               let rollId = 'pietinement' + target.token.id;
               let seuil = 10 + modCarac(attaquant, 'FOR');
-              let tr = testCaracteristique(target, 'FOR', seuil, rollId, {}, evt);
+              let pietine = 'piétiné' + eForFemale(target);
+              let opt = {
+                chanceRollId: options.chanceRollId
+              };
+              let tr = testCaracteristique(target, 'FOR', seuil, rollId, opt, evt);
+              target.messages.push("Jet de FOR pour éviter d'être " + pietine + " : " + tr.texte);
               tr.explications.forEach(function(msg) {
                 target.messages.push(msg);
               });
               if (tr.reussite) {
                 diminueMalediction(attaquant, evt);
-                target.messages.push(nomPerso(target) + " n'est pas piétiné.");
+                target.messages.push(nomPerso(target) + " n'est pas " + pietine + "." + tr.modifiers);
               } else {
-                target.messages.push(nomPerso(target) + " est piétiné par " + attackerTokName + ", dommages doublés");
+                target.messages.push(nomPerso(target) + " est " + pietine + " par " + nomPerso(attaquant) + ", dommages doublés" + tr.rerolls + tr.modifiers);
                 setState(target, 'renverse', true, evt);
                 target.dmgCoef = (target.dmgCoef || 0) + 1;
                 target.touche++;
@@ -10596,7 +10601,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (perso.niveau === undefined) {
       if (persoEstPNJ(perso)) {
         let n = ficheAttribute(perso, 'niveau', 0);
-        if (n == 0.5) perso.niveau = 0.5;//On peut avoir un NC de 1/2
+        if (n == 0.5) perso.niveau = 0.5; //On peut avoir un NC de 1/2
         else perso.niveau = toInt(n, 0);
       } else {
         perso.niveau = ficheAttributeAsInt(perso, 'niveau', 1);
@@ -11040,10 +11045,11 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (!options.testeRessources) {
         setTokenAttr(perso, ressource, utilisations - 1, evt);
-        if (opt.ressource) {
+        if (opt.ressource && (limite > 1 || type != 'Tour')) {
           let msgLimite = nomPerso(perso) + " ";
-          if (utilisations < 2) msgLimite += "ne pourra plus utiliser ";
-          else {
+          if (utilisations < 2) {
+            msgLimite += "ne pourra plus utiliser ";
+          } else {
             msgLimite += "pourra encore utiliser ";
             if (utilisations == 2) msgLimite += "une fois ";
             else msgLimite += (utilisations - 1) + " fois ";
@@ -11173,6 +11179,15 @@ var COFantasy2 = COFantasy2 || function() {
     let combat = stateCOF.combat;
     if (perso && !combat && options.typeAction && !options.testeRessources) {
       combat = placerDansTurnOrder(perso, evt);
+    }
+    //On débloque les actions ici, car c'est la fonction toujours appelée pour les commandes juste après création de l'evt. TODO: on pourrait aussi rajouter un argument options à addEvent
+    if (evt && !options.testeRessources && options.debloqueAction) {
+      let infos = getInfos(perso);
+      if (infos.actions && infos.actions[options.debloqueAction]) {
+        ajouterActionSupplementaire(perso, infos.actions[options.debloqueAction], evt);
+      } else {
+        log("Action " + options.debloqueAction + " de " + nomPerso(perso) + " non trouvée", infos);
+      }
     }
     if (perso && options.typeAction) {
       switch (options.typeAction) {
@@ -11885,9 +11900,11 @@ var COFantasy2 = COFantasy2 || function() {
   //  - bufPersonnelNonCumulable : pareil que plus haut, sauf si l'attribut va se terminer dans moins de 2 tours
   //  - seulementSiAttributBool: on ne montre l'action que si l'attribut est vrai sur le perso
   //  - bouclier : le personnage doit porter un bouclier pour faire l'action
+  //  - armeEnMain : le personnage soit porter une arme en main du type spécifié
   //  - pasAuContactAdversaire
   //  - limiteArmure: limitation d'armure
   //  - aPrtirDeRang: action disponible seulement à partir d'un certain rang dans la voie
+  //  - debloqueActions: liste d'actions qui sont débloquées si on exécute la cmd
   // capacite : reproduit l'effet d'une capacité
   //  - nom : le nom de la capacité
   //  - profil : une liste de profils desquels la capacité peut provenir
@@ -11992,6 +12009,33 @@ var COFantasy2 = COFantasy2 || function() {
     'tir chirurgical': {
       tirIgnoreCibleEngagee: true,
       Restriction_tirIgnoreCibleEngagee: 'armure_rodeur',
+    },
+    'dans le mille': {
+      dansLeMille: true,
+      action: {
+        nom: "Tir dans le mille (L)",
+        type: 'L',
+        combat: true,
+        limiteArmure: 'cuirRenforce',
+        armeEnMain: 'portee',
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --deMalus --plus 3d4E"
+      },
+    },
+    'tir rapide': {
+      action: {
+        nom: 'Tir rapide',
+        type: 'L',
+        combat: true,
+        limiteArmure: 'cuirRenforce',
+        armeEnMain: 'portee',
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaque -2",
+        debloqueActions: [{
+          nom: 'Second tir',
+          type: 'G',
+          armeEnMain: 'portee',
+          cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaque -2 --limiteParTour 1 tirRapide",
+        }],
+      },
     },
     //Voie du compagnon animal
     'le loup': {
@@ -12207,7 +12251,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie du soldat
     'teigneux': {
-      capaciteAmbigue: true,//existe aussi dans la Voie de la teigne
+      capaciteAmbigue: true, //existe aussi dans la Voie de la teigne
       bonusTestEvolutif_teigneux: true,
       teigneux: true,
       Restriction_teigneux: 'armure_guerrier',
@@ -12824,9 +12868,9 @@ var COFantasy2 = COFantasy2 || function() {
     let warnParam = true;
     preds = deepCopy(preds);
     delete preds.capaciteAmbigue;
-    if (preds.action) {
-      replaceSpecialInField(preds, 'action', numVoie, rmax, param);
-      actions.push(preds.action);
+    if (preds.action) { //On la met dans preds.actions, traité plus bas
+      if (!preds.actions) preds.actions = [preds.action];
+      else preds.actions.push(preds.action);
       delete preds.action;
     }
     if (preds.actions) {
@@ -12834,7 +12878,18 @@ var COFantasy2 = COFantasy2 || function() {
         let limiteRangs = preds.actions[i].aPartirDeRang;
         if (limiteRangs && rmax < limiteRangs) continue;
         replaceSpecialInField(preds.actions, i, numVoie, rmax, param);
-        actions.push(preds.actions[i]);
+        let act = preds.actions[i];
+        actions.push(act);
+        if (act.debloqueActions) {
+          for (let j = 0; j < act.debloqueActions.length; j++) {
+            let actSupp = act.debloqueActions[j];
+            let n = actions.length;
+            act.cmd += ' --debloqueAction ' + n;
+            actSupp.enAttente = true;
+            actions.push(actSupp);
+          }
+          delete act.debloqueActions;
+        }
       }
       delete preds.actions;
     }
@@ -13727,7 +13782,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (act.indexOf(pref) == -1) return act;
     act = act.replace(new RegExp(escapeRegExp(pref + 'token_id}'), 'g'), perso.token.id);
     act = act.replace(new RegExp(escapeRegExp(pref + 'token_name}'), 'g'), nomPerso(perso));
-    act = act.replace(new RegExp(escapeRegExp(pref + 'demi_NC}'), 'g'), Math.ceil(niveauPerso(perso)/2));
+    act = act.replace(new RegExp(escapeRegExp(pref + 'demi_NC}'), 'g'), Math.ceil(niveauPerso(perso) / 2));
     let tmp = act.split('@{selected');
     let opt = {
       transforme: true
@@ -13807,28 +13862,27 @@ var COFantasy2 = COFantasy2 || function() {
         if (act.startsWith('!cof2-')) {
           let actSansChoix = removeRollQueries(act);
           let cmd = actSansChoix;
-          let io = actSansChoix.indexOf(' --');
+          let io = act.indexOf(' --');
           typeAction = cmd.split(' ', 1)[0].substring(6);
           if (typeAction == 'attaque' || typeAction == 'explosion') {
+            let ic = act.indexOf(' ?{');
+            if (ic > 0) io = Math.min(io, ic);
             if (io > 0) {
-              options.commande = actSansChoix.substring(0, io);
-              options.ligneOptions = actSansChoix.substring(io);
+              options.commande = act.substring(0, io);
+              options.ligneOptions = act.substring(io);
+            } else {
+              options.commande = act;
             }
             let attackLabel;
             let attackStats = options.attackStats;
             if (attackStats) {
               attackLabel = attackStats.label;
             } else {
-              let cmd;
-              if (io > 0) {
-                cmd = options.commande.split(' ');
-              } else {
-                cmd = act.split(' --')[0].split(' ');
-              }
+              let cmd = options.commande.split(' ');
               if (typeAction == 'explosion' && cmd.length > 1) {
                 attackLabel = cmd.slice(1).join(' ').trim();
-              } else if (cmd.length > 3) {
-                attackLabel = cmd.slice(3).join(' ').trim();
+              } else if (cmd.length > 4) {
+                attackLabel = cmd.slice(4).join(' ').trim();
               }
             }
             let aps = boutonAttaque(perso, attackLabel, options);
@@ -13971,7 +14025,7 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         if (label === undefined || label == -1) {
           attackStats = armesEnMain(attaquant);
-        } else if (label == -1) {
+        } else if (label == -2) {
           armesEnMain(attaquant);
           attackStats = attaquant.armeGauche;
         } else {
@@ -14946,7 +15000,8 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //Ajoute l'action à ligne, si elle est disponible
-  function ajouterAction(perso, action, ligne, actionsEnCombat = true) {
+  function ajouterAction(perso, action, ligne, actionsEnCombat = true, supplementaire = false) {
+    if (action.enAttente && !supplementaire) return ligne;
     if (actionsEnCombat) {
       if (action.horsCombat) return ligne;
       if (action.debutDuTour && !aucuneAction(perso, stateCOF.combat)) return ligne;
@@ -14980,6 +15035,10 @@ var COFantasy2 = COFantasy2 || function() {
     if (action.inutileSiAttributBool && attributeAsBool(perso, action.inutileSiAttributBool)) return ligne;
     if (action.seulementSiAttributBool && !attributeAsBool(perso, action.seulementSiAttributBool)) return ligne;
     if (action.bouclier && !ficheAttributeAsBool(perso, 'bouclier_eqp', false)) return ligne;
+    if (action.armeEnMain) {
+      let armeEnMain = armesEnMain(perso);
+      if (!armeEnMain || !armeEnMain[action.armeEnMain]) return ligne;
+    }
     if (action.pasAuContactAdversaire && ennemisAuContact(perso, perso.token.get('pageid')).length > 0) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
     let request;
@@ -15008,10 +15067,10 @@ var COFantasy2 = COFantasy2 || function() {
         if (command.startsWith('!cof2-soin ')) opt.pasDeBrulureDeMana = true;
         if (!depenseManaPossible(perso, action.mana, false, opt)) return ligne;
         command += " --mana " + action.mana;
-        if (stateCOF.combat) command += " --typeAction " + action.type;
+        if (stateCOF.combat || action.combat) command += " --typeAction " + action.type;
       }
     } else {
-      if (stateCOF.combat) command += " --typeAction " + action.type;
+      if (stateCOF.combat || action.combat) command += " --typeAction " + action.type;
     }
     command += ' --acteur ' + perso.token.id;
     let bopt = {
@@ -15137,6 +15196,9 @@ var COFantasy2 = COFantasy2 || function() {
             typeAction: 'A',
           };
           if (armePrincipale.attaqueMultiple) bopt.attaqueMultiple = true;
+          if (armePrincipale.arc && predicateAsBool(perso, 'dansLeMille')) {
+            bopt.ligneOptions = "?{Difficulté du tir|Normal,&#32;|-2,--bonusAttaque -2 --plus 1d" + deEvolutif(perso) + "|Dé malus,--deMalus --plus 2d" + deEvolutif(perso) + "}";
+          }
           //Si l'action est impossible, va simplement afficher le nom de l'arme
           ligneArmePrincipale = boutonAttaque(perso, labelArmePrincipale, bopt);
           if (bopt.actionImpossible) armeUtilisable = false;
@@ -15288,7 +15350,7 @@ var COFantasy2 = COFantasy2 || function() {
       let actions = actionsDisponibles(perso, combat);
       if (actions.supplementaires) {
         actions.supplementaires.forEach(function(action) {
-          ligne = ajouterAction(perso, action, ligne, actionsEnCombat);
+          ligne = ajouterAction(perso, action, ligne, actionsEnCombat, true);
         });
       }
     }
@@ -20082,9 +20144,9 @@ var COFantasy2 = COFantasy2 || function() {
     const evt = evtAvecRedo('effet', args);
     if (limiteRessources(lanceur, options, effet, effet, evt)) return;
     if (lanceur && options.message) {
-        options.message.forEach(function(m) {
-          sendPerso(lanceur, m, options.secret);
-        });
+      options.message.forEach(function(m) {
+        sendPerso(lanceur, m, options.secret);
+      });
     }
     cibles.forEach(function(perso) {
       let expliquer = function(s) {
@@ -27293,6 +27355,10 @@ var COFantasy2 = COFantasy2 || function() {
       setFicheAttr(perso, arme.prefixe + 'arme-active', 1, evt);
     }
     sendPerso(perso, "Ramasse " + arme.name);
+    let attrs = tokenAttribute(perso, 'armeLachee');
+    attrs.forEach(function(a) {
+      if (a.get('current') == label) deleteAttribute(a, evt);
+    });
   }
 
   function commandeRecharger(cmd, playerId, pageId, options, perso) {
@@ -27385,7 +27451,6 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       }
-      deleteAttribute(a, evt);
     });
     //Utilisation automatique de second souffle, si pas utilisé
     let persosDuCombat = []; //peuplé la première fois qu'on regarde les tokens
@@ -30034,6 +30099,15 @@ var COFantasy2 = COFantasy2 || function() {
         }
         addLineToFramedDisplay(display, msg);
       }
+      let attrs = tokenAttribute(perso, 'armeLachee');
+      attrs.forEach(function(a) {
+        let nomArme = a.get('max');
+        let label = a.get('current');
+        let msg = "a laché " + nomArme + ", ";
+        let commande = '!cof2-ramasser-arme ' + label + ' ' + perso.charId + ' ' + perso.token.id;
+        msg += boutonSimple(commande, "la ramasser", BS_BUTTON) + ' ?';
+        addLineToFramedDisplay(display, msg);
+      });
       if (attributeAsBool(perso, 'etatExsangue')) {
         addLineToFramedDisplay(display, "est exsangue");
       }
@@ -31363,6 +31437,8 @@ var COFantasy2 = COFantasy2 || function() {
     let champ = ctx.optName || 'additionalDmg';
     let scope = state.scope;
     scope[champ] = scope[champ] || [];
+    //TODO: utiliser parseDice
+    if (options.acteur) value = (value + '').replace(/(\d+)d4[°eE]/g, '$1d' + deEvolutif(options.acteur));
     scope[champ].push({
       value,
       type: scope.type,
@@ -31999,6 +32075,9 @@ var COFantasy2 = COFantasy2 || function() {
     critique: {
       fn: tricheOption
     },
+    debloqueAction: {
+      fn: integerOption,
+    },
     decrAttribute: {
       fn: decrAttributeOption,
     },
@@ -32248,6 +32327,7 @@ var COFantasy2 = COFantasy2 || function() {
       additif: true,
       min: 0,
     },
+    special: stringDefaultOption,
     sucerLeSang: {
       fn: integerOption,
       default: 7,
@@ -32361,7 +32441,6 @@ var COFantasy2 = COFantasy2 || function() {
     grenaille: boolDefaultOption,
     titre: stringDefaultOption,
     nom: stringDefaultOption,
-    special: stringDefaultOption,
   };
 
   //Renseigne toujours options.playerId
@@ -33319,9 +33398,9 @@ var COFantasy2 = COFantasy2 || function() {
         //Vrai mouvement et action de mouvement possible
         delete mvt.pasDePlacement;
         if (aucuneAction(perso, combat) && attributeAsBool(perso, 'chargeFantastique') && attributeAsInt(perso, 'limiteParTour_mouvementChargeFantastique', 1)) {
-          setTokenAttr(perso, 'limiteParTour_mouvementChargeFantastique',0, evt);
+          setTokenAttr(perso, 'limiteParTour_mouvementChargeFantastique', 0, evt);
         } else {
-        depenseAction(perso, 'M', combat, evt);
+          depenseAction(perso, 'M', combat, evt);
         }
         sendPerso(perso, "se déplace, action de mouvement dépensée.", true);
         proposerDeDegainerPendantMouvement(perso);
