@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 02 juil. 2026,  03:26
+//Dernière modification : jeu. 02 juil. 2026,  05:15
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -30545,33 +30545,57 @@ var COFantasy2 = COFantasy2 || function() {
                   setAttr(pref + '_arme-active', v);
                   break;
                 case 'armetypeattaque':
-                  setAttr(pref + '_arme-atktype', v);
+                  switch (v) {
+                    case 'Naturel':
+                      setAttr(pref + '_arme-atktype', 'naturel');
+                      break;
+                    case 'Arme 1 main':
+                    case 'Arme 2 mains':
+                    case 'Arme gauche':
+                      setAttr(pref + '_arme-atktype', 'main');
+                      break;
+                    case 'Sortilege':
+                      setAttr(pref + '_arme-atktype', 'sort');
+                      break;
+                    case 'Arme de jet':
+                      setAttr(pref + '_arme-atktype', 'jet');
+                  }
                   break;
                 case 'armemodificateurs':
                   setAttr(pref + '_arme-atkmods', v);
                   break;
                 case 'armetypedegats':
-                  let type = 'naturel';
+                  let type = v;
                   switch (v) {
-                    case 'Naturel':
-                      type = 'naturel';
+                    case 'tranchant':
+                      type = 'tranchants';
                       break;
-                    case 'Arme 1 main':
-                      type = 'main';
+                    case 'contondant':
+                      type = 'contondants';
                       break;
-                    case 'Arme 2 mains':
-                      type = 'main';
+                    case 'percant':
+                      type = 'perforants';
                       break;
-                    case 'Sortilege':
-                      type = 'sort';
+                    case 'feu':
+                    case 'acide':
+                    case 'poison':
+                    case 'froid':
+                      //ces cas ne changent pas le type
                       break;
-                    case 'Arme gauche':
-                      type = 'main';
+                    case 'electrique':
+                      type = 'électricité';
                       break;
-                    case 'Arme de jet':
-                      type = 'jet';
+                    case 'drain':
+                      type = 'drain';
                       break;
-                    default:
+                    case 'magique':
+                      type = 'magiques';
+                      break;
+                    case 'mental':
+                    case 'sonique':
+                    case 'maladie':
+                      //cas non gérés dans la nouvelle fiche
+                      break;
                   }
                   setAttr(pref + '_arme-dmtype', type);
                   break;
