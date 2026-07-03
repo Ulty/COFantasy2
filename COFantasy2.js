@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 02 juil. 2026,  05:15
+//Dernière modification : ven. 03 juil. 2026,  08:50
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1673,6 +1673,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Toutes les fonctions ci-dessous doivent prendre un seul argument objet, et utiliser evtAvecRedo
   const funWithRedo = {
+    'action': actionAvecRedo,
     'Attaque': attaqueAvecRedo,
     'degainer': degainerAvecRedo,
     'dmgDirects': dmgDirectsAvecRedo,
@@ -2089,7 +2090,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (s < recup.total) {
           ligne += "tous ses PV.";
           if (!options.max) ligne += " (le jet était " + recup.display + ")";
-        } else ligne += recup.roll + " PV.";
+        } else ligne += recup.display + " PV.";
         explication(ligne);
       },
       function() {
@@ -9119,7 +9120,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
       let targetChar = getObj("character", targetCharId);
       if (targetChar === undefined) {
-        error("Unexpected undefined 2", targetChar);
+        error("Fiche de personnage associée à " + targetToken.get('name') + " supprimée.", target);
         attackCallback(playerId, pageId, options);
         return;
       }
@@ -12410,7 +12411,6 @@ var COFantasy2 = COFantasy2 || function() {
       },
       action: {
         nom: "Armure de mana",
-        combat: true,
         bufPersonnelNonCumulable: 'armureDeMana',
         type: 'M',
         mana: 1,
@@ -12646,7 +12646,6 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_theologie: true,
       action: {
         nom: 'Bénédiction',
-        combat: true,
         type: 'L',
         mana: 1,
         cmd: '!cof2-effet benediction SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --alliesEnVue',
@@ -13949,7 +13948,7 @@ var COFantasy2 = COFantasy2 || function() {
         act += " --acteur " + tid;
       }
       if (act.indexOf('@{target|') == -1 &&
-        !commandes[typeAction].acteur &&
+        !options.acteur &&
         typeAction != 'surprise' &&
         act.indexOf('--equipe') == -1 &&
         act.indexOf('--enVue') == -1 &&
@@ -15504,7 +15503,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //!cof2-multi-command !cmd1 ... --multi-command !cmd2 .. --multi-command !cmd3..
   function commandeMultiCommand(cmd, playerId, pageId, options) {
-    let args = cmd.substring(20).trim();
+    let args = apiMsg.content.substring(20).trim();
     let commands = args.split(' --multi-command ');
     sendCommands(apiMsg.who, commands);
   }
@@ -26195,10 +26194,24 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       }
     }
-    const evt = {
-      type: "action",
+    let args = {
+      selected,
+      options,
+      playerId,
+      pageId
     };
-    addEvent(evt);
+    actionAvecRedo(args);
+  }
+
+  function actionAvecRedo(args) {
+    let {
+      selected,
+      options,
+      playerId,
+      pageId
+    } = args;
+    options = deepCopy(options);
+    const evt = evtAvecRedo('action', args);
     let acteur = options.acteur;
     if (acteur) {
       if (limiteRessources(acteur, options, undefined, 'action', evt)) return;
@@ -30580,6 +30593,8 @@ var COFantasy2 = COFantasy2 || function() {
                     case 'acide':
                     case 'poison':
                     case 'froid':
+                    case 'sonique':
+                    case 'maladie':
                       //ces cas ne changent pas le type
                       break;
                     case 'electrique':
@@ -30592,8 +30607,6 @@ var COFantasy2 = COFantasy2 || function() {
                       type = 'magiques';
                       break;
                     case 'mental':
-                    case 'sonique':
-                    case 'maladie':
                       //cas non gérés dans la nouvelle fiche
                       break;
                   }
