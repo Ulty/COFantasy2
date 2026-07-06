@@ -1,4 +1,4 @@
-//Dernière modification : dim. 05 juil. 2026,  03:15
+//Dernière modification : lun. 06 juil. 2026,  12:23
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -71,8 +71,7 @@ var COFantasy2 = COFantasy2 || function() {
   const MAX_COPY_DEPTH = 10;
   //Copie tout, sauf les tokens
   function deepCopy(obj, depth = 0) {
-    //implementation ok, sauf s'il y a des fonctions
-    //return JSON.parse(JSON.stringify(obj));
+    //return JSON.parse(JSON.stringify(obj));//ne fonctionne pas s'il y a des fonctions
     if (!obj || typeof obj != 'object' || depth > MAX_COPY_DEPTH) return obj;
     depth++;
     if (Array.isArray(obj)) {
@@ -11911,6 +11910,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  - value : la valeur du buff
   //  - limiteArmure
   // compagnon objet indiquant un compagnon
+  // predSelonParam: map de valeur de param vers des prédicats de capacités. doit toujours ocntenir un champ 'defaut'
   // le reste, ce sont des prédicats, et le script va reconnaître et remplacer:
   //  - PARAM : la valeur du champ paramètre de la capacité
   //  - NUMEROVOIE
@@ -12001,7 +12001,7 @@ var COFantasy2 = COFantasy2 || function() {
       buffsSurFiche: [{
         nom: 'Archer émérite',
         attrib: 'init',
-        limiteArmure: 'cuirRenforce',
+        limiteArmure: 'rodeur',
         value: '[rang voie NUMEROVOIE]'
       }]
     },
@@ -12016,7 +12016,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         combat: true,
         entrerEnCombat: true,
-        limiteArmure: 'cuirRenforce',
+        limiteArmure: 'rodeur',
         armeEnMain: 'portee',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --deMalus --plus 3d4E"
       },
@@ -12027,7 +12027,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         combat: true,
         entrerEnCombat: true,
-        limiteArmure: 'cuirRenforce',
+        limiteArmure: 'rodeur',
         armeEnMain: 'portee',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaque -2",
         debloqueActions: [{
@@ -12252,6 +12252,21 @@ var COFantasy2 = COFantasy2 || function() {
       tempsRecuperationRapide: 'SELONRANG(10,10,10,5,5)',
       bonusSaveContre_etourdi: 'RANG',
       bonusSaveContre_affaibli: 'RANG',
+    },
+    'armure lourde': {
+      predSelonParam: {
+        'armure': {
+          armureLourde: true,
+        },
+        'defaut': {
+          buffsSurFiche: [{
+            nom: 'Armure lourde',
+            //limiteArmure: 'guerrier', //On risque de ne pas utiliser la bonne armure
+            attrib: 'def',
+            value: '1',
+          }]
+        }
+      },
     },
     //Voie du soldat
     'teigneux': {
@@ -12525,12 +12540,12 @@ var COFantasy2 = COFantasy2 || function() {
       buffsSurFiche: [{
         nom: 'Vitesse du félin (DEF)',
         attrib: 'def',
-        limiteArmure: 'cuirSimple',
+        limiteArmure: 'druide',
         value: 'SELONRANG(1,1,2,2,3)',
       }, {
         nom: 'Vitesse du félin (init)',
         attrib: 'init',
-        limiteArmure: 'cuirSimple',
+        limiteArmure: 'druide',
         value: '3',
       }],
     },
@@ -12891,6 +12906,18 @@ var COFantasy2 = COFantasy2 || function() {
     let warnParam = true;
     preds = deepCopy(preds);
     delete preds.capaciteAmbigue;
+    if (preds.predSelonParam) {
+      let p = preds.predSelonParam[param] || preds.predSelonParam.defaut;
+      if (p) {
+        for (let f in p) {
+          preds[f] = p[f];
+        }
+      } else {
+        log("Pas de valeur par défaut selon param pour la capacité " + capacite);
+        log(preds.predSelonParam);
+      }
+      delete preds.predSelonParam;
+    }
     if (preds.action) { //On la met dans preds.actions, traité plus bas
       if (!preds.actions) preds.actions = [preds.action];
       else preds.actions.push(preds.action);
@@ -12955,13 +12982,7 @@ var COFantasy2 = COFantasy2 || function() {
         else prefix = 'repeating_buffs_' + generateRowID() + '_';
         b.nom = '[S] ' + b.nom;
         b.on = '1';
-        if (b.limiteArmure && armureRestreinte(perso, b.limiteArmure)) {
-          if (options.limiteArmure) { //Permet de porter une meilleure armure
-            if (armureRestreinte(perso, options.limiteArmure)) b.on = '0';
-          } else {
-            b.on = '0';
-          }
-        }
+        //TODO: pour l'instant on ne tient pas compte de b.limiteArmure, car ça peut varier, et en plus ça fait une boucle récursive avec getPredicates
         champsDesBuffsDeFiche.forEach(function(field) {
           if (!b[field]) {
             log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
@@ -13376,6 +13397,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Renvoie 0 (ou false) si l'armure que porte perso n'est pas restreinte par restriction,
   //sinon renvoie la différence de classe entre les deux
+  //Attention à ne pas utiliser quand on calcule les prédicats !
   function armureRestreinte(perso, restriction) {
     if (!perso.armureRestreinte) perso.armureRestreinte = {};
     if (perso.armureRestreinte[restriction]) return perso.armureRestreinte[restriction];
@@ -14477,7 +14499,7 @@ var COFantasy2 = COFantasy2 || function() {
     let b = picto + " Retarder son tour";
     let c = "!cof2-retarder-tour " + perso.token.id + " @{target|Agir après|token_id}";
     let buttonStyleAttendre = ' style="' + style + BASIC_BUTTON_STYLE + '"';
-    return boutonSimple(c, b, buttonStyleAttendre);
+    return boutonSimple(c, b, buttonStyleAttendre) + " ou " + boutonSimple("!cof2-tour-suivant", "le terminer", buttonStyleAttendre);
   }
 
   function commandeOptionsTactiques(cmd, playerId, pageId, options, perso) {
@@ -15166,14 +15188,7 @@ var COFantasy2 = COFantasy2 || function() {
               ligne += " (" + boutonSimple(commande, picto, style) + " L) ";
             }
             ligne += "<br/>";
-          } else if (!typeActionPossible(perso, 'A')) {
-            //Il est possible que la seule action à afficher soit le mouvement
-            let command = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_BUTTON);
-            ligne += "Il est encore possible de se déplacer. " + command + '<br/>';
           }
-        } else if (!typeActionPossible(perso, 'A')) {
-          let command = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_BUTTON);
-          ligne += command + ' ? <br/>';
         }
       }
       if (typeActionPossible(perso, 'A')) {
@@ -18574,7 +18589,7 @@ var COFantasy2 = COFantasy2 || function() {
     flecheVivante: {
       activation: "la flèche prend racine dans la plaie",
       actif: "a une flèche qui pousse",
-      fin: "",//On a déjà un message avec finFun
+      fin: "", //On a déjà un message avec finFun
       finFun: finFlecheVivante,
       dureeEnTours: true,
       dm: true,
@@ -26041,7 +26056,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (turnOrder.length < 1) return; // Juste le compteur de tour
     let active = turnOrder[0];
     let init = toInt(active.pr, 1000);
-    if (active.id == "-1" && active.custom == "Tour") {//Changement de tour, l'initiative est 0;
+    if (active.id == "-1" && active.custom == "Tour") { //Changement de tour, l'initiative est 0;
       init = 0;
     }
     let attrs = findObjs({
@@ -31859,6 +31874,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function limiteBonusArmure(perso, armure) {
+    let res;
     switch (armure) {
       case 'cuirSimple':
       case 'cuir':
@@ -31881,36 +31897,50 @@ var COFantasy2 = COFantasy2 || function() {
       case 'plaqueComplete':
         return 1;
       case 'arquebusier':
-        return 4;
+        res = 4;
+        break;
       case 'barde':
-        return 5;
+        res = 5;
+        break;
       case 'rodeur':
-        return 5;
+        res = 5;
+        break;
       case 'voleur':
-        return 6;
+        res = 6;
+        break;
       case 'barbare':
-        return 5;
+        res = 5;
+        break;
       case 'chevalier':
-        return 2;
+        res = 2;
+        break;
       case 'guerrier':
-        return 3;
+        res = 3;
+        break;
       case 'ensorceleur':
       case 'magicien':
       case 'sorcier':
-        return 10;
+        res = 8;
+        break;
       case 'forgesort':
-        return 6;
+        res = 6;
+        break;
       case 'druide':
-        return 6;
+        res = 6;
+        break;
       case 'moine':
         return 10;
       case 'pretre':
-        return 4;
+        res = 4;
+        break;
       default:
-        error("Restriction d'armure " + armure + "non reconnue.", armure);
+        error("Restriction d'armure " + armure + " non reconnue.", armure);
         return 0;
     }
+    if (perso && predicateAsBool(perso, 'armureLourde')) res--;
+    return res;
   }
+
   //Option de restriction d'armure. En interne, c'est un minimum d'AGI max.
   function limiteArmureOption(ctx, cmd, options, state, optionString, pageId) {
     if (cmd.length < 2) {
@@ -31924,6 +31954,7 @@ var COFantasy2 = COFantasy2 || function() {
       limiteArmure = limiteBonusArmure(options.acteur, armure);
     }
     if (limiteArmure < 1) return; //Aucune limite, en fait
+    options.limiteArmure = limiteArmure;
   }
 
   function decrAttributeOption(ctx, cmd, options, state, optionString, pageId) {
@@ -34168,7 +34199,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   const attributeQuiAffecteMaitriseArmes = new RegExp('^v[1-9]r2$|^v[1-9]profil$|^maitrises_armes$');
-  const attributeQuiAffecteCapacite = new RegExp('^v[1-9]r[1-9]$|^repeating_npcrolls_[^_]*_npcroll-name');
+  const attributeQuiAffecteCapacite = new RegExp('^v[1-9]r[1-9](|_param)$|^repeating_npcrolls_[^_]*_npcroll-name');
   const attributeQuiAffectePredEquip = new RegExp('^repeating_equipement_[^_]*_equip-predicats');
 
   function activateSheetWorkerCompagnon(perso, compagnon) {
