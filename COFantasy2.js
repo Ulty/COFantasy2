@@ -1,4 +1,4 @@
-//Dernière modification : lun. 06 juil. 2026,  03:15
+//Dernière modification : lun. 06 juil. 2026,  04:44
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -9776,9 +9776,9 @@ var COFantasy2 = COFantasy2 || function() {
 
   function getBrightness(hex) {
     hex = hex.replace('#', '');
-    const c_r = hexDec(hex.substr(0, 2));
-    const c_g = hexDec(hex.substr(2, 2));
-    const c_b = hexDec(hex.substr(4, 2));
+    const c_r = hexDec(hex.substring(0, 2));
+    const c_g = hexDec(hex.substring(2, 4));
+    const c_b = hexDec(hex.substring(4, 6));
     return ((c_r * 299) + (c_g * 587) + (c_b * 114)) / 1000;
   }
 
@@ -11964,6 +11964,20 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_occultisme: true,
       rang1DePeuple: true,
     },
+    'maitrise de la magie': {
+      actions: [{
+        nom: 'Détecter la magie',
+        type: 'L',
+        mana: 2,
+        horsCombat: true,
+        cmd: '!cof2-action détecte la présence de magie dans un rayon de 10 m --secret',
+      },{
+        nom: 'Dissiper la magie',
+        type: 'L',
+        mana: 2,
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Dissipation de magie --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10000",
+      }],
+    },
     //Voies d'arquebusier //////////////////////////////////////////
     //Voie de l'artilleur
     mecanismes: {
@@ -12192,7 +12206,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: '<span title="Action de mouvement suppélementaire">Vivacité</span>',
         limitArmure: 'guerrier',
-        cmd: "!cof2-action est très vif --donneAction EM --decrLimitePredicatParCombat mouvementVivacite"
+        cmd: "!cof2-action est très vif --donneAction EM --decrLimitePredicatParCombat mouvementVivacite --select @{selected|token_id}"
       }
     },
     'manoeuvre': { //TODO: vérifier carac quand copié-collé
@@ -12278,7 +12292,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'G',
         mana: 1,
         limiteArmure: 'ensorceleur',
-        cmd: "!cof2-action chuchote un message à quelqu'un"
+        cmd: "!cof2-action chuchote un message à quelqu'un --select @{selected|token_id}"
       },
     },
     'sous tension': {
@@ -12326,7 +12340,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 1,
         limiteArmure: 'ensorceleur',
-        cmd: '!cof2-action crée une illusion',
+        cmd: '!cof2-action crée une illusion --select @{selected|token_id}',
       }
     },
     //Voies de magicien /////////////////////////////////////////////
@@ -12418,6 +12432,15 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'M',
         mana: 1,
         cmd: "!cof2-effet armureDeMana valeurArmureDeMana --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
+      },
+    },
+    'chute ralentie': {
+      action: {
+        nom: 'Chute ralentie',
+        type: 'G',
+        mana: 2,
+        limiteArmure: 'magicien',
+        cmd: '!cof2-action lance un sort de chute ralentie sur INT_TARGETS_NAMES --portee 10 --noSelect --message chute beaucoup moins vite',
       },
     },
     //Voie de la magie universelle
@@ -12598,7 +12621,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 2,
         limiteArmure: 'druide',
-        cmd: "!cof2-action éveille la forêt dans un rayon de RANG km --limiteParJour 1 foretVivante",
+        cmd: "!cof2-action éveille la forêt dans un rayon de RANG km --limiteParJour 1 foretVivante --select @{selected|token_id}",
       }
     },
     //Voie des végétaux
@@ -12702,7 +12725,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Vigueur divine",
         type: 'L',
         mana: 2,
-        cmd: "!cof2-action soigne @{target|token_name} d'un poison ou d'une maladie --cible @{target|token_id} --portee 0",
+        cmd: "!cof2-action soigne @{target|Cible|token_name} d'un poison ou d'une maladie --cible @{target|Cible|token_id} --portee 0 --noSelect",
       },
     },
     'recuperation majeure': {
@@ -12750,7 +12773,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Donner une action",
         type: 'G',
-        cmd: '!cof2-action reçoit un ordre à @{selected|token_name} --donneAction A --cible @{target|token_name} --limiteParTour 1 ordreSergent',
+        cmd: '!cof2-action reçoit un ordre à @{target|Cible|token_name} --donneAction A --cible @{target|Cible|token_name} --limiteParTour 1 ordreSergent --noSelect',
       },
     },
     //Voie du cogneur
@@ -13815,7 +13838,7 @@ var COFantasy2 = COFantasy2 || function() {
     tmp.forEach(function(elem) {
       if (elem.startsWith('|')) {
         // attribut demandé
-        let attribute_name = elem.substring(0, elem.indexOf("}")).substr(1);
+        let attribute_name = elem.substring(0, elem.indexOf("}")).substring(1);
         let carac = modOfCarac(attribute_name);
         let replacement;
         if (carac) {
@@ -14365,7 +14388,7 @@ var COFantasy2 = COFantasy2 || function() {
         //Dans ce cas, pas de choix, juste une arme à dégainer
         degainer = '!cof2-degainer ' + armeADegainer.label + cote;
       } else {
-        degainer = degainer.substr(0, degainer.length - 1) + '}';
+        degainer = degainer.substring(0, degainer.length - 1) + '}';
       }
       if (enMouvement && cote === '') degainer += ' enMouvement';
       else if (stateCOF.combat) degainer += ' --montreActions --typeAction M';
@@ -14836,8 +14859,8 @@ var COFantasy2 = COFantasy2 || function() {
         switch (actionCmd.charAt(0)) {
           case '%':
             // Ability
-            actionCmd = actionCmd.substr(1);
-            if (!actionTextFinal) actionText = actionText.substr(1);
+            actionCmd = actionCmd.substring(1);
+            if (!actionTextFinal) actionText = actionText.substring(1);
             abilities.forEach(function(abilitie, index) {
               if (found) return;
               if (abilitie.get('name') === actionCmd) {
@@ -14846,7 +14869,7 @@ var COFantasy2 = COFantasy2 || function() {
                 command = abilitie.get('action').trim();
                 if (actionCommands.length > 1) {
                   //On rajoute les options de l'ability
-                  command += actionCode.substr(actionCode.indexOf(' '));
+                  command += actionCode.substring(actionCode.indexOf(' '));
                 }
                 command += options;
                 f(command, actionText, macros);
@@ -14881,8 +14904,8 @@ var COFantasy2 = COFantasy2 || function() {
               actionCode += options;
               f(actionCode, actionText, macros, attackStats);
             } else {
-              actionCmd = actionCmd.substr(1);
-              if (!actionTextFinal) actionText = actionText.substr(1);
+              actionCmd = actionCmd.substring(1);
+              if (!actionTextFinal) actionText = actionText.substring(1);
               macros.forEach(function(macro, index) {
                 if (found) return;
                 if (macro.get('name') === actionCmd) {
@@ -14890,7 +14913,7 @@ var COFantasy2 = COFantasy2 || function() {
                   command = macro.get('action').trim();
                   if (actionCommands.length > 1) {
                     //On rajoute les options de la macro
-                    command += actionCode.substr(actionCode.indexOf(' '));
+                    command += actionCode.substring(actionCode.indexOf(' '));
                   }
                   command += options;
                   f(command, actionText, macros);
@@ -15023,6 +15046,20 @@ var COFantasy2 = COFantasy2 || function() {
     return ligne;
   }
 
+  function TARGETSToSelection(command, perso) {
+    let index = command.indexOf('INT_TARGETS_NAMES');
+    if (index < 0) return command;
+    let nb = modCarac(perso, 'INT');
+    let pre = command.substring(0, index);
+    let post = command.substring(index+17);
+    for (let i = 0; i < nb; i++) {
+      let targ = '@{target|Cible'+(i+1)+'|';
+      pre += ' '+targ+'token_name}';
+      post += ' --cible '+targ+'token_id}';
+    }
+    return pre + post;
+  }
+
   //Ajoute l'action à ligne, si elle est disponible
   function ajouterAction(perso, action, ligne, actionsEnCombat = true, supplementaire = false) {
     if (action.enAttente && !supplementaire) return ligne;
@@ -15065,6 +15102,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (action.pasAuContactAdversaire && ennemisAuContact(perso, perso.token.get('pageid')).length > 0) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
+    command = TARGETSToSelection(command, perso);
     let request;
     if (action.mana > 0) {
       if (action.type == 'A' && typeActionPossible(perso, 'L')) {
@@ -15126,7 +15164,7 @@ var COFantasy2 = COFantasy2 || function() {
         let effetC = attrName.substring(0, indexSave);
         if (!estEffet(effetC)) return;
         let met = messageOfEffet(effetC);
-        attrName = effetC + attrName.substr(indexSave + 11);
+        attrName = effetC + attrName.substring(indexSave + 11);
         let msgPour;
         if (met.msgSave) msgPour = met.msgSave;
         else {
@@ -19015,7 +19053,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Nom d'attribut avec une extension, tenant compte des mook
   function effetWithExtension(baseName, attrName, extension) {
-    return baseName + extension + attrName.substr(baseName.length);
+    return baseName + extension + attrName.substring(baseName.length);
   }
 
   function attributeWithExtensionAsString(perso, baseName, extension, attrName) {
@@ -21518,7 +21556,7 @@ var COFantasy2 = COFantasy2 || function() {
       tokens.forEach(function(token) {
         selectedSet.add(token.id);
       });
-    } else if (apiMsg.selected) {
+    } else if (!options.noSelect && apiMsg.selected) {
       apiMsg.selected.forEach(function(sel) {
         selectedSet.add(sel._id);
       });
@@ -22032,8 +22070,8 @@ var COFantasy2 = COFantasy2 || function() {
       escName = esc.get('name');
       let l = escName.length;
       if (l > 1) {
-        let label = escName.substr(l - 1, 1);
-        escName = escName.substr(0, l - 1);
+        let label = escName.charAt(l - 1);
+        escName = escName.substring(0, l - 1);
         i = labelsEscalier.indexOf(label);
         if (versLeHaut) {
           if (i == 11) {
@@ -23715,7 +23753,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     let met = messageOfEffet(effetC);
-    attrName = effetC + attrName.substr(indexSave + 16);
+    attrName = effetC + attrName.substring(indexSave + 16);
     let msgPour = " pour ";
     if (met.msgSave) msgPour += met.msgSave;
     else {
@@ -25846,7 +25884,7 @@ var COFantasy2 = COFantasy2 || function() {
         vitaliteSurnat = vitaliteSurnat.trim();
         let regenereMemeMort;
         if ((vitaliteSurnat + '').endsWith('+')) {
-          vitaliteSurnat = vitaliteSurnat.substr(0, vitaliteSurnat.length - 1);
+          vitaliteSurnat = vitaliteSurnat.substring(0, vitaliteSurnat.length - 1);
           regenereMemeMort = true;
         }
         if (regenereMemeMort || !getState(perso, 'mort')) {
@@ -25896,7 +25934,7 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       }
       let charId = attr.get('characterid');
-      attrName = effetC + attrName.substr(indexSave + 11);
+      attrName = effetC + attrName.substring(indexSave + 11);
       let token;
       iterTokensOfAttribute(charId, pageId, effetC, attrName, function(tok) {
         if (token === undefined) token = tok;
@@ -26269,8 +26307,8 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function commandeAction(cmd, playerId, pageId, options) {
-    if (options.message === undefined) options.message = [];
-    if (cmd.length > 1) options.message.unshift(cmd.slice(1).join(' '));
+    let message = '';
+    if (cmd.length > 1) message = cmd.slice(1).join(' ');
     if (options.message.length < 1) {
       options.message.push("agit");
     }
@@ -26291,7 +26329,8 @@ var COFantasy2 = COFantasy2 || function() {
       selected,
       options,
       playerId,
-      pageId
+      pageId,
+      message,
     };
     actionAvecRedo(args);
   }
@@ -26301,20 +26340,31 @@ var COFantasy2 = COFantasy2 || function() {
       selected,
       options,
       playerId,
-      pageId
+      pageId,
+      message
     } = args;
     options = deepCopy(options);
     const evt = evtAvecRedo('action', args);
     let acteur = options.acteur;
+    let extraImg = afficheOptionImage(options);
+    message += extraImg;
     if (acteur) {
       if (limiteRessources(acteur, options, undefined, 'action', evt)) return;
+      sendPerso(acteur, message);
+    } else {
+      if (options.message) options.message.unshift(message);
+      else options.message = [message];
     }
     if (options.son) playSound(options.son);
-    let extraImg = afficheOptionImage(options);
-    options.message[0] += extraImg;
     let cibles = [];
     let combat = stateCOF.combat;
     iterSelected(selected, function(cible) {
+      if (acteur && options.portee !== undefined) {
+        if (distanceCombat(acteur.token, cible.token, pageId) > options.portee) {
+          sendPerso(cible, "est trop loin pour ça.");
+          return;
+        }
+      }
       cibles.push(cible);
       if (!acteur) {
         if (limiteRessources(cible, options, undefined, 'action', evt)) return;
@@ -26368,9 +26418,11 @@ var COFantasy2 = COFantasy2 || function() {
         spawnFx(cible.token.get('left'), cible.token.get('top'), options.fxCible, cible.token.get('pageid'));
       }
       effetsSpeciaux(options.acteur, cible, options);
+      if (options.message) {
       options.message.forEach(function(m) {
         sendPerso(cible, m, options.secret);
       });
+      }
       if (options.messagesMJ) {
         options.messagesMJ.forEach(function(m) {
           sendChar(cible.charId, '/w gm ' + m);
@@ -31269,8 +31321,8 @@ var COFantasy2 = COFantasy2 || function() {
         carac: arg
       };
     } else if (arg.length == 6) { //Choix parmis 2 caracs
-      let carac = arg.substr(0, 3);
-      let carac2 = arg.substr(3, 3);
+      let carac = arg.substring(0, 3);
+      let carac2 = arg.substring(3, 6);
       if (!isCarac(carac) || !isCarac(carac2)) return;
       return {
         carac,
@@ -32388,6 +32440,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: booleanOption,
       optName: 'nature'
     },
+    noSelect: boolDefaultOption,
     optionEffet: {
       fn: effetOptionOption
     },
@@ -32458,6 +32511,7 @@ var COFantasy2 = COFantasy2 || function() {
     saveActifParTour: {
       fn: saveEffetOption
     },
+    secret: boolDefaultOption,
     select: wordDefaultOption,
     selectChar: wordDefaultOption,
     self: {
@@ -32519,7 +32573,6 @@ var COFantasy2 = COFantasy2 || function() {
     deBonus: boolDefaultOption,
     deMalus: boolDefaultOption,
     forceReset: boolDefaultOption,
-    secret: boolDefaultOption,
     difficulte: {
       fn: integerOption
     },
