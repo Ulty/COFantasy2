@@ -1,4 +1,4 @@
-//Dernière modification : mar. 07 juil. 2026,  03:23
+//Dernière modification : mar. 07 juil. 2026,  07:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3517,10 +3517,6 @@ var COFantasy2 = COFantasy2 || function() {
       let malusNuee = 2;
       attBonus -= malusNuee;
       explications.push("Nuée d\'insectes => -" + malusNuee + " en Attaque");
-    }
-    if (attributeAsBool(personnage, 'nueeDeScorpions')) {
-      attBonus -= 3;
-      explications.push("Nuée de scorpions => -3 en Attaque");
     }
     if (attributeAsBool(personnage, 'etatExsangue')) {
       attBonus -= 2;
@@ -9399,13 +9395,16 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (options.plusPred) {
-      let value = predicateAsInt(attaquant, options.plusPred, 0);
+      options.plusPred.forEach(function(p) {
+      let value = predicateAsInt(attaquant, p.predicat, 0);
+        if (p.max && p.max > value) value = p.max;
       if (value) {
         options.additionalDmg = options.additionalDmg || [];
         options.additionalDmg.push({
           value
         });
       }
+      });
     }
     let args = {
       attaquantId: attaquant.token.id,
@@ -11232,7 +11231,6 @@ var COFantasy2 = COFantasy2 || function() {
         return true;
       }
       options.typeAction = 'M';
-      //TODO: regarder si le personnage a une action L et une main libre, ou bien la potion en main
     }
     if (perso && options.parchemin) {
       if (combat && !options.typeAction) {
@@ -11888,7 +11886,6 @@ var COFantasy2 = COFantasy2 || function() {
   //  - profil: le profil dont il faut compter les voies
   //  - rang : le rang à atteindre
   //  - def : la valeur par défaut, si on n'a pas de valeur entière pour le prédicat
-  //  - max: le maximum qu'on peut attendre de ce bonus TODO: se débrouiller autrement
   // buffsSurFiche: liste de buffs de fiche
   //  - nom : le nom du buff
   //  - attrib : le nom de l'attribut buffé
@@ -11983,6 +11980,17 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 2,
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Dissipation de magie --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10000 --if touche --message Le sort est dissipé --endif",
       }],
+    },
+    'tour de magie': {
+      buffsSurFiche: [{
+        nom: 'Tour de magie (DEF)',
+        attrib: 'def',
+        value: '1'
+      },{
+        nom: 'Tour de magie (PM)',
+        attrib: 'pm',
+        value: '2',
+      }]
     },
     //Voies d'arquebusier //////////////////////////////////////////
     //Voie de l'artilleur
@@ -12362,7 +12370,6 @@ var COFantasy2 = COFantasy2 || function() {
         profil: 'magicien',
         rang: 4,
         def: 0,
-        max: '@{selected|INT}',
       },
       action: {
         nom: 'Projectle de mana',
@@ -12371,7 +12378,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 1,
         limiteArmure: 'magicien',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Projectile de mana --sortilege --auto --dm 1d4E --plusPred bonusProjectileDeMana --magique --relanceSiMax --portee 30 --fx missile-magic",
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Projectile de mana --sortilege --auto --dm 1d4E --plusPred bonusProjectileDeMana max @{selected|INT} --magique --relanceSiMax --portee 30 --fx missile-magic",
       },
     },
     'levitation': {
@@ -13370,10 +13377,6 @@ var COFantasy2 = COFantasy2 || function() {
           if (!rpp) return;
           let bonus = toInt(rpp[ppvdr.rang], 0);
           if (bonus) {
-            if (ppvdr.max) {
-              let m = selectedToValue(ppvdr.max, 'selected', perso);
-              if (!isNaN(m) && bonus > m) bonus = m;
-            }
             capacites[ppvdr.predicat] = toInt(capacites[ppvdr.predicat], ppvdr.def) + bonus;
           }
         });
@@ -16015,13 +16018,15 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
-  //restant est une distance en pixels, pour l'aura il faut des mètres
+  //restant est une distance en pixels, pour l'aura il l'avoir en unité de mesure de la page
   function setAuraRayonDistanceRestante(token, restant, evt, pageId) {
     if (restant > 0) {
       pageId = pageId || token.get('pageid');
       let r = tokenSizeAsCircle(token) / 2;
       if (restant > r) {
-        setToken(token, 'aura1_radius', pixelsToMetres(restant - r, pageId), evt);
+        let scale = computeScale(pageId, true);//échelle dans l'unité de la page
+        let d = ((restant -r) * scale) / PIX_PER_UNIT;
+        setToken(token, 'aura1_radius', d, evt);
       } else {
         setToken(token, 'aura1_radius', '', evt);
       }
@@ -18215,6 +18220,68 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Les effets temporaires -----------------------------------------------
 
+  //Les fonctions à effectuer chaque tour, quand on baisse la durée
+  function parTourDmg(perso, effet, attr, dmArgs, type, msg, evt, options) {
+    if (getState(perso, 'mort')) return;
+        let val = getValeurOfEffet(perso, effet, attr);
+    if (val !== undefined) {
+      let d = parseDice(val, perso);
+      if (d) dmArgs = d;
+      else error("Expression de DM de "+effet+" mal formée");
+    }
+    getEffectOptions(perso, effet, options);
+    dmArgs.type = type;
+            let r = rollDePlus(dmArgs, 'dot' + effet + perso.token.id, evt);
+        let explications = [];
+        dealDamage(perso, r, [], evt, false, options, explications,
+          function(dmgDisplay, dmg) {
+            if (dmg > 0) {
+              let msgDm = msg + ". " + onGenre(perso, 'Il', 'Elle');
+              sendPerso(perso, msgDm + " subit " + dmgDisplay + " DM");
+            }
+            explications.forEach(function(m) {
+              expliquerPerso(perso, m);
+            });
+          });
+  }
+
+  function parTourArmeBrulante(perso, effet, attr, evt, options = {}) {
+    let dmArgs = {
+      nbDe: 0,
+      dice:4,
+      bonus:1
+    };
+    parTourDmg(perso, effet, attr, dmArgs, 'feu', "se brûle avec son arme", evt, options);
+  }
+
+  function parTourAsphyxie(perso, effet, attr, evt, options = {}) {
+    let dmArgs = {
+      nbDe: 1,
+      dice:6
+    };
+    options.asphyxie = true;
+    parTourDmg(perso, effet, attr, dmArgs, 'normal', "ne peut plus respirer", evt, options);
+  }
+
+  function parTourNueeDInsectes(perso, effet, attr, evt, options = {}) {
+    let dmArgs = {
+      nbDe: 0,
+      dice:4,
+      bonus:1
+    };
+    parTourDmg(perso, effet, attr, dmArgs, 'normal', "est piqué par les insectes", evt, options);
+  }
+
+  function parTourSaignementsSang(perso, effet, attr, evt, options = {}) {
+    let dmArgs = {
+      nbDe: 1,
+      dice:6,
+    };
+    options.saignement = true;
+    options.magique = true;
+    parTourDmg(perso, effet, attr, dmArgs, 'normal', "saigne par tous les orifices de son visage", evt, options);
+  }
+
   //Les fonctions à affectuer en fin d'effet. l'argument effet contient la partie générique
   function finEtatTemp(perso, effet, attr, newInit, evt, options) {
     let etat = effetEtatTemp(effet);
@@ -18608,11 +18675,20 @@ var COFantasy2 = COFantasy2 || function() {
       dureeEnTours: true,
       visible: true
     },
+        armeBrulante: {
+      activation: "sent son arme lui chauffer la main",
+      actif: "se brûle la main sur son arme",
+      fin: "sent son arme refroidir",
+          dureeEnTours: true,
+          parTourFun: parTourArmeBrulante,
+      dm: true
+    },
     asphyxie: {
       activation: "commence à manquer d'air",
       actif: "étouffe",
       fin: "peut à nouveau respirer",
       dureeEnTours: true,
+      parTourFun: parTourAsphyxie,
       msgSave: "pouvoir respirer normalement",
       prejudiciable: true,
       seulementVivant: true,
@@ -18697,6 +18773,20 @@ var COFantasy2 = COFantasy2 || function() {
       dureeEnTours: true,
       visible: true
     },
+        nueeDInsectes: {
+      activation: "est attaqué par une nuée d'insectes",
+      activationF: "est attaquée par une nuée d'insectes",
+      actif: "est entouré d'une nuée d'insectes",
+      actifF: "est entourée d'une nuée d'insectes",
+      fin: "est enfin débarassé des insectes",
+      finF: "est enfin débarassée des insectes",
+          dureeEnTours: true,
+          parTourFun: parTourNueeDInsectes,
+      msgSave: "se débarasser des insectes",
+      prejudiciable: true,
+      dm: true,
+      visible: true
+    },
     paradeCroiseeDoublee: {
       activation: "renonce à toute attaque de la main secondaire",
       actif: "utilise son arme secondaire pour se défendre",
@@ -18727,6 +18817,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "saigne de tous les orifices du visage",
       fin: "ne saigne plus",
       dureeEnTours: true,
+      parTourFun: parTourSaignementsSang,
       msgSave: "ne plus saigner",
       prejudiciable: true,
       statusMarker: 'red',
@@ -19742,9 +19833,12 @@ var COFantasy2 = COFantasy2 || function() {
     return false;
   }
 
-  function immuniseAuxSaignements(perso) {
-    return predicateAsBool(perso, 'immuniteSaignement') ||
-      predicateAsBool(perso, 'controleSanguin');
+  function immuniseAuxSaignements(perso, expliquer) {
+    if (predicateAsBool(perso, 'immuniteSaignement') || predicateAsBool(perso, 'controleSanguin')) {
+      if (expliquer) expliquer("ne saigne pas");
+      return true;
+    }
+    return false;
   }
 
   function expliquerPerso(perso, msg, options = {}) {
@@ -19828,16 +19922,6 @@ var COFantasy2 = COFantasy2 || function() {
   function actionEffet(attr, effet, attrName, charId, pageId, evt, callBack) {
     let deArgs;
     switch (effet) {
-      case 'putrefaction': //prend 1d6 DM
-        deArgs = {
-          nbDe: 1,
-          dice: 6,
-          type: 'maladie',
-        };
-        degatsParTour(charId, pageId, effet, attrName, deArgs, "pourrit", evt, {
-          magique: true
-        }, callBack);
-        return;
       case 'asphyxie': //prend 1d6 DM par défaut, en pratique le jet est dans --valeur pour avoir un dé évolutif
         deArgs = {
           nbDe: 1,
@@ -19850,15 +19934,6 @@ var COFantasy2 = COFantasy2 || function() {
         }, callBack);
         return;
       case 'saignementsSang': //prend 1d6 DM
-        if (predicateAsBool({
-            charId
-          }, 'immuniteSaignement') ||
-          predicateAsBool({
-            charId
-          }, 'controleSanguin')) {
-          callBack();
-          return;
-        }
         deArgs = {
           nbDe: 1,
           dice: 6,
@@ -19867,35 +19942,6 @@ var COFantasy2 = COFantasy2 || function() {
         degatsParTour(charId, pageId, effet, attrName, deArgs, "saigne par tous les orifices du visage", evt, {
           magique: true,
           saignement: true
-        }, callBack);
-        return;
-      case 'blessureSanglante': //prend 1d6 DM
-        if (predicateAsBool({
-            charId
-          }, 'immuniteSaignement') ||
-          predicateAsBool({
-            charId
-          }, 'controleSanguin')) {
-          callBack();
-          return;
-        }
-        deArgs = {
-          nbDe: 1,
-          dice: 6,
-          type: 'normal',
-        };
-        degatsParTour(charId, pageId, effet, attrName, deArgs, "saigne abondamment", evt, {
-          saignement: true
-        }, callBack);
-        return;
-      case 'armureBrulante': //prend 1d4 DM
-        deArgs = {
-          nbDe: 1,
-          dice: 4,
-          type: 'feu',
-        };
-        degatsParTour(charId, pageId, effet, attrName, deArgs, "brûle dans son armure", evt, {
-          valeur: 'armureBrulanteValeur'
         }, callBack);
         return;
       case 'nueeDInsectes': //prend 1 DM
@@ -19908,22 +19954,6 @@ var COFantasy2 = COFantasy2 || function() {
           valeur: 'nueeDInsectesValeur'
         }, callBack);
         return;
-      case 'nueeDeCriquets': //prend 1 DM
-        deArgs = {
-          nbDe: 0,
-          bonus: 2,
-          type: 'normal',
-        };
-        degatsParTour(charId, pageId, effet, attrName, deArgs, "est piqué par les criquets", evt, {}, callBack);
-        return;
-      case 'nueeDeScorpions': //prend 1D6 DM
-        deArgs = {
-          nbDe: 1,
-          dice: 6,
-          type: 'normal',
-        };
-        degatsParTour(charId, pageId, effet, attrName, deArgs, "est piqué par les scorpions", evt, {}, callBack);
-        return;
       case 'armeBrulante': //prend 1 DM
         deArgs = {
           nbDe: 0,
@@ -19932,11 +19962,6 @@ var COFantasy2 = COFantasy2 || function() {
         };
         degatsParTour(charId, pageId, effet, attrName, deArgs, "se brûle avec son arme", evt, {
           valeur: 'armeBrulanteValeur'
-        }, callBack);
-        return;
-      case 'regeneration': //soigne
-        soigneParTour(charId, pageId, effet, attrName, 3, "régénère", evt, {
-          valeur: 'regenerationValeur'
         }, callBack);
         return;
       case 'strangulation':
@@ -20447,7 +20472,7 @@ var COFantasy2 = COFantasy2 || function() {
     return ((pos2 + size2 / 2) > pos1 - size1 / 2);
   }
 
-  function computeScale(pageId) {
+  function computeScale(pageId, withoutunit = false) {
     const page = getObj("page", pageId);
     if (!page) {
       log("Impossible de trouver la page " + pageId + " dans computeScale");
@@ -20457,6 +20482,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (isNaN(scale) || scale <= 0) return 1.0;
     let cellSize = parseFloat(page.get('snapping_increment'));
     if (!isNaN(cellSize) && cellSize > 0) scale /= cellSize;
+    if (withoutunit) return scale;
     const unit = page.get('scale_units');
     switch (unit) {
       case 'ft':
@@ -24830,38 +24856,6 @@ var COFantasy2 = COFantasy2 || function() {
       }); //fin iterTokensOfAttribute
   }
 
-  function soigneParTour(charId, pageId, effet, attrName, soinsExpr, msg, evt, options, callback) {
-    options = options || {};
-    msg = msg || '';
-    let count = -1;
-    iterTokensOfAttribute(charId, pageId, effet, attrName,
-      function(token, total) {
-        if (count < 0) count = total;
-        const perso = {
-          token: token,
-          charId: charId
-        };
-        let localSoinsExpr = soinsExpr;
-        if (options.valeur) {
-          let attrsVal = tokenAttribute(perso, options.valeur);
-          if (attrsVal.length > 0) localSoinsExpr = attrsVal[0].get('current');
-        }
-        let de = parseDice(localSoinsExpr, perso);
-        let soins = rollDePlus(de, "soinPT" + token.id, evt);
-        soignePerso(perso, soins.total, evt,
-          function(s) {
-            if (s < soins.total) sendPerso(perso, "récupère tous ses PV.");
-            else sendPerso(perso, "récupère " + soins.display + " PV.");
-            count--;
-            if (count === 0) callback();
-          },
-          function() {
-            count--;
-            if (count === 0) callback();
-          });
-      }); //fin iterTokensOfAttribute
-  }
-
   // ------------------------- Initiative et tours de jeu ---------------------------------
 
   function getInit() {
@@ -28163,6 +28157,12 @@ var COFantasy2 = COFantasy2 || function() {
         return 0;
       }
     }
+    if (options.saignement) {
+      if(immuniseAuxSaignements(target, expliquer)) {
+        if (displayRes) displayRes('0', 0, 0);
+        return 0;
+      }
+    }
     if (!options.magique && !options.sortilege && dmg.type != 'magique' &&
       (predicateOrAttributeAsBool(target, 'immunite_nonMagique') || predicateAsBool(target, 'creatureIntangible'))) {
       expliquer("L'attaque ne semble pas affecter " + nomPerso(target));
@@ -29082,12 +29082,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (dmSuivis.drain && dmSuivis.drain > 0) dmSuivis.drain = 1;
       expliquer("La nuée est constituée de très nombreuses cibles, l'attaque ne lui fait qu'1 DM");
     }
-    if (options.attaquant && options.arme && dmgTotal > 0 &&
-      predicateAsBool(options.attaquant, 'blessureSanglante') &&
-      !estMortVivant(target)) {
-      let duree = predicateAsInt(options.attaquant, 'blessureSanglante', 0, 1);
-      activerEffetNom(options.attaquant, target, 'blessureSanglante', duree, pageId, evt);
-    }
     let pvPerdus = dmgTotal;
     if (target.tempDmg) {
       tempDmg += dmgTotal;
@@ -29504,152 +29498,138 @@ var COFantasy2 = COFantasy2 || function() {
           return;
         }
       }
-      let exprSoinsCible = exprSoins.replace(/(\d+)d4[°eE]/g, '$1d' + deEvolutif(cible));
-      try {
-        sendChat('', '[[' + exprSoinsCible + ']]', function(res) {
-          let soins = res[0].inlinerolls[0].results.total;
-          let soinTxt = buildinline(res[0].inlinerolls[0], 'normal', true);
-          if (soins <= 0) {
-            if (soigneur)
-              sendPerso(soigneur, "ne réussit pas à soigner (total de soins " + soinTxt + ")", true);
+      let deSoins = parseDice(exprSoins, cible);
+      deSoins.type = 'magique';
+      let rollSoin = rollDePlus(deSoins, "soins" + cible.token.id, evt);
+      let soins = rollSoin.total;
+      let soinTxt = rollSoin.display;
+      if (soins <= 0) {
+        if (soigneur)
+          sendPerso(soigneur, "ne réussit pas à soigner (total de soins " + soinTxt + ")", true);
+        return;
+      }
+      if (options.limiteSoins && soins > options.limiteSoins) {
+        soins = options.limiteSoins;
+        limiteSoinsAtteinte = true;
+      }
+      if (limiteATester) {
+        limiteATester = false;
+        options.pasDeBrulureDeMana = true;
+        if (limiteRessources(soigneur, options, effet, effet, evt)) {
+          soinImpossible = true;
+          display = undefined;
+          finSoin();
+          return;
+        }
+        if (display) {
+          addLineToFramedDisplay(display, "Résultat des dés : " + soinTxt);
+        }
+        if (options.sacrifierPV) { //paie autant de PV que soins
+          if (soigneur === undefined) {
+            error("Il faut préciser qui est le soigneur pour utiliser l'option --sacrifierPV", cmd);
+            soinImpossible = true;
+            display = undefined;
+            finSoin();
             return;
           }
-          if (options.limiteSoins && soins > options.limiteSoins) {
-            soins = options.limiteSoins;
-            limiteSoinsAtteinte = true;
+          let pvSoigneur = parseInt(soigneur.token.get('bar1_value'));
+          if (isNaN(pvSoigneur) || pvSoigneur <= 0) {
+            sendPerso(soigneur,
+              "ne peut pas soigner car " + onGenre(soigneur, 'il', 'elle') + " n'a plus de PV");
+            soinImpossible = true;
+            display = undefined;
+            finSoin();
+            return;
           }
-          if (limiteATester) {
-            limiteATester = false;
-            options.pasDeBrulureDeMana = true;
-            if (limiteRessources(soigneur, options, effet, effet, evt)) {
-              soinImpossible = true;
-              display = undefined;
-              finSoin();
-              return;
-            }
-            if (display) {
-              addLineToFramedDisplay(display, "Résultat des dés : " + soinTxt);
-            }
-            if (options.sacrifierPV) { //paie autant de PV que soins
-              if (soigneur === undefined) {
-                error("Il faut préciser qui est le soigneur pour utiliser l'option --sacrifierPV", cmd);
-                soinImpossible = true;
-                display = undefined;
-                finSoin();
-                return;
-              }
-              let pvSoigneur = parseInt(soigneur.token.get('bar1_value'));
-              if (isNaN(pvSoigneur) || pvSoigneur <= 0) {
-                sendPerso(soigneur,
-                  "ne peut pas soigner car " + onGenre(soigneur, 'il', 'elle') + " n'a plus de PV");
-                soinImpossible = true;
-                display = undefined;
-                finSoin();
-                return;
-              }
-              if (pvSoigneur < soins) {
-                soins = pvSoigneur;
-              }
-              updateCurrentBar(soigneur, 1, pvSoigneur - soins, evt);
-              let msgSacrifice = "sacrifie " + soins + " PV" + (soins > 1 ? 's' : '');
-              if (pvSoigneur == soins) {
-                mort(soigneur, undefined, evt);
-                msgSacrifice += " et en meurt";
-              }
-              if (display)
-                addLineToFramedDisplay(display, nomPerso(soigneur) + ' ' + msgSacrifice);
-              else sendPerso(soigneur, msgSacrifice);
-            }
+          if (pvSoigneur < soins) {
+            soins = pvSoigneur;
           }
-          let callMax = function() {
-            if (display) {
-              addLineToFramedDisplay(display, "<b>" + nomPerso(cible) + "</b> : pas besoin de soins.");
-            } else {
-              let maxMsg = "n'a pas besoin de ";
-              if (options.recuperation) {
-                maxMsg = "se reposer";
-                charId = soigneur.charId;
-              } else if (!soigneur || cible.token.id == soigneur.token.id) {
-                maxMsg += "se soigner";
-                charId = cible.charId;
-              } else {
-                maxMsg += "soigner " + nomPerso(cible);
-              }
-              sendChar(charId, maxMsg + ". " + Sujet + " est déjà au maximum de PV", true);
-            }
-          };
-          let extraImg = afficheOptionImage(options);
-          const printTrue = function(s) {
-            if (ressourceLimiteSoinsParJour) {
-              addToAttributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour, -s, evt);
-            }
-            if (display) {
-              addLineToFramedDisplay(display,
-                "<b>" + nomPerso(cible) + "</b> : + " + s + " PV" + extraImg);
-            } else {
-              let msgSoin;
-              if (!soigneur || cible.token.id == soigneur.token.id) {
-                msgSoin = 'se soigne';
-                charId = cible.charId;
-              } else {
-                msgSoin = 'soigne ' + nomPerso(cible);
-              }
-              msgSoin += " de ";
-              if (options.recuperation) msgSoin = "récupère ";
-              if (limiteSoinsAtteinte || s != soins)
-                msgSoin += s + " PV. (Le résultat du jet était " + soinTxt + ")";
-              else msgSoin += soinTxt + " PV.";
-              msgSoin += extraImg;
-              sendChar(charId, msgSoin, true);
-            }
-          };
-          let callTrueFinal = printTrue;
-          if (options.transfer) { //paie avec ses PV
-            if (soigneur === undefined) {
-              error("Il faut préciser qui est le soigneur pour utiliser l'option --transfer", cmd);
-              soinImpossible = true;
-              finSoin();
-              return;
-            }
-            let pvSoigneur = parseInt(soigneur.token.get('bar1_value'));
-            if (isNaN(pvSoigneur) || pvSoigneur <= 0) {
-              if (display)
-                addLineToFramedDisplay(display, "<b>" + nomPerso(cible) + "</b> : plus assez de PV pour le soigner");
-              else
-                sendPerso(soigneur,
-                  "ne peut pas soigner " + nomPerso(cible) + ", " + sujet + " n'a plus de PV");
-              soinImpossible = true;
-              finSoin();
-              return;
-            }
-            if (pvSoigneur < soins) {
-              soins = pvSoigneur;
-            }
-            callTrueFinal = function(s) {
-              updateCurrentBar(soigneur, 1, pvSoigneur - s, evt);
-              if (pvSoigneur == s) mort(soigneur, undefined, evt);
-              printTrue(s);
-            };
+          updateCurrentBar(soigneur, 1, pvSoigneur - soins, evt);
+          let msgSacrifice = "sacrifie " + soins + " PV" + (soins > 1 ? 's' : '');
+          if (pvSoigneur == soins) {
+            mort(soigneur, undefined, evt);
+            msgSacrifice += " et en meurt";
           }
-          effetsSpeciaux(soigneur, cible, options, pageId);
-          soignePerso(cible, soins, evt, callTrueFinal, callMax, options);
-          finSoin();
-        }); //fin du sendChat du jet de dés
-      } catch (e) {
-        if (exprSoinsCible) {
-          if (apiMsg) log(apiMsg.content);
-          log("L'expression des soins était " + exprSoinsCible + ", et il y a eu une erreur durant son évaluation");
-          if (argSoin) {
-            error("L'expression des soins (" + argSoin + ") n'est pas bien formée", cmd);
-          } else {
-            error("Erreur pendant l'évaluation de l'expression des soins. Plus d'informations dans le log", apiMsg);
-          }
-        } else {
-          error("Erreur pendant les soins ", cmd);
-          throw e;
+          if (display)
+            addLineToFramedDisplay(display, nomPerso(soigneur) + ' ' + msgSacrifice);
+          else sendPerso(soigneur, msgSacrifice);
         }
       }
+      let callMax = function() {
+        if (display) {
+          addLineToFramedDisplay(display, "<b>" + nomPerso(cible) + "</b> : pas besoin de soins.");
+        } else {
+          let maxMsg = "n'a pas besoin de ";
+          if (options.recuperation) {
+            maxMsg = "se reposer";
+            charId = soigneur.charId;
+          } else if (!soigneur || cible.token.id == soigneur.token.id) {
+            maxMsg += "se soigner";
+            charId = cible.charId;
+          } else {
+            maxMsg += "soigner " + nomPerso(cible);
+          }
+          sendChar(charId, maxMsg + ". " + Sujet + " est déjà au maximum de PV", true);
+        }
+      };
+      let extraImg = afficheOptionImage(options);
+      const printTrue = function(s) {
+        if (ressourceLimiteSoinsParJour) {
+          addToAttributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour, -s, evt);
+        }
+        if (display) {
+          addLineToFramedDisplay(display,
+            "<b>" + nomPerso(cible) + "</b> : + " + s + " PV" + extraImg);
+        } else {
+          let msgSoin;
+          if (!soigneur || cible.token.id == soigneur.token.id) {
+            msgSoin = 'se soigne';
+            charId = cible.charId;
+          } else {
+            msgSoin = 'soigne ' + nomPerso(cible);
+          }
+          msgSoin += " de ";
+          if (options.recuperation) msgSoin = "récupère ";
+          if (limiteSoinsAtteinte || s != soins)
+            msgSoin += s + " PV. (Le résultat du jet était " + soinTxt + ")";
+          else msgSoin += soinTxt + " PV.";
+          msgSoin += extraImg;
+          sendChar(charId, msgSoin, true);
+        }
+      };
+      let callTrueFinal = printTrue;
+      if (options.transfer) { //paie avec ses PV
+        if (soigneur === undefined) {
+          error("Il faut préciser qui est le soigneur pour utiliser l'option --transfer", cmd);
+          soinImpossible = true;
+          finSoin();
+          return;
+        }
+        let pvSoigneur = parseInt(soigneur.token.get('bar1_value'));
+        if (isNaN(pvSoigneur) || pvSoigneur <= 0) {
+          if (display)
+            addLineToFramedDisplay(display, "<b>" + nomPerso(cible) + "</b> : plus assez de PV pour le soigner");
+          else
+            sendPerso(soigneur,
+              "ne peut pas soigner " + nomPerso(cible) + ", " + sujet + " n'a plus de PV");
+          soinImpossible = true;
+          finSoin();
+          return;
+        }
+        if (pvSoigneur < soins) {
+          soins = pvSoigneur;
+        }
+        callTrueFinal = function(s) {
+          updateCurrentBar(soigneur, 1, pvSoigneur - s, evt);
+          if (pvSoigneur == s) mort(soigneur, undefined, evt);
+          printTrue(s);
+        };
+      }
+      effetsSpeciaux(soigneur, cible, options, pageId);
+      soignePerso(cible, soins, evt, callTrueFinal, callMax, options);
+      finSoin();
     }); //fin de iterCibles
+    if (stateCOF.combat) montrerActions(playerId, pageId, options);
   }
 
   function commandePremiersSoins(cmd, playerId, pageId, options, medecin) {
@@ -29728,41 +29708,79 @@ var COFantasy2 = COFantasy2 || function() {
   const ressourceNomRegExp = new RegExp(/^(repeating_ressources_.*_)res-desc/);
   const ressourceQuantiteRegExp = new RegExp(/^(repeating_ressources_.*_)res-val/);
   const ressourceEffetRegExp = new RegExp(/^(repeating_ressources_.*_)res-props/);
+  const potionNomRegExp = new RegExp(/^(repeating_potions_.*_)potion-nom/);
+  const potionQuantiteRegExp = new RegExp(/^(repeating_potions_.*_)potion-qte/);
+  const potionEffetRegExp = new RegExp(/^(repeating_potions_.*_)potion-effets/);
+  const potionLocalisationRegExp = new RegExp(/^(repeating_potions_.*_)potion-loc/);
 
   //TODO: mettre la map en cache ?
-  // retourne une map id -> nom, quantite, effet, attr de qte
+  // retourne 2 maps id -> nom, quantite, effet, attr de qte
   function listeRessources(perso) {
     let attributes = findObjs({
       _type: 'attribute',
       _characterid: perso.charId
     });
-    let consommables = {}; //map id -> nom, quantite, effet, attr
+    let ressources = {}; //map id -> nom, quantite, effet, attr
+    let potions = {};
     attributes.forEach(function(attr) {
       let attrName = attr.get('name').trim();
       let m = ressourceNomRegExp.exec(attrName);
       if (m) {
         let consoPrefix = m[1];
-        consommables[consoPrefix] = consommables[consoPrefix] || {};
-        consommables[consoPrefix].nom = attr.get('current');
+        ressources[consoPrefix] = ressources[consoPrefix] || {};
+        ressources[consoPrefix].nom = attr.get('current');
         return;
       }
       m = ressourceQuantiteRegExp.exec(attrName);
       if (m) {
         let consoPrefix = m[1];
-        consommables[consoPrefix] = consommables[consoPrefix] || {};
-        consommables[consoPrefix].quantite = toInt(attr.get('current'), 1);
-        consommables[consoPrefix].attr = attr;
+        ressources[consoPrefix] = ressources[consoPrefix] || {};
+        ressources[consoPrefix].quantite = toInt(attr.get('current'), 1);
+        ressources[consoPrefix].attr = attr;
         return;
       }
       m = ressourceEffetRegExp.exec(attrName);
       if (m) {
         let consoPrefix = m[1];
-        consommables[consoPrefix] = consommables[consoPrefix] || {};
-        consommables[consoPrefix].effet = attr.get('current');
+        ressources[consoPrefix] = ressources[consoPrefix] || {};
+        ressources[consoPrefix].effet = attr.get('current');
+        return;
+      }
+      m = potionNomRegExp.exec(attrName);
+      if (m) {
+        let consoPrefix = m[1];
+        potions[consoPrefix] = potions[consoPrefix] || {};
+        potions[consoPrefix].nom = attr.get('current');
+        return;
+      }
+      m = potionQuantiteRegExp.exec(attrName);
+      if (m) {
+        let consoPrefix = m[1];
+        potions[consoPrefix] = potions[consoPrefix] || {};
+        potions[consoPrefix].quantite = toInt(attr.get('current'), 1);
+        potions[consoPrefix].attr = attr;
+        return;
+      }
+      m = potionEffetRegExp.exec(attrName);
+      if (m) {
+        let consoPrefix = m[1];
+        potions[consoPrefix] = potions[consoPrefix] || {};
+        potions[consoPrefix].effet = attr.get('current');
+        return;
+      }
+      m = potionLocalisationRegExp.exec(attrName);
+      if (m) {
+        let consoPrefix = m[1];
+        potions[consoPrefix] = potions[consoPrefix] || {};
+        potions[consoPrefix].localisation = attr.get('current');
+        potions[consoPrefix].attrLoc = attr;
         return;
       }
     }); //fin de la boucle sur les attributs
-    return consommables;
+    return {
+      ressources,
+      potions
+    };
   }
 
   function creerRessource(perso, nom, effet, nb, evt) {
@@ -29795,13 +29813,15 @@ var COFantasy2 = COFantasy2 || function() {
     let display = startFramedDisplay(playerId, 'Liste des consommables :', perso, {
       chuchote: true
     });
-    let consommables = listeRessources(perso); //map id -> nom, quantite, effet, attr
+    let {
+      ressources,
+      potions
+    } = listeRessources(perso); //map id -> nom, quantite, effet, attr
     let aConsommable;
-    _.each(consommables, function(c, prefix) {
+    _.each(ressources, function(c, prefix) {
       //On met d'abord les valeurs par défaut s'il manque un attribut
       if (c.nom === undefined || c.nom === '') return;
       if (c.effet === undefined) c.effet = '';
-      else if (c.effet.search(/\btype:munitions\b/) > -1) return;
       if (c.quantite === undefined) {
         c.quantite = 1;
         c.attr = createObj('attribute', {
@@ -29823,7 +29843,56 @@ var COFantasy2 = COFantasy2 || function() {
       let overlay = ' title="Cliquez pour échanger"';
       ligne += boutonSimple('!cof2-donner-consommable ' + perso.token.id + ' @{target|token_id} ' + c.attr.id, '<span style="font-family:Pictos">r</span>', overlay);
       addLineToFramedDisplay(display, ligne);
-    }); //fin de la boucle sur les onsommables
+    }); //fin de la boucle sur les consommables
+    let premierePotion = true;
+    _.each(potions, function(c, prefix) {
+      //On met d'abord les valeurs par défaut s'il manque un attribut
+      if (c.nom === undefined || c.nom === '') return;
+      if (c.effet === undefined) c.effet = '';
+      if (c.quantite === undefined) {
+        c.quantite = 1;
+        c.attr = createObj('attribute', {
+          characterid: perso.charId,
+          name: prefix + 'potion-qte',
+          current: 1,
+        });
+      } else if (isNaN(c.quantite) || c.quantite < 1) {
+        return;
+      }
+      let localisation = c.localisation || 'sac';
+      if (stateCOF.combat && localisation == 'sac') return;
+      if (premierePotion) {
+        premierePotion = false;
+        if (aConsommable) {
+          addLineToFramedDisplay(display, "Potions -------------------------------");
+        } else {
+          aConsommable = true;
+        }
+      }
+      let ligne = c.quantite + ' ';
+      let action = c.effet;
+      if (action === '') action = '!cof-action utilise ' + c.nom;
+      action += ' --potion --acteur ' + perso.token.id;
+      if (localisation == 'ceinture') action += ' --typeAction L';
+      ligne += boutonComplexe(action, c.nom, perso, {
+        ressource: c.attr
+      });
+      // Pictos : https://wiki.roll20.net/CSS_Wizardry#Pictos
+      let overlay = ' title="Cliquez pour échanger"';
+      ligne += boutonSimple('!cof2-donner-consommable ' + perso.token.id + ' @{target|token_id} ' + c.attr.id, '<span style="font-family:Pictos">r</span>', overlay);
+      switch (localisation) {
+        case 'main':
+          ligne += " en main (M)";
+          break;
+        case 'ceinture':
+          ligne += " à la ceinture (L)";
+          break;
+        case 'sac':
+          ligne += " dans le sac";
+          break;
+      }
+      addLineToFramedDisplay(display, ligne);
+    }); //fin de la boucle sur les consommables
     if (aConsommable)
       addLineToFramedDisplay(display, '<em>Cliquez sur le consommable pour l\'utiliser ou sur <tt><span style="font-family:Pictos">r</span></tt> pour l\'échanger avec un autre personnage.</em>');
     else
@@ -31454,6 +31523,27 @@ var COFantasy2 = COFantasy2 || function() {
     return res;
   }
 
+  function plusPredOption(ctx, cmd, options, state, optionString, pageId) {
+    if (cmd.length < 2) {
+      if (!options.noError)
+        error("Il manque la valeur de l'option " + cmd[0], optionString);
+      return;
+    }
+    options.plusPred = options.plusPred || [];
+    let p = {
+      predicat: cmd[1],
+    };
+    if (cmd.length > 3 && cmd[2] == 'max') {
+      let m = parseInt(cmd[3]);
+      if (isNaN(m) && !options.testeRessources) {
+        error("L'argument max doit être un entier, on voit "+cmd[3], cmd);
+      } else {
+        p.max = m;
+      }
+    }
+    options.plusPred.push(p);
+  }
+
   function selectionOption(ctx, cmd, options, state, optionString, pageId) {
     options.selection.push(cmd);
   }
@@ -32500,6 +32590,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: booleanOption,
       optName: 'nature'
     },
+    nom: stringDefaultOption,
     noSelect: boolDefaultOption,
     optionEffet: {
       fn: effetOptionOption
@@ -32522,7 +32613,9 @@ var COFantasy2 = COFantasy2 || function() {
       fn: additionalDmgOption,
       optName: 'additionalCritDmg',
     },
-    plusPred: wordDefaultOption,
+    plusPred: {
+      fn: plusPredOption,
+    },
     plusDeEvolPred: wordDefaultOption,
     poison: {
       fn: dmgTypeOption
@@ -32705,7 +32798,6 @@ var COFantasy2 = COFantasy2 || function() {
     test: boolDefaultOption,
     grenaille: boolDefaultOption,
     titre: stringDefaultOption,
-    nom: stringDefaultOption,
   };
 
   //Renseigne toujours options.playerId
