@@ -1,4 +1,4 @@
-//Dernière modification : mar. 07 juil. 2026,  02:01
+//Dernière modification : mar. 07 juil. 2026,  03:23
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12140,7 +12140,7 @@ var COFantasy2 = COFantasy2 || function() {
       buffsSurFiche: [{
         nom: 'Réflexes éclairs (init)',
         attrib: 'init',
-        limiteArmure: 'barbare', //TODO: mécanisme pour ajouter seulement quand on connaît les armures
+        limiteArmure: 'barbare',
         value: '3'
       }, {
         nom: 'Réflexes éclairs (DEF)',
@@ -12207,7 +12207,7 @@ var COFantasy2 = COFantasy2 || function() {
       buffsSurFiche: [{
         nom: 'Vivacité',
         attrib: 'init',
-        //limiteArmure: 'guerrier', //TODO: mécanisme pour ajouter seulement quand on connaît les armures
+        limiteArmure: 'guerrier',
         value: '3'
       }],
       vivacite: 3, //Bonus aux save contre immobilise et renverse. On n'utilise pas bonusSaveContre_ pour pouvoir limiter aux armures de guerrier
@@ -12246,7 +12246,7 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_robustesse: true,
       buffsSurFiche: [{
         nom: 'Robustesse',
-        //limiteArmure: 'guerrier', //On risque de ne pas utiliser la bonne armure
+        limiteArmure: 'guerrier',
         attrib: 'pv',
         value: '[rang voie NUMEROVOIE] + 2'
       }]
@@ -12264,7 +12264,7 @@ var COFantasy2 = COFantasy2 || function() {
         'defaut': {
           buffsSurFiche: [{
             nom: 'Armure lourde',
-            //limiteArmure: 'guerrier', //On risque de ne pas utiliser la bonne armure
+            limiteArmure: 'guerrier',
             attrib: 'def',
             value: '1',
           }]
@@ -13006,7 +13006,7 @@ var COFantasy2 = COFantasy2 || function() {
         else prefix = 'repeating_buffs_' + generateRowID() + '_';
         b.nom = '[S] ' + b.nom;
         b.on = '1';
-        //TODO: pour l'instant on ne tient pas compte de b.limiteArmure, car ça peut varier, et en plus ça fait une boucle récursive avec getPredicates
+        if (b.limiteArmure) buffs.limitationsDArmures[prefix] = b.limiteArmure;
         champsDesBuffsDeFiche.forEach(function(field) {
           if (!b[field]) {
             log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
@@ -13300,6 +13300,7 @@ var COFantasy2 = COFantasy2 || function() {
       predicates.champ_fiche = predicateOfRaw(raw);
     }
     //Ensuite les capacités
+    let limitationsDArmures = {}; //pour les buffs (pref -> limitation)
     if (!predicates.capacites) {
       let capacites = {};
       let actions = [];
@@ -13320,14 +13321,20 @@ var COFantasy2 = COFantasy2 || function() {
         let rangSortMax = {}; //pour chaque profil, le rang de sort maximum maîtrisé
         let plusParVoieDeRang = []; //Les bonus par nombre de voies d'un certain rang
         let buffsRaw = extractRepeating(perso, 'buffs'); //Les buffs sur la fiche
-        //On extrait les buffs provenant du script (nom commance par [S]
-        let buffs = {};
+        //On extrait les buffs provenant du script (nom commance par [S])
+        let buffs = {
+          limitationsDArmures
+        }; //map de nom vers liste de buffs qui seront enlevés par predicatsDeVoie. le champ limitationsDArmures servira à collecter les limitations d'armure (pref -> limitation)
         for (const idx in buffsRaw) {
           let b = buffsRaw[idx];
           let nom = b['buff-nom'];
           if (nom && nom.startsWith('[S] ')) {
             b.prefix = idx;
             nom = nom.substring(4);
+            if (nom == 'limitationsDArmures') {
+              error("Il ne faut pas nommer un buff limitationsDArmures, c'est réservé!", b);
+              continue;
+            }
             buffs[nom] = buffs[nom] || [];
             buffs[nom].push(b);
           }
@@ -13336,6 +13343,7 @@ var COFantasy2 = COFantasy2 || function() {
           predicatsDeVoie(perso, numVoie, capacites, rangsParProfil, rangSortMax, armesMaitrisees, actions, plusParVoieDeRang, buffs);
         }
         //on supprime les buffs qui restent, ils ne correspondent plus à des capacités
+        delete buffs.limitationsDArmures;
         for (const nom in buffs) {
           let bl = buffs[nom];
           for (let i = 0; i < bl.length; i++) {
@@ -13399,17 +13407,40 @@ var COFantasy2 = COFantasy2 || function() {
         else predicates.transforme = predicateOfRaw(rawT);
       }
     }
+    let res;
     if (!mookPred || !predicates.transforme || _.isEmpty(predicates.transforme)) {
       predicates.total = joinPredicates(predicates, infos);
       if (mookPred) mookPred.total = predicates.total;
-      return predicates.total;
+      res = predicates.total;
     } else {
       mookPred.champ_fiche = predicates.champ_fiche;
       mookPred.capacites = predicates.capacites;
       mookPred.equipement = predicates.equipement; //TODO: revoir ça.
       mookPred.total = joinPredicates(mookPred, infos);
-      return mookPred.total;
+      res = mookPred.total;
     }
+    //Maintenant que tous les prédicats sont collecté, on met à jour les limitations d'armure pour les buffs
+    for (let prefix in limitationsDArmures) {
+      let limite = limiteBonusArmure(perso, limitationsDArmures[prefix], res);
+      let f = prefix + 'buff-agimax';
+      let attrs = charAttribute(perso.charId, f);
+      if (attrs && attrs.length > 0) {
+        if (attrs[0].get('current') == limite) continue;
+        attrs[0].setWithWorker({
+          current: limite
+        });
+      } else {
+        let attr = createObj('attribute', {
+          characterid: perso.charId,
+          name: f,
+          current: limite,
+        });
+        attr.setWithWorker({
+          current: limite
+        });
+      }
+    }
+    return res;
   }
 
   function getInfos(perso) {
@@ -20018,18 +20049,21 @@ var COFantasy2 = COFantasy2 || function() {
               }
               count--; //On a fini avec perso.
               count += cibles.length; //On ajoute les cibles
-              let deArgs = {nbDe:2, dice:6};
+              let deArgs = {
+                nbDe: 2,
+                dice: 6
+              };
               cibles.forEach(function(cible) {
-                let soins = rollDePlus(deArgs, 'zoneDeVie'+cible.token.id, evt);
-                  soignePerso(cible, soins.total, evt,
-                    function(s) {
-                      if (s < soins.total) sendPerso(cible, "récupère tous ses PV.");
-                      else if (s == soins.total)
-                        sendPerso(cible, "récupère " + soins.display + " PV.");
-                      else
-                        sendPerso(cible, "récupère " + s + " PV. (Le jet était " + soins.display + ")");
-                      fin();
-                    }, fin);
+                let soins = rollDePlus(deArgs, 'zoneDeVie' + cible.token.id, evt);
+                soignePerso(cible, soins.total, evt,
+                  function(s) {
+                    if (s < soins.total) sendPerso(cible, "récupère tous ses PV.");
+                    else if (s == soins.total)
+                      sendPerso(cible, "récupère " + soins.display + " PV.");
+                    else
+                      sendPerso(cible, "récupère " + s + " PV. (Le jet était " + soins.display + ")");
+                    fin();
+                  }, fin);
               });
             });
           return;
@@ -31922,7 +31956,7 @@ var COFantasy2 = COFantasy2 || function() {
     scope[cmd[0]] = parseLimite(cmd, options);
   }
 
-  function limiteBonusArmure(perso, armure) {
+  function limiteBonusArmure(perso, armure, preds) {
     let res;
     switch (armure) {
       case 'cuirSimple':
@@ -31986,7 +32020,11 @@ var COFantasy2 = COFantasy2 || function() {
         error("Restriction d'armure " + armure + " non reconnue.", armure);
         return 0;
     }
-    if (perso && predicateAsBool(perso, 'armureLourde')) res--;
+    if (preds) {
+      if (preds.armureLourde) res--;
+    } else {
+      if (perso && predicateAsBool(perso, 'armureLourde')) res--;
+    }
     return res;
   }
 
