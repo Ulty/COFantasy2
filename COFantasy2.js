@@ -1,4 +1,4 @@
-//Dernière modification : mer. 08 juil. 2026,  04:37
+//Dernière modification : mer. 08 juil. 2026,  05:58
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5277,7 +5277,7 @@ var COFantasy2 = COFantasy2 || function() {
           target.attackRoll = attackRoll;
           let attackResult = '';
           target.margeDeToucher = attackRoll - defense;
-          if (targetd20roll >= 15) {
+          if (targetd20roll >= deSeuil(weaponStats)) {
             if (predicateAsBool(attaquant, 'tapeDur')) options.tapeDur = true;
             if (predicateAsBool(attaquant, 'imparable'))
               options.imparable = true;
@@ -7199,7 +7199,6 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
         if (options.gober && taillePerso(attaquant) > taillePerso(target)) {
-          //On utilise la liste d'effets pour pouvoir gérer les jets asynchrones
           target.effets.push({
             gober: true,
             save: true
@@ -8588,6 +8587,16 @@ var COFantasy2 = COFantasy2 || function() {
     portee: 0,
   };
 
+  function deSeuil(weaponStats) {
+      let res = 15;
+      let am = weaponStats.attaqueMultiple || 1;
+      if (am > 1) {
+        res += am;
+        if (res > 18) res = 18;
+      }
+    return res;
+  }
+
   function commandeAttaque(cmd, playerId, pageId, options, attaquant) {
     if (stateCOF.pause && !playerIsGM(playerId)) {
       sendPlayer("Le jeu est en pause", playerId);
@@ -9397,6 +9406,23 @@ var COFantasy2 = COFantasy2 || function() {
           options.additionalDmg.push({
             value
           });
+        }
+      });
+    }
+    if (predicateAsBool(attaquant, 'fauchage')) {
+            options.etats = options.etats || [];
+      options.etats.push({
+        etat: 'renverse',
+        condition: {
+          type: 'deAttaque',
+          seuil: deSeuil(weaponStats),
+        },
+        save: {
+          carac: 'FOR',
+          carac2: 'DEX',
+          seuil: 10 + modCarac(attaquant, 'FOR'),
+          immuniseSiPlusGrandQue: taillePerso(attaquant, 4),
+          msgPour: " pour ne pas tomber",
         }
       });
     }
@@ -12820,6 +12846,7 @@ var COFantasy2 = COFantasy2 || function() {
       colossal: true,//TODO: à utiliser pour estimer la partie de la RD due à cette voie
     },
     'fauchage': {
+      fauchage: true,
     },
     //Voie de la magie maléfique
     'vampirisation': {
@@ -14161,6 +14188,23 @@ var COFantasy2 = COFantasy2 || function() {
       let optionsSansChoix = removeRollQueries(ligneOptions);
       opt = parseOptions(optionsSansChoix, pageId, opt);
     }
+    if (options.typeAction && !opt.typeActon) {
+      let am = attackStats.attaqueMultiple || 1;
+      if (am < 2) 
+        act += ' --typeAction ' + options.typeAction;
+      else {
+        let r = 'attaqueMultiple'+attackStats.label;
+        act += ' --limiteParTour '+ am + ' ' + r;
+        let restants = attributeAsInt(attaquant, 'limiteParTour_'+r, am);
+        if (restants == 0) {
+          options.actionImpossible = true;
+        } else if (restants == am) {
+          act += ' --typeAction ' + options.typeAction;
+        } else {
+          options.typeAction = 'G';
+        }
+      }
+    }
     if (!options.attaquePossible) {
       let impossible =
         (attackStats.armeDeJet && attackStats.nbArmesDeJet < 1) ||
@@ -14189,7 +14233,6 @@ var COFantasy2 = COFantasy2 || function() {
       picto,
       style
     } = pictoOfAttack(attackStats, opt);
-    if (options.typeAction && !opt.typeActon && !options.attaqueMultiple) act += ' --typeAction ' + options.typeAction;
     if (options.commande) {
       return {
         act,
@@ -15275,6 +15318,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       //L'arme en main et dégainer, si besoin
+      let armePrincipale = armesEnMain(perso);
       if (typeActionPossible(perso, 'M')) {
         let {
           armes,
@@ -15286,7 +15330,6 @@ var COFantasy2 = COFantasy2 || function() {
         let labelArmeGauche;
         let ligneArmePrincipale;
         let ligneArmeGauche;
-        let armePrincipale = armesEnMain(perso);
         let armeUtilisable;
         if (armePrincipale) {
           labelArmePrincipale = armePrincipale.label;
@@ -15310,7 +15353,6 @@ var COFantasy2 = COFantasy2 || function() {
             text: nomCommande,
             typeAction: 'A',
           };
-          if (armePrincipale.attaqueMultiple) bopt.attaqueMultiple = true;
           if (armePrincipale.portee && predicateAsBool(perso, 'dansLeMille')) {
             bopt.ligneOptions = "?{Difficulté du tir|Normal,&#32;|-2,--bonusAttaque -2 --plus 1d" + deEvolutif(perso) + "|Dé malus,--deMalus --plus 2d" + deEvolutif(perso) + "}";
           }
@@ -23551,7 +23593,7 @@ var COFantasy2 = COFantasy2 || function() {
   //   - carac2 : caractéristique alternative
   //   - seuil : la difficulté du jet de sauvegarde
   //   - contact : la difficulté si la cible est au contact de options.attaquant
-  //   - fauchage
+  //   - immuniseSiPlusGrandQue
   //   - entrave (pour les action qui immobilisent, ralentissent ou paralysent)
   //   - etat quand le save est contre un état particulier
   //   - sortilege
@@ -23584,9 +23626,9 @@ var COFantasy2 = COFantasy2 || function() {
         return true;
       }
     }
-    if (s.fauchage) {
-      if (s.fauchage <= taillePerso(target)) {
-        expliquer(nomPerso(target) + " est trop grand pour être fauché.");
+    if (s.immuniseSiPlusGrandQue) {
+      if (s.immuniseSiPlusGrandQue <= taillePerso(target)) {
+        expliquer(nomPerso(target) + " est trop grand pour être affecté.");
         return true;
       }
       if (predicateAsBool(target, 'inderacinable')) {
@@ -28727,14 +28769,11 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let rdTarget = getRDS(target);
     let rd = rdTarget.rdt || 0;
-    if (rd > 0 && !options.aoe && options.attaquant && predicateAsBool(options.attaquant, 'ventreMou')) {
-      let taille = taillePerso(target);
-      if (taille > 4) {
+    if (rd > 0 && !options.aoe && options.attaquant && predicateAsBool(options.attaquant, 'ventreMou') && predicateAsBool(target, 'colossal')) {
         if (target.messages) target.messages.push("Ventre mou => L'attaque ignore la RD dûe à la taille");
-        rd -= 3 * (taille - 4);
-        if (taille > 6) rd--;
+      if (predicateAsBool(target, 'balayage')) rd -= 6;
+      else rd -= predicateAsInt(target, 'colossal', 3);
         if (rd < 0) rd = 0;
-      }
     }
     if (predicateAsBool(target, 'hausserLeTon')) {
       if (parseInt(target.token.get('bar1_value')) <= target.token.get('bar1_max') / 2) {
