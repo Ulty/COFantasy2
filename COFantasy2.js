@@ -1,4 +1,4 @@
-//Dernière modification : mer. 08 juil. 2026,  01:24
+//Dernière modification : mer. 08 juil. 2026,  03:29
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -17401,7 +17401,7 @@ var COFantasy2 = COFantasy2 || function() {
       case "grande":
         return 5;
       case "énorme":
-      case "enorme":
+      case 'enorme':
         return 6;
       case "colossal":
       case "colossale":
@@ -30559,7 +30559,7 @@ var COFantasy2 = COFantasy2 || function() {
                   break;
                 case 'armedmcar':
                 default:
-                  log(nom + " pas reconnu (valeur "+v+")");
+                  log("_"+nom + " pas reconnu (valeur "+v+")");
                   log(m);
               }
   }
@@ -30797,12 +30797,12 @@ var COFantasy2 = COFantasy2 || function() {
                   setAttr(pref + 'action-cmd', v);
                   break;
                 default:
-                  log(nom + " pas reconnu ");
+                  log("_"+nom + " pas reconnu ");
                   log(m);
               }
               break;
             }
-            attributsIgnores += nom + ' : ' + v;
+            attributsIgnores += '_'+nom + ' : ' + v;
             let max = attr.get('max');
             if (max) attributsIgnores += ' , ' + max;
             attributsIgnores += ' .\n';
