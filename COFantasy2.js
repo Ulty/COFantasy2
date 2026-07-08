@@ -1,4 +1,4 @@
-//Dernière modification : mer. 08 juil. 2026,  03:29
+//Dernière modification : mer. 08 juil. 2026,  04:37
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12814,6 +12814,12 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'enrage': {
       peutEnrage: true,
+    },
+    //Voie des créatures colossales
+    'colossal': {
+      colossal: true,//TODO: à utiliser pour estimer la partie de la RD due à cette voie
+    },
+    'fauchage': {
     },
     //Voie de la magie maléfique
     'vampirisation': {
@@ -30564,6 +30570,9 @@ var COFantasy2 = COFantasy2 || function() {
               }
   }
 
+  let totalDePersonnagesTraduits = 0;
+  let treatedCharsTotal = new Set();
+
   //Convertit les tokens sélectionnés de fiches COF1 vers fiches COF2
   function commandeDepuisCof1(cmd, playerId, pageId, options) {
     let {
@@ -30574,27 +30583,30 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Pas de token sélectionné pour la conversion.", playerId);
       return;
     }
-    let treatedChars = new Set();
     const optAttr = {
       charAttr: true
     };
-    let evt = {
+    const evt = {
       type: 'Tranformation depuis COF1',
       defaultTokens: []
     };
     addEvent(evt);
+    let totalAttrs = 0;
     iterSelected(selected, function(perso) {
-      if (treatedChars.has(perso.charId)) return;
-      treatedChars.add(perso.charId);
+      if (totalAttrs > 5000) return;//Sinon Roll20 dit qu'on a une boucle infinie
+      if (treatedCharsTotal.has(perso.charId)) return;
+      treatedCharsTotal.add(perso.charId);
       if (charAttributeAsBool(perso, 'sheet_type')) {
         sendPlayer(nomPerso(perso) + " déjà converti (attribut sheet_type)", playerId);
         return;
       }
+      totalDePersonnagesTraduits++;
       let attributsIgnores = '';
       let attributes = findObjs({
         _type: 'attribute',
         _characterid: perso.charId,
       });
+      totalAttrs += attributes.length;
       setFicheAttr(perso, 'sheet_type', 'pc', evt);
       let setAttr = function(nom, valeur) {
         setTokenAttr(perso, nom, valeur, evt, optAttr);
@@ -30654,6 +30666,7 @@ var COFantasy2 = COFantasy2 || function() {
           case 'rd_contondant':
           case 'sansEsprit':
           case 'capa_race':
+          case 'message_version':
             //on efface juste
             break;
           case 'niveau':
@@ -30665,6 +30678,8 @@ var COFantasy2 = COFantasy2 || function() {
           case 'cha':
           case 'age':
           case 'poids':
+          case 'predicats_script':
+          case 'notes':
           case 'voie1nom':
           case 'voie2nom':
           case 'voie3nom':
@@ -30817,7 +30832,14 @@ var COFantasy2 = COFantasy2 || function() {
         sendPlayer(nomPerso(perso) + " traduit.", playerId);
       }
     });
-    sendPlayer("Traduction des personnages en COF2 terminée", playerId);
+    if (totalAttrs > 5000) {
+      sendPlayer(totalDePersonnagesTraduits+" personnages traduits en COF2...", playerId);
+      sendChat('', apiMsg.content);
+    } else {
+      sendPlayer("Traduction des personnages en COF2 terminée ("+totalDePersonnagesTraduits+" personnages)", playerId);
+      treatedCharsTotal = new Set();
+      totalDePersonnagesTraduits = 0;
+    }
   }
 
   function commandeAgrandirPage(cmd, playerId, pageId, options) {
