@@ -1,4 +1,4 @@
-//Dernière modification : mer. 08 juil. 2026,  09:58
+//Dernière modification : mer. 08 juil. 2026,  01:24
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -17749,10 +17749,8 @@ var COFantasy2 = COFantasy2 || function() {
         if (callback !== undefined) callback();
         return;
       }
-      iter({
-        token: token,
-        charId: charId
-      });
+      let perso = {token, charId};
+      iter(perso);
     });
   }
 
@@ -21605,7 +21603,10 @@ var COFantasy2 = COFantasy2 || function() {
             });
             tokens.forEach(function(token) {
               let tokCharId = token.get('represents');
-              if (tokCharId) selectedSet.add(token.id);
+              if (tokCharId) {
+                let character = getObj('character', tokCharId);
+                if (character) selectedSet.add(token.id);
+              }
             });
             return;
           }
@@ -21617,7 +21618,10 @@ var COFantasy2 = COFantasy2 || function() {
             });
             tokens.forEach(function(token) {
               let tokCharId = token.get('represents');
-              if (tokCharId) selectedSet.add(token.id);
+              if (tokCharId) {
+                let character = getObj('character', tokCharId);
+                if (character) selectedSet.add(token.id);
+              }
             });
             return;
           }
@@ -30413,193 +30417,10 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   const regPNJAtk = new RegExp("^repeating_pnjatk_([^_]*)_(.*)$");
+  const regPJAtk = new RegExp("^repeating_armes_([^_]*)_(.*)$");
   const regActions = new RegExp("^repeating_actions(\d*)_([^_]*)_(.*)$");
-  //Convertit les tokens sélectionnés de fiches COF1 vers fiches COF2
-  function commandeDepuisCof1(cmd, playerId, pageId, options) {
-    let {
-      selected
-    } = getSelected(pageId, options);
-    let nb = selected.length;
-    if (nb === 0) {
-      sendPlayer("Pas de token sélectionné pour la conversion.", playerId);
-      return;
-    }
-    let treatedChars = new Set();
-    const optAttr = {
-      charAttr: true
-    };
-    let evt = {
-      type: 'Tranformation depuis COF1',
-      defaultTokens: []
-    };
-    addEvent(evt);
-    iterSelected(selected, function(perso) {
-      if (treatedChars.has(perso.charId)) return;
-      treatedChars.add(perso.charId);
-      if (charAttributeAsBool(perso, 'sheet_type')) {
-        sendPlayer(nomPerso(perso) + " déjà converti (attribut sheet_type)", playerId);
-        return;
-      }
-      let attributsIgnores = '';
-      let attributes = findObjs({
-        _type: 'attribute',
-        _characterid: perso.charId,
-      });
-      setFicheAttr(perso, 'sheet_type', 'pc', evt);
-      let setAttr = function(nom, valeur) {
-        setTokenAttr(perso, nom, valeur, evt, optAttr);
-      };
-      attributes.forEach(function(attr) {
-        let nom = attr.get('name');
-        let noml = nom.toLowerCase();
-        let v = attr.get('current');
-        switch (noml) {
-          case 'atkcac_base':
-          case 'atkcac_carac':
-          case 'atktir_base':
-          case 'atktir_carac':
-          case 'atkmag_base':
-          case 'atkmag_carac':
-          case 'pc_base':
-          case 'pc_bonus':
-          case 'pc':
-          case 'pr':
-          case 'max_attack_label':
-          case 'mod_atktir':
-          case 'mod_atkmag':
-          case 'mod_initiative':
-          case 'pnj_armure':
-          case 'pnj_bouclier':
-          case 'pnj_for_sup':
-          case 'pnj_dex_sup':
-          case 'pnj_con_sup':
-          case 'pnj_int_sup':
-          case 'pnj_cha_sup':
-          case 'pnj_sag_sup':
-          case 'torseequipe':
-          case 'init_div':
-          case 'defdiv':
-          case 'defarmuremalus':
-          case 'force':
-          case 'for_bonus':
-          case 'dexterite':
-          case 'dex_bonus':
-          case 'constitution':
-          case 'con_bonus':
-          case 'intelligence':
-          case 'int_bonus':
-          case 'charisme':
-          case 'cha_bonus':
-          case 'sagesse':
-          case 'sag_bonus':
-          case 'defense_si_attaque_risquee':
-          case 'show_script':
-          case 'statblock':
-          case 'tab':
-          case 'type_fiche':
-          case 'version':
-          case 'defarmureon':
-          case 'defbouclieron':
-          case 'rd_percant':
-          case 'rd_contondant':
-          case 'sansEsprit':
-            //on efface juste
-            break;
-          case 'niveau':
-          case 'profil':
-          case 'pv':
-          case 'for':
-          case 'con':
-          case 'int':
-          case 'cha':
-            //ne change pas
-            return;
-          case 'pnj_pv':
-          case 'defarmure':
-            setAttr('armure', v);
-            break;
-          case 'pnj_jets_caches':
-            setAttr('togm', v);
-            break;
-          case 'pnj_for':
-            setAttr('for', v);
-            break;
-          case 'for_sup':
-            if (v == '@{jetsup}')
-              setAttr('for_sup', 'S');
-            return;
-          case 'pnj_dex':
-          case 'dex':
-            setAttr('agi', v);
-            break;
-          case 'dex_sup':
-            if (v == '@{jetsup}')
-              setAttr('agi_sup', 'S');
-            break;
-          case 'pnj_con':
-            setAttr('con', v);
-            break;
-          case 'con_sup':
-            if (v == '@{jetsup}')
-              setAttr('con_sup', 'S');
-            return;
-          case 'pnj_int':
-            setAttr('int', v);
-            break;
-          case 'int_sup':
-            if (v == '@{jetsup}')
-              setAttr('int_sup', 'S');
-            return;
-          case 'pnj_cha':
-            setAttr('cha', v);
-            break;
-          case 'cha_sup':
-            if (v == '@{jetsup}')
-              setAttr('cha_sup', 'S');
-            return;
-          case 'pnj_sag':
-          case 'sag':
-            setAttr('per', v);
-            setAttr('vol', v);
-            break;
-          case 'sag_sup':
-            if (v == '@{jetsup}') {
-              setAttr('per_sup', 'S');
-              setAttr('vol_sup', 'S');
-            }
-            break;
-          case 'pnj_init':
-            let ib = v - 10;
-            if (ib >= 0) ib = Math.ceil(0.8 * ib);
-            setAttr('init', 10 + ib);
-            break;
-          case 'pnj_def':
-            setAttr('def', v);
-            break;
-          case 'race':
-            setAttr('peuple', v);
-            break;
-          case 'taille':
-            if (v !== '') {
-              setAttr('taille', v[0].toUpperCase() + v.slice(1).toLowerCase());
-            }
-            return;
-          case 'scriptversion':
-            attr.set(nom, scriptVersion);
-            return;
-          case 'type_personnage':
-            if (v == 'PNJ') setFicheAttr(perso, 'sheet_type', 'npc', evt);
-            break;
-          case 'sexe':
-            setAttr('genre', v);
-            break;
-          case 'rds':
-            setAttr('rd', v);
-            break;
-          default:
-            let m = regPNJAtk.exec(nom);
-            if (m) {
-              let pref = 'repeating_npcarmes_' + m[1];
+
+  function attaqueDepuisCOF1(perso, attr, nom, setAttr, pref, m, v, evt) {
               switch (m[2]) {
                 case 'armeoptflag':
                 case 'armebonusoption':
@@ -30730,10 +30551,229 @@ var COFantasy2 = COFantasy2 || function() {
                 case 'armejettaux':
                   setAttr(pref + '_jet-perte', v);
                   break;
+                case 'armedmdiv':
+                  setAttr(pref + '_arme-dmdiv', v);
+                  break;
+                case 'armeatkdiv':
+                  setAttr(pref + '_arme-atkdiv', v);
+                  break;
+                case 'armedmcar':
                 default:
-                  log(nom + " pas reconnu ");
+                  log(nom + " pas reconnu (valeur "+v+")");
                   log(m);
               }
+  }
+
+  //Convertit les tokens sélectionnés de fiches COF1 vers fiches COF2
+  function commandeDepuisCof1(cmd, playerId, pageId, options) {
+    let {
+      selected
+    } = getSelected(pageId, options);
+    let nb = selected.length;
+    if (nb === 0) {
+      sendPlayer("Pas de token sélectionné pour la conversion.", playerId);
+      return;
+    }
+    let treatedChars = new Set();
+    const optAttr = {
+      charAttr: true
+    };
+    let evt = {
+      type: 'Tranformation depuis COF1',
+      defaultTokens: []
+    };
+    addEvent(evt);
+    iterSelected(selected, function(perso) {
+      if (treatedChars.has(perso.charId)) return;
+      treatedChars.add(perso.charId);
+      if (charAttributeAsBool(perso, 'sheet_type')) {
+        sendPlayer(nomPerso(perso) + " déjà converti (attribut sheet_type)", playerId);
+        return;
+      }
+      let attributsIgnores = '';
+      let attributes = findObjs({
+        _type: 'attribute',
+        _characterid: perso.charId,
+      });
+      setFicheAttr(perso, 'sheet_type', 'pc', evt);
+      let setAttr = function(nom, valeur) {
+        setTokenAttr(perso, nom, valeur, evt, optAttr);
+      };
+      attributes.forEach(function(attr) {
+        let nom = attr.get('name');
+        let noml = nom.toLowerCase();
+        let v = attr.get('current');
+        switch (noml) {
+          case 'atkcac_base':
+          case 'atkcac_carac':
+          case 'atktir_base':
+          case 'atktir_carac':
+          case 'atkmag_base':
+          case 'atkmag_carac':
+          case 'pc_base':
+          case 'pc_bonus':
+          case 'pc':
+          case 'pr':
+          case 'max_attack_label':
+          case 'mod_atktir':
+          case 'mod_atkmag':
+          case 'mod_initiative':
+          case 'pnj_armure':
+          case 'pnj_bouclier':
+          case 'pnj_for_sup':
+          case 'pnj_dex_sup':
+          case 'pnj_con_sup':
+          case 'pnj_int_sup':
+          case 'pnj_cha_sup':
+          case 'pnj_sag_sup':
+          case 'torseequipe':
+          case 'init_div':
+          case 'defdiv':
+          case 'defarmuremalus':
+          case 'force':
+          case 'for_bonus':
+          case 'dexterite':
+          case 'dex_bonus':
+          case 'constitution':
+          case 'con_bonus':
+          case 'intelligence':
+          case 'int_bonus':
+          case 'charisme':
+          case 'cha_bonus':
+          case 'sagesse':
+          case 'sag_bonus':
+          case 'defense_si_attaque_risquee':
+          case 'show_script':
+          case 'statblock':
+          case 'tab':
+          case 'type_fiche':
+          case 'version':
+          case 'defarmureon':
+          case 'defbouclieron':
+          case 'rd_percant':
+          case 'rd_contondant':
+          case 'sansEsprit':
+          case 'capa_race':
+            //on efface juste
+            break;
+          case 'niveau':
+          case 'profil':
+          case 'pv':
+          case 'for':
+          case 'con':
+          case 'int':
+          case 'cha':
+          case 'age':
+          case 'poids':
+          case 'voie1nom':
+          case 'voie2nom':
+          case 'voie3nom':
+          case 'voie4nom':
+          case 'voie5nom':
+            //ne change pas
+            return;
+          case 'pnj_pv':
+          case 'defarmure':
+            setAttr('armure', v);
+            break;
+          case 'pnj_jets_caches':
+            setAttr('togm', v);
+            break;
+          case 'pnj_for':
+            setAttr('for', v);
+            break;
+          case 'for_sup':
+            if (v == '@{jetsup}')
+              setAttr('for_sup', 'S');
+            return;
+          case 'pnj_dex':
+          case 'dex':
+            setAttr('agi', v);
+            break;
+          case 'dex_sup':
+            if (v == '@{jetsup}')
+              setAttr('agi_sup', 'S');
+            break;
+          case 'pnj_con':
+            setAttr('con', v);
+            break;
+          case 'con_sup':
+            if (v == '@{jetsup}')
+              setAttr('con_sup', 'S');
+            return;
+          case 'pnj_int':
+            setAttr('int', v);
+            break;
+          case 'int_sup':
+            if (v == '@{jetsup}')
+              setAttr('int_sup', 'S');
+            return;
+          case 'pnj_cha':
+            setAttr('cha', v);
+            break;
+          case 'cha_sup':
+            if (v == '@{jetsup}')
+              setAttr('cha_sup', 'S');
+            return;
+          case 'pnj_sag':
+          case 'sag':
+            setAttr('per', v);
+            setAttr('vol', v);
+            break;
+          case 'sag_sup':
+            if (v == '@{jetsup}') {
+              setAttr('per_sup', 'S');
+              setAttr('vol_sup', 'S');
+            }
+            break;
+          case 'pnj_init':
+            let ib = v - 10;
+            if (ib >= 0) ib = Math.ceil(0.8 * ib);
+            setAttr('init', 10 + ib);
+            break;
+          case 'pnj_def':
+            setAttr('def', v);
+            break;
+          case 'race':
+            setAttr('peuple', v);
+            break;
+          case 'taille':
+            if (v !== '') {
+              setAttr('taille', v[0].toUpperCase() + v.slice(1).toLowerCase());
+            }
+            return;
+          case 'dv':
+            setAttr('drecup', v);
+            break;
+          case 'scriptversion':
+            attr.set(nom, scriptVersion);
+            return;
+          case 'type_personnage':
+            if (v == 'PNJ') setFicheAttr(perso, 'sheet_type', 'npc', evt);
+            break;
+          case 'sexe':
+            setAttr('genre', v);
+            break;
+          case 'rds':
+            setAttr('rd', v);
+            break;
+          case 'rds':
+            setAttr('rd', v);
+            break;
+          case 'equip_div':
+            setAttr('equip_divers', v);
+            break;
+          default:
+            let m = regPNJAtk.exec(nom);
+            if (m) {
+              let pref = 'repeating_npcarmes_' + m[1];
+              attaqueDepuisCOF1(perso, attr, nom, setAttr, pref, m, v, evt);
+              break;
+            }
+            m = regPJAtk.exec(nom);
+            if (m) {
+              let pref = 'repeating_armes_' + m[1];
+              attaqueDepuisCOF1(perso, attr, nom, setAttr, pref, m, v, evt);
               break;
             }
             m = regActions.exec(nom);
