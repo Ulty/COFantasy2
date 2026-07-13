@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 juil. 2026,  02:49
+//Dernière modification : lun. 13 juil. 2026,  02:50
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13130,7 +13130,7 @@ var COFantasy2 = COFantasy2 || function() {
             let token;
             if (compagnon.token) {
               if (!compagnon.attributesFiche) {
-                error("Capacité "+capacite+", pas d'attributs pour la fiche !", compagnon);
+                error("Capacité "+capacite+" de "+nomPerso(perso)+", pas d'attributs pour la fiche !", compagnon);
               } else {
               let optToken = {
                 visionPartagee: compagnon.visionPartagee,
