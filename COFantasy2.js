@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 juil. 2026,  02:50
+//Dernière modification : lun. 13 juil. 2026,  03:06
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13121,7 +13121,7 @@ var COFantasy2 = COFantasy2 || function() {
               charId: character.id
             };
             for (const attrName in compagnon.attributesFiche) {
-              let val = compagnon.attributeFiche[attrName];
+              let val = compagnon.attributesFiche[attrName];
               setFicheAttr(persoCompagnon, attrName, val, {});
             }
             //TODO: rajouter aussi le reste ? Et dans ce cas, partager le code ?
@@ -13129,15 +13129,11 @@ var COFantasy2 = COFantasy2 || function() {
             //Il faut créer la fiche
             let token;
             if (compagnon.token) {
-              if (!compagnon.attributesFiche) {
-                error("Capacité "+capacite+" de "+nomPerso(perso)+", pas d'attributs pour la fiche !", compagnon);
-              } else {
               let optToken = {
                 visionPartagee: compagnon.visionPartagee,
                 taille: compagnon.attributesFiche.taille,
               };
               token = createToken(nomCompagnon, perso, compagnon.token, optToken);
-              }
               if (!token) {
                 log("Impossible de créer le token " + nomCompagnon + " pour " + nomPerso(perso));
                 log(compagnon);
