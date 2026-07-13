@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 juil. 2026,  03:42
+//Dernière modification : lun. 13 juil. 2026,  05:28
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13020,56 +13020,58 @@ var COFantasy2 = COFantasy2 || function() {
       plusParVoieDeRang.push(preds.plusParVoieDeRang);
       delete preds.plusParVoieDeRang;
     }
-    if (buffs && preds.buffsSurFiche) {
-      if (!Array.isArray(preds.buffsSurFiche)) preds.buffsSurFiche = [preds.buffsSurFiche];
-      preds.buffsSurFiche.forEach(function(b) {
-        if (!b.nom) {
-          log("Il manque le nom du buff sur fiche pour la capacité " + capacite);
-          log(b);
-          return;
-        }
-        let buffPresent = buffs[b.nom];
-        if (buffPresent) {
-          if (buffPresent.length === 0) {
-            delete buffs[b.nom];
-            buffPresent = undefined;
-          } else {
-            buffPresent = buffPresent.pop();
-          }
-        }
-        let prefix;
-        if (buffPresent) prefix = buffPresent.prefix;
-        else prefix = 'repeating_buffs_' + generateRowID() + '_';
-        b.nom = '[S] ' + b.nom;
-        b.on = '1';
-        if (b.limiteArmure) buffs.limitationsDArmures[prefix] = b.limiteArmure;
-        champsDesBuffsDeFiche.forEach(function(field) {
-          if (!b[field]) {
-            log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
+    if (preds.buffsSurFiche) {
+      if (buffs) {
+        if (!Array.isArray(preds.buffsSurFiche)) preds.buffsSurFiche = [preds.buffsSurFiche];
+        preds.buffsSurFiche.forEach(function(b) {
+          if (!b.nom) {
+            log("Il manque le nom du buff sur fiche pour la capacité " + capacite);
+            log(b);
             return;
           }
-          let val = replaceSpecialStrings(b[field], numVoie, rmax, param);
-          let f = 'buff-' + field;
+          let buffPresent = buffs[b.nom];
           if (buffPresent) {
-            if (buffPresent[f] == val) return;
-            let attrs = charAttribute(perso.charId, prefix + f);
-            if (attrs && attrs.length > 0) {
-              attrs[0].setWithWorker({
-                current: val
-              });
-              return;
+            if (buffPresent.length === 0) {
+              delete buffs[b.nom];
+              buffPresent = undefined;
+            } else {
+              buffPresent = buffPresent.pop();
             }
           }
-          let attr = createObj('attribute', {
-            characterid: perso.charId,
-            name: prefix + f,
-            current: val,
-          });
-          attr.setWithWorker({
-            current: val
+          let prefix;
+          if (buffPresent) prefix = buffPresent.prefix;
+          else prefix = 'repeating_buffs_' + generateRowID() + '_';
+          b.nom = '[S] ' + b.nom;
+          b.on = '1';
+          if (b.limiteArmure) buffs.limitationsDArmures[prefix] = b.limiteArmure;
+          champsDesBuffsDeFiche.forEach(function(field) {
+            if (!b[field]) {
+              log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
+              return;
+            }
+            let val = replaceSpecialStrings(b[field], numVoie, rmax, param);
+            let f = 'buff-' + field;
+            if (buffPresent) {
+              if (buffPresent[f] == val) return;
+              let attrs = charAttribute(perso.charId, prefix + f);
+              if (attrs && attrs.length > 0) {
+                attrs[0].setWithWorker({
+                  current: val
+                });
+                return;
+              }
+            }
+            let attr = createObj('attribute', {
+              characterid: perso.charId,
+              name: prefix + f,
+              current: val,
+            });
+            attr.setWithWorker({
+              current: val
+            });
           });
         });
-      });
+      }
       delete preds.buffsSurFiche;
     }
     //Si il y a un compagnon, le créer si non présent
