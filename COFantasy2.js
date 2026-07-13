@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 juil. 2026,  05:28
+//Dernière modification : lun. 13 juil. 2026,  06:38
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5884,9 +5884,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
     // Armes chargées
     if ((!options.semonce || attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) != 1) && !options.tirDeBarrage) {
-      if (attackLabel && options.recharge) {
+      if (attackLabel && options.recharger) {
         let nomCharges = 'attributDeCombat_charge_' + attackLabel;
-        let currentCharge = attributeAsInt(attaquant, nomCharges, 1);
+        let maxCharges = maxChargesArme(attaquant, weaponName);
+        let currentCharge = attributeAsInt(attaquant, nomCharges, maxCharges);
         if (isNaN(currentCharge) || currentCharge < 1) {
           sendPerso(attaquant, "ne peut pas attaquer avec " + weaponName + " car elle n'est pas chargée");
           return;
@@ -11744,6 +11745,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Expertise en armes',
         description: "estimer la valeur d'une arme ou la réputation martiale",
       },
+      artificier: {
+        nom: 'artificier',
+        description: "fabriquer et tirer des feux d'artifices",
+      },
       convertir: {
         nom: "Prédicateur",
         description: "convaincre ou convertir un auditoire",
@@ -12021,8 +12026,20 @@ var COFantasy2 = COFantasy2 || function() {
       Restriction_deBonusArmesDeSiege: 'armure_arquebusier',
     },
     'arme a repetition': {
-      //TODO: il faut associer le bonus à 2 armes max -> comment les désigner ?
-      //et en plus on a une valeur de type nombre de rangs par type + INT
+      bonusArmesARepetition: 2,
+      plusParVoieDeRang: {
+        predicat: 'bonusArmesARepetition',
+        profil: 'arquebusier',
+        rang: 3,
+        def: 2,
+      },
+      armesARepetition: 'PARAM', //Il faut des champs arme1 et arme2 de valeur le nom de l'arme
+    },
+    //Voie des explosifs
+    'tir de grenaille': {
+      bonusTestEvolutif_artificier: true,
+      //D'abord ne plus faire exploser les armes à poudre,
+      //ensuite proposer de charger avec de la grenaille
     },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
@@ -14051,8 +14068,9 @@ var COFantasy2 = COFantasy2 || function() {
                   let attackLabel = cmd[1];
                   let arme = getWeaponStats(perso, attackLabel);
                   if (arme !== undefined) {
-                    let currentCharge = attributeAsInt(perso, 'attributDeComat_charge_' + arme.label, 1);
-                    if (currentCharge >= 1)
+                    let maxCharges = maxChargesArme(perso, arme.name);
+                    let currentCharge = attributeAsInt(perso, 'attributDeCombat_charge_' + arme.label, maxCharges);
+                    if (currentCharge >= maxCharges)
                       options.actionImpossible = true;
                   }
                 }
@@ -15465,11 +15483,11 @@ var COFantasy2 = COFantasy2 || function() {
               noError: true
             };
             let optionsArme = parseOptions(arme['arme-options'], pageId, opt);
-            if (!typeActionPossible(perso, optionsArme.recharge)) return;
+            if (!typeActionPossible(perso, optionsArme.recharger)) return;
             recharges.push({
               nom: arme['arme-nom'],
               label,
-              typeAction: optionsArme.recharge
+              typeAction: optionsArme.recharger
             });
           }
         });
@@ -26688,7 +26706,7 @@ var COFantasy2 = COFantasy2 || function() {
     //On transfert les prédicats connus dans weaponStats
     if (pred.legere || (weaponStats.attNbDices <= 1 && weaponStats.attDice <= 6))
       weaponStats.armeLegere = true;
-    weaponStats.recharge = weaponStats.options.search(/--recharge\b/) > -1;
+    weaponStats.recharger = weaponStats.options.search(/--recharger\b/) > -1;
     weaponStats.eclaire = toInt(pred.eclaire);
     weaponStats.eclaireFaible = toInt(pred.eclaireFaible);
     if (weaponStats.batarde && weaponStats.deuxMains) {
@@ -26971,9 +26989,21 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function maxChargesArme(perso, weaponName) {
+    let maxCharges = 1;
+    let aar = predicateAsBool(perso, 'armesARepetition');
+    if (aar) {
+      let armes = predicateOfRaw(aar);
+      if (weaponName == armes.arme1 || weaponName == armes.arme2) {
+        maxCharges = predicateAsInt(perso, 'bonusArmesARepetition', 2) + modCarac(perso, 'INT');
+      }
+    }
+    return maxCharges;
+  }
+
   //arme doit être le résultat de getWeaponStats
   function armeDechargee(perso, arme) {
-    if (!arme.recharge) return false;
+    if (!arme.recharger) return false;
     let currentCharge = attributeAsInt(perso, 'attributDeCombat_charge_' + arme.label, 1);
     return currentCharge === 0;
   }
@@ -27533,9 +27563,11 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Pas d'arme de label " + label + " dans la fiche de " + nomPerso(perso), playerId);
       return;
     }
+    let nomArme = arme['arme-nom'];
     let attrName = 'attributDeCombat_charge_' + label;
-    let charges = attributeAsInt(perso, attrName, 1);
-    if (charges >= 1) {
+    let maxCharges = maxChargesArme(perso, nomArme);
+    let charges = attributeAsInt(perso, attrName, maxCharges);
+    if (charges >= maxCharges) {
       sendPlayer("L'arme est déjà chargée", playerId);
       return;
     }
@@ -27545,7 +27577,6 @@ var COFantasy2 = COFantasy2 || function() {
     addEvent(evt);
     if (limiteRessources(perso, options, 'recharger', 'recharger', evt)) return;
     setTokenAttr(perso, attrName, charges + 1, evt);
-    let nomArme = arme['arme-nom'];
     sendPerso(perso, "recharge " + nomArme, options.secret);
     montrerActions(playerId, pageId, options);
   }
@@ -30183,8 +30214,9 @@ var COFantasy2 = COFantasy2 || function() {
       if (armeEnMainGauche) armeEnMainGaucheLabel = armeEnMainGauche.label;
       _.forEach(attaques, function(att, armeLabel) {
         let nomArme = att['arme-nom'];
-        if (att['arme-options'] && att['arme-options'].search(/--recharge\b/) > -1) {
-          let charge = attributeAsInt(perso, 'attributDeCombat_charge_' + armeLabel, 1);
+        if (att['arme-options'] && att['arme-options'].search(/--recharger\b/) > -1) {
+          let maxCharges = maxChargesArme(perso, nomArme);
+          let charge = attributeAsInt(perso, 'attributDeCombat_charge_' + armeLabel, maxCharges);
           if (charge === 0) {
             line = nomArme + " n'est pas chargé";
           } else {
@@ -32575,7 +32607,7 @@ var COFantasy2 = COFantasy2 || function() {
     rate: {
       fn: tricheOption
     },
-    recharge: wordDefaultOption,
+    recharger: wordDefaultOption,
     relanceSiMax: boolDefaultOption,
     repousseCible: {
       fn: integerOption,
