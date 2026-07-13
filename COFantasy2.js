@@ -1,4 +1,4 @@
-//Dernière modification : mer. 08 juil. 2026,  05:58
+//Dernière modification : lun. 13 juil. 2026,  02:49
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -8588,12 +8588,12 @@ var COFantasy2 = COFantasy2 || function() {
   };
 
   function deSeuil(weaponStats) {
-      let res = 15;
-      let am = weaponStats.attaqueMultiple || 1;
-      if (am > 1) {
-        res += am;
-        if (res > 18) res = 18;
-      }
+    let res = 15;
+    let am = weaponStats.attaqueMultiple || 1;
+    if (am > 1) {
+      res += am;
+      if (res > 18) res = 18;
+    }
     return res;
   }
 
@@ -9410,7 +9410,7 @@ var COFantasy2 = COFantasy2 || function() {
       });
     }
     if (predicateAsBool(attaquant, 'fauchage')) {
-            options.etats = options.etats || [];
+      options.etats = options.etats || [];
       options.etats.push({
         etat: 'renverse',
         condition: {
@@ -12843,7 +12843,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie des créatures colossales
     'colossal': {
-      colossal: true,//TODO: à utiliser pour estimer la partie de la RD due à cette voie
+      colossal: true, //TODO: à utiliser pour estimer la partie de la RD due à cette voie
     },
     'fauchage': {
       fauchage: true,
@@ -13129,11 +13129,15 @@ var COFantasy2 = COFantasy2 || function() {
             //Il faut créer la fiche
             let token;
             if (compagnon.token) {
+              if (!compagnon.attributesFiche) {
+                error("Capacité "+capacite+", pas d'attributs pour la fiche !", compagnon);
+              } else {
               let optToken = {
                 visionPartagee: compagnon.visionPartagee,
                 taille: compagnon.attributesFiche.taille,
               };
               token = createToken(nomCompagnon, perso, compagnon.token, optToken);
+              }
               if (!token) {
                 log("Impossible de créer le token " + nomCompagnon + " pour " + nomPerso(perso));
                 log(compagnon);
@@ -14190,12 +14194,12 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.typeAction && !opt.typeActon) {
       let am = attackStats.attaqueMultiple || 1;
-      if (am < 2) 
+      if (am < 2)
         act += ' --typeAction ' + options.typeAction;
       else {
-        let r = 'attaqueMultiple'+attackStats.label;
-        act += ' --limiteParTour '+ am + ' ' + r;
-        let restants = attributeAsInt(attaquant, 'limiteParTour_'+r, am);
+        let r = 'attaqueMultiple' + attackStats.label;
+        act += ' --limiteParTour ' + am + ' ' + r;
+        let restants = attributeAsInt(attaquant, 'limiteParTour_' + r, am);
         if (restants == 0) {
           options.actionImpossible = true;
         } else if (restants == am) {
@@ -17797,7 +17801,10 @@ var COFantasy2 = COFantasy2 || function() {
         if (callback !== undefined) callback();
         return;
       }
-      let perso = {token, charId};
+      let perso = {
+        token,
+        charId
+      };
       iter(perso);
     });
   }
@@ -28770,10 +28777,10 @@ var COFantasy2 = COFantasy2 || function() {
     let rdTarget = getRDS(target);
     let rd = rdTarget.rdt || 0;
     if (rd > 0 && !options.aoe && options.attaquant && predicateAsBool(options.attaquant, 'ventreMou') && predicateAsBool(target, 'colossal')) {
-        if (target.messages) target.messages.push("Ventre mou => L'attaque ignore la RD dûe à la taille");
+      if (target.messages) target.messages.push("Ventre mou => L'attaque ignore la RD dûe à la taille");
       if (predicateAsBool(target, 'balayage')) rd -= 6;
       else rd -= predicateAsInt(target, 'colossal', 3);
-        if (rd < 0) rd = 0;
+      if (rd < 0) rd = 0;
     }
     if (predicateAsBool(target, 'hausserLeTon')) {
       if (parseInt(target.token.get('bar1_value')) <= target.token.get('bar1_max') / 2) {
@@ -30466,147 +30473,147 @@ var COFantasy2 = COFantasy2 || function() {
   const regActions = new RegExp("^repeating_actions(\d*)_([^_]*)_(.*)$");
 
   function attaqueDepuisCOF1(perso, attr, nom, setAttr, pref, m, v, evt) {
-              switch (m[2]) {
-                case 'armeoptflag':
-                case 'armebonusoption':
-                case 'armedmtemp':
-                case 'armedegats':
-                case 'armepoudre':
-                case 'armereussiteauto':
-                case 'armedmrollmod':
-                case 'armeattrollmod':
-                case 'armeattnbde':
-                case 'armeattde':
-                case 'armejet':
-                case 'armeportable':
-                case 'armepredicats':
-                  break;
-                case 'armelabel':
-                  setAttr(pref + '_arme-label', v);
-                  break;
-                case 'armenom':
-                  setAttr(pref + '_arme-nom', v);
-                  break;
-                case 'armeatk':
-                  setAttr(pref + '_arme-atk', v);
-                  break;
-                case 'armecrit':
-                  setAttr(pref + '_arme-crit', v);
-                  break;
-                case 'armedmnbde':
-                  {
-                    let dm = charAttributeAsString(perso, pref + '_arme-dm');
-                    if (dm) {
-                      let indexD = dm.indexOf('d');
-                      if (indexD > 0) {
-                        setAttr(pref + '_arme-dm', v + dm.substring(indexD));
-                      }
-                    } else {
-                      setAttr(pref + '_arme-dm', v);
-                    }
-                    break;
-                  }
-                case 'armedmde':
-                  {
-                    let dm = charAttributeAsString(perso, pref + '_arme-dm');
-                    if (dm) {
-                      setAttr(pref + '_arme-dm', dm + 'd' + v);
-                    } else {
-                      setAttr(pref + '_arme-dm', 'd' + v);
-                    }
-                    break;
-                  }
-                case 'armedm':
-                  setAttr(pref + '_arme-dmdiv', v);
-                  break;
-                case 'armeportee':
-                  setAttr(pref + '_arme-portee', v);
-                  break;
-                case 'armespec':
-                  setAttr(pref + '_arme-special', v);
-                  break;
-                case 'armeactionvisible':
-                  setAttr(pref + '_arme-active', v);
-                  break;
-                case 'armetypeattaque':
-                  switch (v) {
-                    case 'Naturel':
-                      setAttr(pref + '_arme-atktype', 'naturel');
-                      break;
-                    case 'Arme 1 main':
-                    case 'Arme 2 mains':
-                    case 'Arme gauche':
-                      setAttr(pref + '_arme-atktype', 'main');
-                      break;
-                    case 'Sortilege':
-                      setAttr(pref + '_arme-atktype', 'sort');
-                      break;
-                    case 'Arme de jet':
-                      setAttr(pref + '_arme-atktype', 'jet');
-                  }
-                  break;
-                case 'armemodificateurs':
-                  setAttr(pref + '_arme-atkmods', v);
-                  break;
-                case 'armetypedegats':
-                  let type = v;
-                  switch (v) {
-                    case 'tranchant':
-                      type = 'tranchants';
-                      break;
-                    case 'contondant':
-                      type = 'contondants';
-                      break;
-                    case 'percant':
-                      type = 'perforants';
-                      break;
-                    case 'feu':
-                    case 'acide':
-                    case 'poison':
-                    case 'froid':
-                    case 'sonique':
-                    case 'maladie':
-                      //ces cas ne changent pas le type
-                      break;
-                    case 'electrique':
-                      type = 'électricité';
-                      break;
-                    case 'drain':
-                      type = 'drain';
-                      break;
-                    case 'magique':
-                      type = 'magiques';
-                      break;
-                    case 'mental':
-                      //cas non gérés dans la nouvelle fiche
-                      break;
-                  }
-                  setAttr(pref + '_arme-dmtype', type);
-                  break;
-                case 'armeoptions':
-                  setAttr(pref + '_arme-options', v);
-                  break;
-                case 'armejetqte':
-                  let maxVal = attr.get('max');
-                  setTokenAttr(perso, pref + '_jet-dispo', v, evt, {
-                    charAttr: true,
-                    maxVal
-                  });
-                  break;
-                case 'armejettaux':
-                  setAttr(pref + '_jet-perte', v);
-                  break;
-                case 'armedmdiv':
-                  setAttr(pref + '_arme-dmdiv', v);
-                  break;
-                case 'armeatkdiv':
-                  setAttr(pref + '_arme-atkdiv', v);
-                  break;
-                case 'armedmcar':
-                default:
-                  log("_"+nom + " pas reconnu (valeur "+v+")");
-                  log(m);
-              }
+    switch (m[2]) {
+      case 'armeoptflag':
+      case 'armebonusoption':
+      case 'armedmtemp':
+      case 'armedegats':
+      case 'armepoudre':
+      case 'armereussiteauto':
+      case 'armedmrollmod':
+      case 'armeattrollmod':
+      case 'armeattnbde':
+      case 'armeattde':
+      case 'armejet':
+      case 'armeportable':
+      case 'armepredicats':
+        break;
+      case 'armelabel':
+        setAttr(pref + '_arme-label', v);
+        break;
+      case 'armenom':
+        setAttr(pref + '_arme-nom', v);
+        break;
+      case 'armeatk':
+        setAttr(pref + '_arme-atk', v);
+        break;
+      case 'armecrit':
+        setAttr(pref + '_arme-crit', v);
+        break;
+      case 'armedmnbde':
+        {
+          let dm = charAttributeAsString(perso, pref + '_arme-dm');
+          if (dm) {
+            let indexD = dm.indexOf('d');
+            if (indexD > 0) {
+              setAttr(pref + '_arme-dm', v + dm.substring(indexD));
+            }
+          } else {
+            setAttr(pref + '_arme-dm', v);
+          }
+          break;
+        }
+      case 'armedmde':
+        {
+          let dm = charAttributeAsString(perso, pref + '_arme-dm');
+          if (dm) {
+            setAttr(pref + '_arme-dm', dm + 'd' + v);
+          } else {
+            setAttr(pref + '_arme-dm', 'd' + v);
+          }
+          break;
+        }
+      case 'armedm':
+        setAttr(pref + '_arme-dmdiv', v);
+        break;
+      case 'armeportee':
+        setAttr(pref + '_arme-portee', v);
+        break;
+      case 'armespec':
+        setAttr(pref + '_arme-special', v);
+        break;
+      case 'armeactionvisible':
+        setAttr(pref + '_arme-active', v);
+        break;
+      case 'armetypeattaque':
+        switch (v) {
+          case 'Naturel':
+            setAttr(pref + '_arme-atktype', 'naturel');
+            break;
+          case 'Arme 1 main':
+          case 'Arme 2 mains':
+          case 'Arme gauche':
+            setAttr(pref + '_arme-atktype', 'main');
+            break;
+          case 'Sortilege':
+            setAttr(pref + '_arme-atktype', 'sort');
+            break;
+          case 'Arme de jet':
+            setAttr(pref + '_arme-atktype', 'jet');
+        }
+        break;
+      case 'armemodificateurs':
+        setAttr(pref + '_arme-atkmods', v);
+        break;
+      case 'armetypedegats':
+        let type = v;
+        switch (v) {
+          case 'tranchant':
+            type = 'tranchants';
+            break;
+          case 'contondant':
+            type = 'contondants';
+            break;
+          case 'percant':
+            type = 'perforants';
+            break;
+          case 'feu':
+          case 'acide':
+          case 'poison':
+          case 'froid':
+          case 'sonique':
+          case 'maladie':
+            //ces cas ne changent pas le type
+            break;
+          case 'electrique':
+            type = 'électricité';
+            break;
+          case 'drain':
+            type = 'drain';
+            break;
+          case 'magique':
+            type = 'magiques';
+            break;
+          case 'mental':
+            //cas non gérés dans la nouvelle fiche
+            break;
+        }
+        setAttr(pref + '_arme-dmtype', type);
+        break;
+      case 'armeoptions':
+        setAttr(pref + '_arme-options', v);
+        break;
+      case 'armejetqte':
+        let maxVal = attr.get('max');
+        setTokenAttr(perso, pref + '_jet-dispo', v, evt, {
+          charAttr: true,
+          maxVal
+        });
+        break;
+      case 'armejettaux':
+        setAttr(pref + '_jet-perte', v);
+        break;
+      case 'armedmdiv':
+        setAttr(pref + '_arme-dmdiv', v);
+        break;
+      case 'armeatkdiv':
+        setAttr(pref + '_arme-atkdiv', v);
+        break;
+      case 'armedmcar':
+      default:
+        log("_" + nom + " pas reconnu (valeur " + v + ")");
+        log(m);
+    }
   }
 
   let totalDePersonnagesTraduits = 0;
@@ -30632,7 +30639,7 @@ var COFantasy2 = COFantasy2 || function() {
     addEvent(evt);
     let totalAttrs = 0;
     iterSelected(selected, function(perso) {
-      if (totalAttrs > 5000) return;//Sinon Roll20 dit qu'on a une boucle infinie
+      if (totalAttrs > 5000) return; //Sinon Roll20 dit qu'on a une boucle infinie
       if (treatedCharsTotal.has(perso.charId)) return;
       treatedCharsTotal.add(perso.charId);
       if (charAttributeAsBool(perso, 'sheet_type')) {
@@ -30851,12 +30858,12 @@ var COFantasy2 = COFantasy2 || function() {
                   setAttr(pref + 'action-cmd', v);
                   break;
                 default:
-                  log("_"+nom + " pas reconnu ");
+                  log("_" + nom + " pas reconnu ");
                   log(m);
               }
               break;
             }
-            attributsIgnores += '_'+nom + ' : ' + v;
+            attributsIgnores += '_' + nom + ' : ' + v;
             let max = attr.get('max');
             if (max) attributsIgnores += ' , ' + max;
             attributsIgnores += ' .\n';
@@ -30872,10 +30879,10 @@ var COFantasy2 = COFantasy2 || function() {
       }
     });
     if (totalAttrs > 5000) {
-      sendPlayer(totalDePersonnagesTraduits+" personnages traduits en COF2...", playerId);
+      sendPlayer(totalDePersonnagesTraduits + " personnages traduits en COF2...", playerId);
       sendChat('', apiMsg.content);
     } else {
-      sendPlayer("Traduction des personnages en COF2 terminée ("+totalDePersonnagesTraduits+" personnages)", playerId);
+      sendPlayer("Traduction des personnages en COF2 terminée (" + totalDePersonnagesTraduits + " personnages)", playerId);
       treatedCharsTotal = new Set();
       totalDePersonnagesTraduits = 0;
     }
