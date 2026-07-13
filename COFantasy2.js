@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 juil. 2026,  03:06
+//Dernière modification : lun. 13 juil. 2026,  03:20
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12936,7 +12936,9 @@ var COFantasy2 = COFantasy2 || function() {
 
   const champsDesBuffsDeFiche = ['nom', 'on', 'attrib', 'value'];
 
-  function predicatsDeCapacite(perso, capacite, numVoie, rang, capacites, actions, plusParVoieDeRang, buffs, options = {}) {
+  const buffsStub = {limitationsDArmures: {}};
+
+  function predicatsDeCapacite(perso, capacite, numVoie, rang, capacites, actions, plusParVoieDeRang, buffs = buffsStub, options = {}) {
     capacite = removeAccents(capacite).toLowerCase();
     let indexPar = capacite.indexOf('(');
     if (indexPar > 0) capacite = capacite.substring(0, indexPar);
@@ -13183,7 +13185,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       } else {
         let actionsDeCapa = [];
-        predicatsDeCapacite(perso, sort, numVoie, rang, {}, actionsDeCapa, [], {});
+        predicatsDeCapacite(perso, sort, numVoie, rang, {}, actionsDeCapa);
         if (actionsDeCapa.length === 0) {
           log("Impossible de trouver le sort pour " + sort + "(paramètre de " + capacite + " de " + nomPerso(perso));
         } else {
