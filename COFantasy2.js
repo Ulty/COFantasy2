@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 juil. 2026,  03:20
+//Dernière modification : lun. 13 juil. 2026,  03:42
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12936,9 +12936,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   const champsDesBuffsDeFiche = ['nom', 'on', 'attrib', 'value'];
 
-  const buffsStub = {limitationsDArmures: {}};
-
-  function predicatsDeCapacite(perso, capacite, numVoie, rang, capacites, actions, plusParVoieDeRang, buffs = buffsStub, options = {}) {
+  function predicatsDeCapacite(perso, capacite, numVoie, rang, capacites, actions, plusParVoieDeRang, buffs = undefined, options = {}) {
     capacite = removeAccents(capacite).toLowerCase();
     let indexPar = capacite.indexOf('(');
     if (indexPar > 0) capacite = capacite.substring(0, indexPar);
@@ -13022,7 +13020,7 @@ var COFantasy2 = COFantasy2 || function() {
       plusParVoieDeRang.push(preds.plusParVoieDeRang);
       delete preds.plusParVoieDeRang;
     }
-    if (preds.buffsSurFiche) {
+    if (buffs && preds.buffsSurFiche) {
       if (!Array.isArray(preds.buffsSurFiche)) preds.buffsSurFiche = [preds.buffsSurFiche];
       preds.buffsSurFiche.forEach(function(b) {
         if (!b.nom) {
