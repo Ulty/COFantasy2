@@ -58,6 +58,7 @@ tr {line-height: 25px;}
                 <li><a class="text-info" href="#token_personnages">Tokens et personnages</a></li>
                 <li><a class="text-info" href="#commandes">Les commandes</a></li>
                 <li><a class="text-info" href="#macros_abilities">Macros, abilities et listes d'actions</a></li>
+                <li><a class="text-info" href="#capacites">Capacités</a></li>
                 <li><a class="text-info" href="#predicats">Prédicats</a></li>
                 <li><a class="text-info" href="#methode_selection_groupes">Méthodes de sélection de groupes</a></li>
                 <li><a class="text-info" href="#gestion_temps">Gestion du temps (rounds, repos, ...)</a></li>
@@ -197,15 +198,29 @@ tr {line-height: 25px;}
                 </ul>
                 </p>
               </div>
-            <h3 class="text-info" id="predicats">1.4 Prédicats</h3>
+            </div>
+            <h3 class="text-info" id="capacites">1.4 Capacités</h3>
             <div class="decalage">
-              <p>Une façon courante d'informer le script qu'un personnage dispose d'une capacité particulière (que ce soit dû à son entraînement, à un objet porté, ou l'utilisation de règles particulières par le MJ) consiste à utiliser des prédicats. Il s'agit de mots clés à rentrer dans des zones de texte dédiées de la fiche, comme par exemple la zone <code>Prédicats</code>, visible depuis l'onglet <code>Script</code>. Ces mots clés peuvent être séparés de blancs ou de retours à la ligne.</p>
+              <p>Le script essaie de reconnaître autant que possible les capacités possédées, pour éviter au joueur ou au MJ d'avoir à rentrer des informations complexes. Sur les fiches de PJ, les capacités sont décrites dans l'onglet <code>CAPACITÉS</code>, et pour les fiches de PNJ dans l'onglet <code>TRAITS</code>, en bas, le sous-onglet <code>CAPACITÉS</code> à côté de l'onglet <code>ATTAQUES</code>.</p>
+              <h4 class="text-secondary">Capacités de PJ</h4>
+            <div class="decalage">
+              <p>Le script reconnaît les noms de capacités, sans se servir du texte de description. Comme parfois certaines capacités de différentes voies peuvent avoir le même nom, le nom de la voie peut aussi être utilisé. Si vous importez les voies directement depuis le PDF des règles, tout devrait être correctement reconnu.</p>
+              <p>Pour certaines capacités, il faut donner des précisions supplémentaires, comme par exemple le nom du familier, ou bien le choix entre plusieurs effets. Ces précisions sont données en utilisant la zone <code>Paramètres de capacité</code>, sous la decsription des capacités. Indiquer un choix va se faire en utilisant un mot-clé, suivi de <code>:</code>, suivi d'une valeur. Par exemple si un magicien veut que son familier s'appelle Toto, il va indiquer dans les paramètres de la capacité Familier, <code>nom: Toto</code>. Les chapitres sur les Voies plus bas indiquent pour chaque capacité si on peut préciser un paramètre, et quel mot-clé utiliser. La syntaxe utilisée est la même que celle des <a href=#predicats>prédicats</a>.</p>
+              <p>Par ailleurs, les paramètres peuvent aussi servir à customiser des actions des capacités, en passant en argument des options, comme une image à afficher, un son à jouer, ou un côté du token à montrer. Pour ces options, utiliser le mot clé <code>optAction</code>.</p>
+            </div>
+              <h4 class="text-secondary">Capacités de PNJ</h4>
+              <div class="decalage">
+                <p>Pour les PNJ, on utilise une liste dans laquelle on peut rajouter autant d'élémennt que l'on souhaite. On peut aussi bien y mettre des capacités venant des voies de créatures, que des capacités venant de voies de PJ.</p>
+              </div>
+            </div>
+            <h3 class="text-info" id="predicats">1.5 Prédicats</h3>
+            <div class="decalage">
+              <p>Dans les cas où le script ne reconnaît pas une capacité particulière (que ce soit dû à son entraînement, à un objet porté, ou l'utilisation de règles particulières par le MJ), il est possible d'utiliser des prédicats pour décrire différentes règles particulières concernant un personnage. Il s'agit de mots clés à rentrer dans des zones de texte dédiées de la fiche, comme par exemple la zone <code>Prédicats</code>, visible depuis l'onglet <code>Script</code>. Ces mots clés peuvent être séparés de blancs ou de retours à la ligne.</p>
               <p>On peut associer une valeur à un prédicat (le plus souvent un nombre, mais en fait n'importe quel mot qui ne contienne ni virgule, ni blanc, ni <code>:</code>). Pour cela, faire suivre le prédicat de <code>:</code> puis de la valeur. Si vous avez besoin des virgules, blanc ou <code>:</code> dans les valeurs d'un prédicat, vous pouvez tout mettre entre <code>"</code>. Il faut juste faire attention au fait que les caractères <code>\</code> sont alors interprétés comme une façon d'utiliser le caractère suivant. Par exemple, pour un prédicat <code>compagnon</code>, de valeur <code>chaton / "tigre"</code>, il faudra écrire <code>compagnon: "chaton / \"tigre\""</code>.</p>
               <p>Dans chaque ligne de la zone de prédicats, tout ce qui vient après <code>//</code> est considéré comme du commentaire et ignoré.</p>
               <p>Les prédicats à valeur numériques ne se cumulent pas au sein d'une même zone de texte : le script prend la plus grande valeur, si le prédicat apparaît plusieurs fois. Pour les autres prédicats, en général, l'ensemble des prédicats est pris comme un seul prédicat, si cela est possible. Sinon, un seul prédicat est utilisé, les autres sont ignorés.</p>
               <p>Le script va automatiquement inférer un certain nombre de prédicats selon les capacités possédées par le personnage. Pour afficher les prédicats actif d'un personnage, vous pouvez utiliser <code>!cof2-log-preds</code>.</p>
-            </div>
-            <h3 class="text-info" id="methode_selection_groupes">1.5 Méthodes de sélection de groupes</h3>
+            <h3 class="text-info" id="methode_selection_groupes">1.6 Méthodes de sélection de groupes</h3>
             <div class="decalage">
               <p>Comme les joueurs ne peuvent pas sélectionner un nombre arbitraire d'ennemis, le script propose différentes options (à ajouter aux commandes) pour sélectionner des cibles&nbsp;:</p>
               <ul>
@@ -228,7 +243,7 @@ tr {line-height: 25px;}
               </p>
               <p>Il est aussi possible de créer une équipe alliée rapidement en sélectionnant des tokens et en tapant <code>!cof2-allier</code>. En utilisant les options de sélection, il est facile de faire une équipes qui réunit toute les équipes des tokens sélectionnés.</p>
             </div>
-            <h3 class="text-info" id="gestion_temps">1.6 Gestion du temps </h3>
+            <h3 class="text-info" id="gestion_temps">1.7 Gestion du temps </h3>
             <div class="decalage">
               <p>COF2 formalise principalement deux échelles de temps : soit le temps compté round par round de 6 secondes (principalement pour le combat), soit le temps compté en fonction des repos courts et des repos longs. Le reste n'a pas d'impact sur les mécaniques de jeu. Le script ne garde donc que ces deux aspects, et vous devrez gérer le reste tout seuls.</p>
               <h4 class="text-secondary" id="round_par_round">Le temps au round par round</h4>
@@ -259,7 +274,7 @@ tr {line-height: 25px;}
                 <p>Pour une récupération complète, utilisez <code>!cof2-recuperation complet </code>, auquel vous pouvez ajouter un nombre positif pour faire jeter des jets de CON avec cette difficulté. Les personnages qui ont des DR pourront choisir d'en dépenser un.</p>
               </div>
             </div>
-            <h3 class="text-info" id="equipement">1.7 Équipement </h3>
+            <h3 class="text-info" id="equipement">1.8 Équipement </h3>
             <div class="decalage">
               <h4 class="text-secondary" id="degainer">Dégainer une arme : <code>!cof2-degainer <i>N</i></code></h4>
               <div class="decalage">
@@ -974,7 +989,7 @@ tr {line-height: 25px;}
               <div class="decalage">
                 <ol>
                   <li><strong>Lumière des étoiles :</strong> il y a une compétence de peuple <code>elfeSylvain</code>. La partie vision comme de la pénombre sous un ciel étoilé doit être géré à la main par le MJ.</li>
-                  <li><strong>Enfant de la forêt :</strong> indiquer le nom de la capacité choisie en paramètre de la capacité.</li>
+                  <li><strong>Enfant de la forêt :</strong> indiquer le nom de la capacité choisie en paramètre de la capacité, avec le mot-clé <code>capacite</code>.</li>
                 <li><strong>Archer émérite:</strong> comme il existe une autre capacité de même nom (dans les voies du rôdeur), il faut bien s'assurer que le nom de la voie est <code>Elfe sylvain</code>, ou bien nommer la capacité <code>archer émérite elfe sylvain</code> pour s'assurer que le script implémente la bonne capacité.</li>
                 </ol>
               </div>
@@ -989,7 +1004,7 @@ tr {line-height: 25px;}
               <h3 class="text-info" id="gnome">Gnome</h3>
               <div class="decalage">
                 <ol>
-                <li><strong>Don étrange :</strong> il y a une compétence de peuple <code>science</code>. La vision dans le noir est automatiquement gérée par le script, et pour le sort, il faut préciser le nom de la capacité du sort dans le champ paramètre (accessible en cliquant sur ).</li>
+                  <li><strong>Don étrange :</strong> il y a une compétence de peuple <code>science</code>. La vision dans le noir est automatiquement gérée par le script, et pour le sort, il faut préciser le nom de la capacité du sort dans le champ paramètre, avec le mot-clé <code>sort</code>.</li>
                 </ol>
               </div>
               <h3 class="text-info" id="gobelin">Gobelin</h3>
@@ -1005,7 +1020,7 @@ tr {line-height: 25px;}
               <h3 class="text-info" id="humain">Humain</h3>
               <div class="decalage">
                 <ol>
-                  <li><strong>Diversité :</strong> le script rajoute un buff de points de chance sur la fiche, et l'origine peut être précisée en paramètre. Si c'est une des 6 origines proposées dans le livre on peut juste mettre le nom de l'origine (<code>montagnard</code>, etc.), sinon il faut mettre une description des champs d'application du bonus.</li>
+                  <li><strong>Diversité :</strong> le script rajoute un buff de points de chance sur la fiche. On peut préciser l'origine dans les paramètres, avec le motc-clé <code>origine</code> (<code>origine: montagnard</code>, etc.). Si l'origine n'est pas une des 6 proposées dans le livre, il faut aussi mettre dans les paramètres une description des champs d'application du bonus, en utilisant le mot-clé <code>description</code> (par exemple <code>description: "orientation en sous-sol et perception dans le noir"</code>.</li>
                 </ol>
               </div>
               <h3 class="text-info" id="kobold">Kobold</h3>
@@ -1098,6 +1113,10 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="barbare">Barbare</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie de la brute</h4>
+                <ol>
+                  <li><strong>Arguments de taille :</strong> tout est pris en compte par le script.</li>
+                </ol>
                 <h4 class="text-secondary">Voie du pourfendeur</h4>
                 <ol>
                   <li><strong>Réflexes éclairs :</strong> tout est pris en compte par le script.</li>
@@ -1128,12 +1147,12 @@ tr {line-height: 25px;}
                 <h4 class="text-secondary">Voie des animaux</h4>
                 <ol>
                   <li><strong>Langage des animaux :</strong> aucun support particulier, sauf pour le bonus evolutifs pour influencer les animaux.</li>
-                  <li><strong>Petit compagnon :</strong></li>
+                  <li><strong>Petit compagnon :</strong>Indiquer le nom du petit compagnon avec le mot-clé <code>nom</code>.</li>
                 </ol>
                 <h4 class="text-secondary">Voie du fauve</h4>
                 <ol>
                   <li><strong>Vitesse du félin :</strong> le script ajoute les bonus évolutifs pour les tests, et des bonus sur la fiche pour l'initiative et la défense.</li>
-                  <li><strong>Panthère :</strong> il faut indiquer le nom de la panthère dans les paramètres de la capacité. Le script va ensuite automatiquement créer la fiche et le token de la panthère.</li>
+                  <li><strong>Panthère :</strong> il faut indiquer le nom de la panthère dans les paramètres de la capacité, avec le mot-clé <code>nom</code>. Le script va ensuite automatiquement créer la fiche et le token de la panthère.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la nature</h4>
                 <ol>
@@ -1187,7 +1206,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie du maître d'armes</h4>
                 <ol>
-                  <li><strong>Armes de prédilection :</strong> ajouter en paramètre de la capacité la catégorie d'armes.</li>
+                  <li><strong>Armes de prédilection :</strong> ajouter en paramètre de la capacité la catégorie d'armes, en uilisant le mot-clé <code>arme</code>.</li>
                   <li><strong>Science du critique :</strong> tout est géré.</li>
                   <li><strong>Spécialisation :</strong> pour l'instant, le script considère que c'est toujours la même arme qui est choisie à chaque rang 5. Si ça intéresse quelqu'un, j'ai un plan pour implémenter le choix d'arme, un jour.</li>
                 </ol>
@@ -1232,7 +1251,7 @@ tr {line-height: 25px;}
                 <h4 class="text-secondary">Voie de la magie universelle</h4>
                 <ol>
                   <li><strong>Lumière :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
-                  <li><strong>Familier :</strong> il faut indiquer en paramètre de la capacité le nom du familier. Le script crée alors automatiquement le personnage du familier. Le joueur ou le MJ doivent quand même lui ajouter un token, avec les PV liés au personnage. Le script gère automatiquement les bonus associés.</li>
+                  <li><strong>Familier :</strong> il faut indiquer en paramètre de la capacité le nom du familier avec le mot-clé <code>nom</code>. Le script crée alors automatiquement le personnage du familier. Le joueur ou le MJ doivent quand même lui ajouter un token, avec les PV liés au personnage. Le script gère automatiquement les bonus associés.</li>
                   <li><strong>Invisibilité :</strong> le script va remplacer le token par un token invisible, avec une aura visible seulement pour les joueurs qui controllent le personnage.</li>
                 </ol>
               </div>
@@ -1287,7 +1306,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie du compagnon animal</h4>
                 <ol>
-                  <li><strong>Le loup :</strong> il faut indiquer le nom du loup dans les paramètres de la capacité. Le script va ensuite automatiquement créer la fiche et le token du loup.</li>
+                  <li><strong>Le loup :</strong> il faut indiquer le nom du loup dans les paramètres de la capacité, en utilisant le mot-clé <code>nom</code>. Le script va ensuite automatiquement créer la fiche et le token du loup.</li>
                   <li><strong>Travail d'équipe :</strong> le script ajoute le prédicat <code>travailDEquipe</code>, qui permet d'avoir les dé bonus appropriés.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la survie</h4>
@@ -1297,7 +1316,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie du traqueur</h4>
                 <ol>
-                  <li><strong>Éclaireur :</strong> ajoute automatiquement les compétences évolutives (y compris le bonus en cas de test de surprise si le milieu est naturel). Pour remplacer les bonus de PC par un bonus de DR, ajouter <code>DR</code> dans les paramètres de la compétence.</li>
+                  <li><strong>Éclaireur :</strong> ajoute automatiquement les compétences évolutives (y compris le bonus en cas de test de surprise si le milieu est naturel). Pour remplacer les bonus de PC par un bonus de DR, ajouter <code>PC:DR</code> dans les paramètres de la compétence.</li>
                   <li><strong>Attaque éclair :</strong> le script ajoute l'action dans la liste du tour.</li>
                 </ol>
                 <h4 class="text-secondary">Voie du combat à deux armes</h4>
@@ -1420,6 +1439,7 @@ tr {line-height: 25px;}
               <h2 class="text-primary" id="index_predicats">9. Index des prédicats</h2>
               <div class="decalage">
                 <ul>
+                  <li><strong>argumentDeTaille</strong> : ajoute le bonus de FOR aux tests de négociation, persuasion et d'intimidation, ainsi qu'à ses alliés.</li>
                   <li><strong>armeBenie</strong> : l'arme portée en main est considérée comme magique, et on relance une fois les 1 aux dés de DM.</li>
                   <li><strong>armesMaitrisees</strong> : rajoute des armes maîtrisées à celles définies par le profil et les voies choisies. On peut indiquer plusieurs fois ce prédicat, et la valeur peut être soit un type d'arme (<code>epee</code>, <code>arc</code>, <code>poudre</code>, etc), soit <code>toutes</code> (pour toutes les armes sauf les armes à poudre), soit <code>contact</code> pour les armes de contact, soit <code>distance</code> pour les armes à distance sauf les armes à poudre, soit <code>uneMain</code> pour les armes à une main, soit <code>contactUneMain</code> pour les armes de contact à une main. Pour les armes contondantes à une main, utiliser <code>contondantUneMain</code>. Pour les arbalètes légères, on peut utiliser <code>arbaleteLegere</code>. Pour les arcs courts, <code>arcCourt</code>.</li>
                   <li><strong>armeDePredilection</strong> : nom de la catégorie d'armes pour les armes de prédilection du guerrier. On peut avoir ce prédicat plusieurs fois.</li>
@@ -1456,6 +1476,7 @@ tr {line-height: 25px;}
                   <li><strong>nomTestPeuple<i>nom</i></strong> : le nom à afficher pour bonus de peuple nommé <i>nom</i></li>
                   <li><strong>nomTestPrestige<i>nom</i></strong> : le nom à afficher pour bonus de voie de prestige nommé <i>nom</i></li>
                 <li><strong>paradeCroisee</strong> : bonus en DEF quand on porte une arme en main gauche. Le script propose de s'engager à ne pas utiliser son arme gauche on début du tour.</li>
+                <li><strong>pasDeRisquePoudre</strong> : peut tirer avec une arme à poudre sans aucun risque de la faire exploser.</li>
                 <li><strong>peutEnrager</strong> : si le personnage reçoit un coup critique, il devient enragé et obtient +3 en attaque, +1d4° DM, et l'immunité à la peur, ainsi que la possibilité d'agir encore 1 tour quand à zéro PV.</li>
                   <li><strong>protegerUnallie</strong> : donne la possibilité d'ajouter +2 en DEF à un allié une fois par tour lorsqu'on porte un bouclier.</li>
                   <li><strong>Prouesse</strong> : propose de relancer les jets de CON et FOR une fois par round, en échange de 1d4° PV.</li>

@@ -1,4 +1,4 @@
-//Dernière modification : lun. 13 juil. 2026,  06:38
+//Dernière modification : mer. 15 juil. 2026,  12:24
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5291,7 +5291,8 @@ var COFantasy2 = COFantasy2 || function() {
             }
           }
           // Cas des armes à poudre
-          if (weaponStats.poudre && (targetd20roll == 1 || targetd20roll == 2) && !armeMaitrisee(attaquant, weaponStats)) {
+          if (weaponStats.poudre && (targetd20roll == 1 || targetd20roll == 2) &&
+            !(armeMaitrisee(attaquant, weaponStats) || predicateAsBool(attaquant, 'pasDeRisquePoudre'))) {
             explications.push(
               "La poudre explose dans " + weaponName +
               ". L'arme est inutilisable jusqu'à la fin du combat");
@@ -8769,7 +8770,7 @@ var COFantasy2 = COFantasy2 || function() {
       portee = 10;
       options.aoe = options.aoe || {
         type: 'cone',
-        angle: 90
+        angle: 29,
       };
       options.auto = true;
       let effet = findObjs({
@@ -11918,7 +11919,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  - value : la valeur du buff
   //  - limiteArmure
   // compagnon objet indiquant un compagnon
-  // predSelonParam: map de valeur de param vers des prédicats de capacités. doit toujours ocntenir un champ 'defaut'
+  // predSelonParam: map de valeur de param vers des prédicats de capacités. doit toujours ocntenir un champ 'defaut' et un champ 'fieldParam'
   // le reste, ce sont des prédicats, et le script va reconnaître et remplacer:
   //  - PARAM : la valeur du champ paramètre de la capacité
   //  - NUMEROVOIE
@@ -11941,7 +11942,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'enfant de la foret': {
       capacite: {
-        nom: 'PARAM',
+        nom: 'PARAM.capacite',
         profil: ['druide', 'rodeur'],
         limiteArmure: 'cuirRenforce',
       },
@@ -11954,7 +11955,7 @@ var COFantasy2 = COFantasy2 || function() {
     'don etrange': {
       bonusTestPeuple_science: true,
       visionDansLeNoir: 10,
-      sortDeCapacite: 'PARAM',
+      sortDeCapacite: 'PARAM.sort',
     },
     //Voie du halfelin
     'petite taille': {
@@ -11974,7 +11975,8 @@ var COFantasy2 = COFantasy2 || function() {
         value: '1',
       }],
       bonusTestPeuple_humain: true,
-      descriptionTestPeuple_humain: 'PARAM',
+      nomTestPeuple_humain: 'PARAM.origine',
+      descriptionTestPeuple_humain: 'PARAM.description',
     },
     //Voie du nain
     'habitant des tunnels': {
@@ -12033,12 +12035,13 @@ var COFantasy2 = COFantasy2 || function() {
         rang: 3,
         def: 2,
       },
-      armesARepetition: 'PARAM', //Il faut des champs arme1 et arme2 de valeur le nom de l'arme
+      armeARepetition1: 'PARAM.arme1',
+      armeARepetition2: 'PARAM.arme2',
     },
     //Voie des explosifs
     'tir de grenaille': {
       bonusTestEvolutif_artificier: true,
-      //D'abord ne plus faire exploser les armes à poudre,
+      pasDeRisquePoudre: true,
       //ensuite proposer de charger avec de la grenaille
     },
     //Voies de rôdeur /////////////////////////////////////////////
@@ -12089,12 +12092,12 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie du compagnon animal
     'le loup': {
-      compagnonLoup: 'PARAM', //Le nom du loup
+      compagnonLoup: 'PARAM.nom', //Le nom du loup
       compagnon: {
         id: 'compagnonLoupId',
         avatar: "https://s3.amazonaws.com/files.d20.io/images/59094818/J0yWdxryZFKakJtNGJNNvw/max.jpg?1532612061",
         token: "https://s3.amazonaws.com/files.d20.io/images/60183959/QAMH6WtyoK78aa4zX_mR_Q/thumb.png?1533898482",
-        name: 'PARAM',
+        name: 'PARAM.nom',
         pvParNiveau: 4,
         attributesFiche: {
           taille: 'Moyenne',
@@ -12153,7 +12156,7 @@ var COFantasy2 = COFantasy2 || function() {
       Restriction_bonusTestEvolutif_eclaireur: 'milieuNaturel',
       bonusTestEvolutif_pistageNaturel: true,
       Restriction_bonusTestEvolutif_pistageNaturel: 'milieuNaturel',
-      DRAuLieuDePC: 'PARAM',
+      DRAuLieuDePC: 'PARAM.PC',
     },
     'attaque eclair': {
       action: {
@@ -12181,6 +12184,16 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     //Voies de barbare
+    //Voie de la brute
+    'argument de taille': {
+      buffsSurFiche: [{
+        nom: 'Argument de taille',
+        attrib: 'pv',
+        limiteArmure: 'barbare',
+        value: '[FOR]', //TODO:vérifier la syntaxe
+      }],
+      argumentDeTaille: true, //TODO: réfléchir à comment le proposer.
+    },
     //Voie du pourfendeur
     'reflexes eclair': {
       bonusTestEvolutif_esquive: true,
@@ -12273,7 +12286,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie du maitre d'armes
     'armes de predilection': {
       bonusTestEvolutif_armes: true,
-      armeDePredilection: 'PARAM',
+      armeDePredilection: 'PARAM.arme',
       Restriction_armeDePredilection: 'armure_guerrier'
     },
     'science du critique': {
@@ -12305,17 +12318,18 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'armure lourde': {
       predSelonParam: {
-        'armure': {
-          armureLourde: true,
-        },
-        'defaut': {
+        fieldParam: 'choix',
+        defaut: {
           buffsSurFiche: [{
             nom: 'Armure lourde',
             limiteArmure: 'guerrier',
             attrib: 'def',
             value: '1',
           }]
-        }
+        },
+        'armure': {
+          armureLourde: true,
+        },
       },
     },
     //Voie du soldat
@@ -12531,10 +12545,10 @@ var COFantasy2 = COFantasy2 || function() {
       }],
     },
     'familier': {
-      familierMage: 'PARAM', //Le nom du familier.
+      familierMage: 'PARAM.nom', //Le nom du familier.
       compagnon: {
         id: 'familierMageId',
-        name: 'PARAM',
+        name: 'PARAM.nom',
         visionPartagee: true,
         avatar: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
         token: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
@@ -12577,10 +12591,10 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_animaux: true,
     },
     'petit compagnon': {
-      petitCompagnonDruide: 'PARAM', //Le nom du petit compagnon.
+      petitCompagnonDruide: 'PARAM.nom', //Le nom du petit compagnon.
       compagnon: {
         id: 'petitCompagnonDruideId',
-        name: 'PARAM',
+        name: 'PARAM.nom',
         visionPartagee: true,
         avatar: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
         token: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
@@ -12620,12 +12634,12 @@ var COFantasy2 = COFantasy2 || function() {
       }],
     },
     'panthere': {
-      compagnonPanthere: 'PARAM', //Le nom de la panthère
+      compagnonPanthere: 'PARAM.nom', //Le nom de la panthère
       compagnon: {
         id: 'compagnonPanthereId',
         avatar: "https://files.d20.io/images/492811074/vdxFEueO-GwZB2gWyDV9pQ/max.webp?1783174301",
         token: "https://files.d20.io/images/492811167/EFqMVi3DQdW19lhETRUxoA/max.webp?1783174376",
-        name: 'PARAM',
+        name: 'PARAM.nom',
         pvParNiveau: 4,
         attributesFiche: {
           taille: 'Moyenne',
@@ -12923,27 +12937,35 @@ var COFantasy2 = COFantasy2 || function() {
     return replaceStringSelonRang(v, rmax);
   }
 
-  //Remplace NUMEROVOIE, SELONRANG, RANG
-  //TODO: remplacer aussi PARAM ? Difficile d'avoir un message d'erreur aussi précis, dans ce cas.
-  function replaceSpecialStrings(val, numVoie, rmax, param) {
+  const paramRegExp = new RegExp(/PARAM\.([\w-]*)/g);
+
+  //Remplace NUMEROVOIE, SELONRANG, RANG et PARAM.field
+  function replaceSpecialStrings(val, numVoie, rmax, params) {
     val = val + '';
-    val = val.replace(/PARAM/g, param);
+    val = val.replace(paramRegExp, function(matched, field) {
+      let r = params[field];
+      if (!r) {
+        log("Pas de paramètre " + field + " dans " + params.parametreTotal);
+        return '';
+      }
+      return r;
+    });
     val = val.replace(/NUMEROVOIE/g, numVoie);
     val = replaceStringSelonRang(val, rmax);
     val = val.replace(/RANG/g, rmax);
     return val;
   }
 
-  function replaceSpecialInField(obj, k, numVoie, rmax, param) {
+  function replaceSpecialInField(obj, k, numVoie, rmax, params) {
     let v = obj[k];
     let t = typeof v;
     switch (t) {
       case 'string':
-        obj[k] = replaceSpecialStrings(v, numVoie, rmax, param);
+        obj[k] = replaceSpecialStrings(v, numVoie, rmax, params);
         return;
       case 'object':
         for (const l in v) {
-          replaceSpecialInField(v, l, numVoie, rmax, param);
+          replaceSpecialInField(v, l, numVoie, rmax, params);
         }
         return;
       default:
@@ -12980,18 +13002,24 @@ var COFantasy2 = COFantasy2 || function() {
       param = ficheAttribute(perso, 'v' + numVoie + 'r' + rang + '_param', '');
       rmax = rangDansLaVoie(perso, numVoie);
     }
+    let params = predicateOfRaw(param);
+    params.parametreTotal = param;
     let warnParam = true;
     preds = deepCopy(preds);
     delete preds.capaciteAmbigue;
-    if (preds.predSelonParam) {
-      let p = preds.predSelonParam[param] || preds.predSelonParam.defaut;
+    let psp = preds.predSelonParam;
+    if (psp) {
+      let choice = param;
+      let field = psp.fieldParam;
+      if (field) choice = param[field];
+      let p = psp[choice] || psp.defaut;
       if (p) {
         for (let f in p) {
           preds[f] = p[f];
         }
       } else {
         log("Pas de valeur par défaut selon param pour la capacité " + capacite);
-        log(preds.predSelonParam);
+        log(psp);
       }
       delete preds.predSelonParam;
     }
@@ -13004,7 +13032,7 @@ var COFantasy2 = COFantasy2 || function() {
       for (let i = 0; i < preds.actions.length; i++) {
         let limiteRangs = preds.actions[i].aPartirDeRang;
         if (limiteRangs && rmax < limiteRangs) continue;
-        replaceSpecialInField(preds.actions, i, numVoie, rmax, param);
+        replaceSpecialInField(preds.actions, i, numVoie, rmax, params);
         let act = preds.actions[i];
         actions.push(act);
         if (act.debloqueActions) {
@@ -13017,6 +13045,7 @@ var COFantasy2 = COFantasy2 || function() {
           }
           delete act.debloqueActions;
         }
+        if (params.optAction) act.cmd += ' ' + params.optAction;
       }
       delete preds.actions;
     }
@@ -13031,9 +13060,10 @@ var COFantasy2 = COFantasy2 || function() {
         attrib: 'pc',
         value: '-1',
       }, ];
+      delete preds.DRAuLieuDePC;
     }
     if (preds.plusParVoieDeRang) {
-      replaceSpecialInField(preds, 'plusParVoieDeRang', numVoie, rmax, param);
+      replaceSpecialInField(preds, 'plusParVoieDeRang', numVoie, rmax, params);
       plusParVoieDeRang.push(preds.plusParVoieDeRang);
       delete preds.plusParVoieDeRang;
     }
@@ -13066,7 +13096,7 @@ var COFantasy2 = COFantasy2 || function() {
               log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
               return;
             }
-            let val = replaceSpecialStrings(b[field], numVoie, rmax, param);
+            let val = replaceSpecialStrings(b[field], numVoie, rmax, params);
             let f = 'buff-' + field;
             if (buffPresent) {
               if (buffPresent[f] == val) return;
@@ -13109,7 +13139,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       } else {
         let rawNomCompagnon = compagnon.name;
-        replaceSpecialInField(preds, 'compagnon', numVoie, rmax, param);
+        replaceSpecialInField(preds, 'compagnon', numVoie, rmax, params);
         compagnon = preds.compagnon;
         let nomCompagnon = compagnon.name;
         if (nomCompagnon == '') {
@@ -13174,7 +13204,7 @@ var COFantasy2 = COFantasy2 || function() {
         log(nomPerso(perso) + " ne peut pas obtenir une capacité indirecte à partir d'une capacité indirecte (" + options.indirect + ")");
       } else {
         let raw = preds.capacite.nom;
-        replaceSpecialInField(preds, 'capacite', numVoie, rmax, param);
+        replaceSpecialInField(preds, 'capacite', numVoie, rmax, params);
         let cap = preds.capacite;
         if (cap === '') {
           if (raw == 'PARAM' && !warnParam) {
@@ -13194,7 +13224,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (preds.sortDeCapacite) {
       let raw = preds.sortDeCapacite;
-      let sort = replaceSpecialStrings(raw, numVoie, rmax, param);
+      let sort = replaceSpecialStrings(raw, numVoie, rmax, params);
       if (sort === '') {
         if (raw == 'PARAM' && !warnParam) {
           warnParam = false;
@@ -13231,7 +13261,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (rmax > 5) preds[p] = 7;
         else preds[p] = rmax + 2;
       } else {
-        replaceSpecialInField(preds, p, numVoie, rmax, param);
+        replaceSpecialInField(preds, p, numVoie, rmax, params);
       }
     }
     addPredicatesTo(capacites, preds);
@@ -13710,7 +13740,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Les actions du tour -----------------------------------------------------
 
-  // on, remplace tous les selected par @{character name|attr}
+  // on remplace tous les selected par @{character name|attr}
   function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
   }
@@ -22743,15 +22773,9 @@ var COFantasy2 = COFantasy2 || function() {
     let desc = descriptionBonus[typeBonus][capacite];
     let nom = predicateAsBool(perso, 'nomTest' + typeBonus + '_' + capacite);
     if (!desc && nom) desc = descriptionBonus[typeBonus][removeAccents(nom).toLowerCase()];
-    let description = predicateAsBool(perso, 'descriptionTest' + typeBonus + '_' + capacite);
-    if (!desc && !nom && description) { //Principalement pour les humains
-      desc = descriptionBonus[typeBonus][removeAccents(description).toLowerCase()];
-      if (desc) {
-        description = desc.desscription;
-        nom = desc.nom;
-      }
-    }
-    if (!description && desc) description = desc.description;
+    let description;
+    if (!desc) description = predicateAsBool(perso, 'descriptionTest' + typeBonus + '_' + capacite);
+    else description = desc.description;
     if (!nom && desc) nom = desc.nom;
     if (!nom) nom = capacite;
     if (res > 0) res = '+' + res;
@@ -26991,12 +27015,8 @@ var COFantasy2 = COFantasy2 || function() {
 
   function maxChargesArme(perso, weaponName) {
     let maxCharges = 1;
-    let aar = predicateAsBool(perso, 'armesARepetition');
-    if (aar) {
-      let armes = predicateOfRaw(aar);
-      if (weaponName == armes.arme1 || weaponName == armes.arme2) {
-        maxCharges = predicateAsInt(perso, 'bonusArmesARepetition', 2) + modCarac(perso, 'INT');
-      }
+    if (weaponName == predicateAsBool(perso, 'armeARepetition1') || weaponName == predicateAsBool(perso, 'armeARepetition2')) {
+      maxCharges = predicateAsInt(perso, 'bonusArmesARepetition', 2) + modCarac(perso, 'INT');
     }
     return maxCharges;
   }
@@ -32666,6 +32686,11 @@ var COFantasy2 = COFantasy2 || function() {
     terrainDifficile: {
       fn: terrainDifficileOption,
     },
+    titre: stringDefaultOption,
+    tokenSide: {
+      fn: integerOption,
+      min: 0,
+    },
     touche: {
       fn: tricheOption
     },
@@ -32764,7 +32789,6 @@ var COFantasy2 = COFantasy2 || function() {
     reroll1: boolDefaultOption,
     test: boolDefaultOption,
     grenaille: boolDefaultOption,
-    titre: stringDefaultOption,
   };
 
   //Renseigne toujours options.playerId
