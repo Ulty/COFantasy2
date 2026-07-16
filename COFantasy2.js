@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 16 juil. 2026,  01:21
+//Dernière modification : jeu. 16 juil. 2026,  02:45
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -481,6 +481,7 @@ var COFantasy2 = COFantasy2 || function() {
   const CONSOMMABLES = String.fromCharCode(0x26B1);
   const PASSER_TEMPS = String.fromCharCode(0x23F1);
   const PREMIERS_SOINS = String.fromCharCode(0x26E8); //0x26D1
+  const EQUIPES = String.fromCharCode(0x205C);
 
   //Crée les macros utiles au jeu
   const gameMacros = [{
@@ -622,6 +623,12 @@ var COFantasy2 = COFantasy2 || function() {
   }, {
     name: PAUSE,
     action: "!cof2-pause",
+    visibleto: '',
+    istokenaction: false,
+    inBar: true
+  }, {
+    name: EQUIPES,
+    action: "!cof2-lister-equipes",
     visibleto: '',
     istokenaction: false,
     inBar: true
@@ -12862,6 +12869,8 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-action reçoit un ordre à @{target|Cible|token_name} --donneAction A --cible @{target|Cible|token_name} --limiteParTour 1 ordreSergent --noSelect',
       },
     },
+    //Pour le capitaine, l'idée serait de se servier des équipes et d'en nommer un leader
+    //Et prévenir si le capitaine n'est le leader d'aucune équipe.
     //Voie du cogneur
     'charge PNJ': {
       action: {
@@ -22019,7 +22028,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //TODO: revoir cette liste pour COF2
-  const attributesWithTokNames = new RegExp('^agrippe($|_)|^agrippePar($|_)|^devore($|_)|^devorePar($|_)||^ecrase($|_)|^ecrasePar($|_)|^aGobe($|_)|^estGobePar($|_)|^etreinteImmole($|_)|^etreinteImmolePar($|_)|^etreinteScorpion($|_)|^etreinteScorpionPar($|_)|^capitaine($|_)|^suit($|_)|^estSuiviPar($|_)');
+  const attributesWithTokNames = new RegExp('^agrippe($|_)|^agrippePar($|_)|^devore($|_)|^devorePar($|_)||^ecrase($|_)|^ecrasePar($|_)|^aGobe($|_)|^estGobePar($|_)|^etreinteImmole($|_)|^etreinteImmolePar($|_)|^etreinteScorpion($|_)|^etreinteScorpionPar($|_)|^suit($|_)|^estSuiviPar($|_)');
 
   function revelerNom(perso, ancienNom, nouveauNom, cache) {
     let character = getObj('character', perso.charId);
@@ -24289,6 +24298,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (csp) {
       csp.forEach(function(comp) {
         if (predicateAsBool(perso, 'bonusTest_' + comp)) comps.push(comp);
+        else if (comp == 'discretion' && predicateAsBool(perso, 'embuscade')) comps.push(comp);
       });
     }
     //TODO: les compétences qui viennent de la fiche. Sous forme de prédicats ?
