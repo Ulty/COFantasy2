@@ -1115,7 +1115,7 @@ tr {line-height: 25px;}
               <div class="decalage">
                 <h4 class="text-secondary">Voie de la brute</h4>
                 <ol>
-                  <li><strong>Arguments de taille :</strong> tout est pris en compte par le script.</li>
+                  <li><strong>Arguments de taille :</strong> le script ajoute un buff pour les PV, et ajoute le bonus aux jets des alliés, mais je ne suis pas encore très satisfait de la façon dont on peut proposer ces jets. Si quelqu'un a des idées...</li>
                 </ol>
                 <h4 class="text-secondary">Voie du pourfendeur</h4>
                 <ol>
@@ -1242,6 +1242,8 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie de la magie élémentaire</h4>
                 <ol>
+                  <li><strong>Asphyxie :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
+
                 </ol>
                 <h4 class="text-secondary">Voie de la magie protectrice</h4>
                 <ol>
@@ -1361,10 +1363,14 @@ tr {line-height: 25px;}
                 <ol>
                   <li><strong>Vampirisation :</strong> propose une action de vampirisation et fait récupérer les PV quand une créature vivante meurt.</li>
                 </ol>
+                <h4 class="text-secondary">Voie du prédateur</h4>
+                <ol>
+                  <li><strong>Embuscade :</strong> propose un bouton pour réaliser l'embuscade au moment d'entrée en combat. Il faut sélectionner les cibles, puis presser sur le bouton. Pour les effets contre les cibles surprises, il faut utiliser les paramètres de la capacité : utiliser le mot-clé <code>dm</code> avec pour valeur le nombre de dés évolutifs pour ajouter des DM, ajouter <code>renverse:1</code> pour que l'attaque puisse renverser, et <code>deBonus:1</code> pour donner un dé bonus en attaque contre les cibles surprises.</li>
+                </ol>
                 <h4 class="text-secondary">Voie de la teigne</h4>
                 <ol>
                   <li><strong>Brise-genou :</strong> ajout automatique des prédicats <code>teigneux</code> et <code>briseGenou</code>.</li>
-                  <li><strong>Teigneux :</strong> ajout automatique d'un prédicats <code>teigne</code>.</li>
+                  <li><strong>Teigneux :</strong> ajout automatique d'un prédicat <code>teigne</code>.</li>
                 </ol>
               </div>
                 <h4 class="text-secondary">Voie du cogneur</h4>
