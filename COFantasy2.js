@@ -1,4 +1,4 @@
-//Dernière modification : ven. 17 juil. 2026,  05:12
+//Dernière modification : ven. 17 juil. 2026,  05:46
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1588,7 +1588,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (evt.nommerChefDEquipe) {
       const equipe = evt.nommerChefDEquipe.equipe;
-        nommerChef(equipe, evt.nommerChefDEquipe.chef);
+      nommerChef(equipe, evt.nommerChefDEquipe.chef);
     }
     if (evt.allierEquipe) {
       let equipe = evt.allierEquipe;
@@ -3103,36 +3103,40 @@ var COFantasy2 = COFantasy2 || function() {
 
   //evt est optionnel
   function aUnCapitaine(cible, evt, pageId) {
-      const equipes = stateCOF.equipes;
+    const equipes = stateCOF.equipes;
     if (!equipes) return;
     let attrsActif;
     for (const ne in equipes) {
       const equipe = equipes[ne];
       if (!equipe.chef || !equipe.membres[cible.charId] || equipe.chef == cible.charId) continue;
-      if (!predicateAsBool({charId:equipe.chef}, 'capitaine')) continue;
+      if (!predicateAsBool({
+          charId: equipe.chef
+        }, 'capitaine')) continue;
       if (cible.token) pageId = pageId || cible.token.get('pageid');
       let chef = persoOfCharId(equipe.chef, pageId);
       if (!chef) {
         delete equipe.chef;
-        log("Impossible de trouver le chef de l'équipe "+ne);
+        log("Impossible de trouver le chef de l'équipe " + ne);
         continue;
       }
-      if (pageId && !chef.token) continue;//On veut les capitaines sur la même page
-        attrsActif = charAttribute(cible.charId, 'aUnCapitaineActif');
-        if (isActive(chef)) {
-          if (attrsActif.length === 0) setTokenAttr(cible, 'aUnCapitaineActif', true, evt, {charAttr:true});
-          return true;
-        }
+      if (pageId && !chef.token) continue; //On veut les capitaines sur la même page
+      attrsActif = charAttribute(cible.charId, 'aUnCapitaineActif');
+      if (isActive(chef)) {
+        if (attrsActif.length === 0) setTokenAttr(cible, 'aUnCapitaineActif', true, evt, {
+          charAttr: true
+        });
+        return true;
+      }
     }
-        if (attrsActif && attrsActif.length > 0) {
-          deleteAttribute(attrsActif[0], evt);
-          iterSelected(tokensEnCombat(), function(perso) {
-            if (perso.charId == cible.charId) {
-              if (evt) updateInit(perso, evt);
-              else updateNextInit(perso);
-            }
-          });
+    if (attrsActif && attrsActif.length > 0) {
+      deleteAttribute(attrsActif[0], evt);
+      iterSelected(tokensEnCombat(), function(perso) {
+        if (perso.charId == cible.charId) {
+          if (evt) updateInit(perso, evt);
+          else updateNextInit(perso);
         }
+      });
+    }
     return false;
   }
 
@@ -12867,7 +12871,10 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'capitaine': {
-      capitaine: true
+      capitaine: true,
+    },
+    'commandant': {
+      commandant: true,
     },
     //Voie du cogneur
     'charge PNJ': {
@@ -13471,7 +13478,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         plusParVoieDeRang.forEach(function(ppvdr) {
           if (capacites[ppvdr.predicat] === undefined) {
-            error("On ne trouve pas le prédicat " + ppvdr.predicat + " pour "+nomPerso(perso), ppvdr);
+            error("On ne trouve pas le prédicat " + ppvdr.predicat + " pour " + nomPerso(perso), ppvdr);
           }
           let rpp = rangsParProfil[ppvdr.profil];
           if (!rpp) return;
@@ -21381,76 +21388,78 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       case 'enleverCharId':
         {
-        if (options.commande.length < 2) {
-          error("Il manque l'id de la fiche à enlever de l'équipe " + nom, options);
-          return;
-        }
-        let cid = options.commande[1];
-        if (equipe.membres[cid]) {
-          let chef = equipe.chef == cid;
-          let evt = {
-            type: "Enlever un personnage d'une équipe",
-            enleveCharIdEquipe: {
-              equipe,
-              cid,
-              chef,
-            }
-          };
-          addEvent(evt);
-          delete equipe.membres[cid];
-          if (chef) delete equipe.chef;
-          if (equipe.alliance) recomputeAlliesParPerso(cid);
-        } else {
-          error("Impossible de trouver le personnage à enlever de l'équipe " + nom, cid);
-        }
+          if (options.commande.length < 2) {
+            error("Il manque l'id de la fiche à enlever de l'équipe " + nom, options);
+            return;
+          }
+          let cid = options.commande[1];
+          if (equipe.membres[cid]) {
+            let chef = equipe.chef == cid;
+            let evt = {
+              type: "Enlever un personnage d'une équipe",
+              enleveCharIdEquipe: {
+                equipe,
+                cid,
+                chef,
+              }
+            };
+            addEvent(evt);
+            delete equipe.membres[cid];
+            if (chef) delete equipe.chef;
+            if (equipe.alliance) recomputeAlliesParPerso(cid);
+          } else {
+            error("Impossible de trouver le personnage à enlever de l'équipe " + nom, cid);
+          }
         }
         break;
       case 'ajouter':
         {
-        let {
-          selected
-        } = getSelected(pageId, options);
-        if (selected.length === 0) {
-          sendPlayer("Aucun token sélectionné pour ajouter à l'équipe " + nom, playerId);
-        } else {
-          let evt = {
-            type: "Ajouter à une équipe",
-            ajouterAEquipe: {
-              equipe,
-              nouveauxMembres: []
-            }
-          };
-          addEvent(evt);
-          let seen = new Set();
-          iterSelected(selected, function(perso) {
-            if (seen.has(perso.charId)) return;
-            seen.add(perso.charId);
-            if (equipe.membres[perso.charId]) {
-              sendPlayer(nomPerso(perso) + " fait déjà partie de l'équipe " + nom, playerId);
-              return;
-            }
-            evt.ajouterAEquipe.nouveauxMembres.push(perso.charId);
-            ajouterMembre(perso.charId, equipe.membres, equipe.alliance);
-          });
-        }
+          let {
+            selected
+          } = getSelected(pageId, options);
+          if (selected.length === 0) {
+            sendPlayer("Aucun token sélectionné pour ajouter à l'équipe " + nom, playerId);
+          } else {
+            let evt = {
+              type: "Ajouter à une équipe",
+              ajouterAEquipe: {
+                equipe,
+                nouveauxMembres: []
+              }
+            };
+            addEvent(evt);
+            let seen = new Set();
+            iterSelected(selected, function(perso) {
+              if (seen.has(perso.charId)) return;
+              seen.add(perso.charId);
+              if (equipe.membres[perso.charId]) {
+                sendPlayer(nomPerso(perso) + " fait déjà partie de l'équipe " + nom, playerId);
+                return;
+              }
+              evt.ajouterAEquipe.nouveauxMembres.push(perso.charId);
+              ajouterMembre(perso.charId, equipe.membres, equipe.alliance);
+            });
+          }
         }
         break;
       case 'nommerChef':
         {
-        if (options.commande.length < 2) {
-          error("Il manque l'id de la fiche à enlever de l'équipe " + nom, options);
-          return;
-        }
-        let cid = options.commande[1];
-          let evt = {type: "Nommer chef d'équipe", nommerChefDEquipe: {
-            equipe,
-            chef: equipe.chef,
+          if (options.commande.length < 2) {
+            error("Il manque l'id de la fiche à enlever de l'équipe " + nom, options);
+            return;
           }
+          let cid = options.commande[1];
+          let evt = {
+            type: "Nommer chef d'équipe",
+            nommerChefDEquipe: {
+              equipe,
+              chef: equipe.chef,
+            }
           };
           addEvent(evt);
-        nommerChef(equipe, cid);
+          nommerChef(equipe, cid);
         }
-break;
+        break;
       case 'allier':
         if (equipe.alliance) {
           sendPlayer("L'équipe " + nom + " est déjà une alliance.", playerId);
@@ -21481,32 +21490,32 @@ break;
         break;
       case 'renommer':
         {
-        if (nom == 'joueurs') {
-          sendPlayer("Mieux vaux ne pas renommer l'équipe des joueurs", playerId);
-          return;
-        }
-        if (options.commande.length < 2) {
-          error("Il manque le nouveau nom de l'équipe " + nom, options);
-          return;
-        }
-        let nouveauNom = options.commande.slice(1).join(' ');
-        if (nouveauNom == nom) {
-          sendPlayer("L'équipe s'appelle déjà " + nom, playerId);
-        } else if (stateCOF.equipes[nouveauNom]) {
-          sendPlayer("Il existe déjà une équipe " + nouveauNom, playerId);
-        } else {
-          const evt = {
-            type: "Renommer équipe",
-            renommerEquipe: {
-              ancienNom: nom,
-              nouveauNom
-            }
-          };
-          addEvent(evt);
-          stateCOF.equipes[nouveauNom] = equipe;
-          delete stateCOF.equipes[nom];
-          nom = nouveauNom;
-        }
+          if (nom == 'joueurs') {
+            sendPlayer("Mieux vaux ne pas renommer l'équipe des joueurs", playerId);
+            return;
+          }
+          if (options.commande.length < 2) {
+            error("Il manque le nouveau nom de l'équipe " + nom, options);
+            return;
+          }
+          let nouveauNom = options.commande.slice(1).join(' ');
+          if (nouveauNom == nom) {
+            sendPlayer("L'équipe s'appelle déjà " + nom, playerId);
+          } else if (stateCOF.equipes[nouveauNom]) {
+            sendPlayer("Il existe déjà une équipe " + nouveauNom, playerId);
+          } else {
+            const evt = {
+              type: "Renommer équipe",
+              renommerEquipe: {
+                ancienNom: nom,
+                nouveauNom
+              }
+            };
+            addEvent(evt);
+            stateCOF.equipes[nouveauNom] = equipe;
+            delete stateCOF.equipes[nom];
+            nom = nouveauNom;
+          }
         }
         break;
       case 'dupliquer':
@@ -21567,17 +21576,17 @@ break;
       }
       let line = "&nbsp;";
       let chef = cid == equipe.chef;
-      if (chef) line += "<b>"+character.get('name')+"</b>";
+      if (chef) line += "<b>" + character.get('name') + "</b>";
       else line += character.get('name');
       addCellInFramedDisplay(display, line, 100, true, fond);
       let nommer = '';
       if (!chef && equipe.alliance) {
-        let cmd = "!cof2-gerer-equipe "+nom+" --commande nommerChef "+cid;
+        let cmd = "!cof2-gerer-equipe " + nom + " --commande nommerChef " + cid;
         let b = '<span title="nommer chef de l\'équipe", style="font-family: \'Pictos\'">S</span>';
         nommer = boutonSimple(cmd, b, BS_BUTTON);
       }
       let enlever = boutonSimple("!cof2-gerer-equipe " + nom + " --commande enleverCharId " + cid, '<span title="enlever de l\'équipe", style="font-family: \'Pictos\'">D</span>', BS_BUTTON);
-      addCellInFramedDisplay(display, nommer+enlever, 100, false, fond, "text-align:right;");
+      addCellInFramedDisplay(display, nommer + enlever, 100, false, fond, "text-align:right;");
       fond = !fond;
     }
     let ajouter = boutonSimple("!cof2-gerer-equipe " + nom + " --commande ajouter --select @{target|personnage à ajouter|token_id}", '<span title="ajouter un personnage", style="font-family: \'Pictos\'">+</span>', BS_BUTTON);
@@ -29005,42 +29014,50 @@ break;
         return Math.ceil(d / 2);
       });
     }
-    if (predicateAsBool(target, 'commandant')) {
+    if (predicateAsBool(target, 'commandant') && alliesParPerso[target.charId]) {
       //On cherche si il y a au moins 4 créatures sous ses ordres à moins de 20 m
-      let tokens =
-        findObjs({
-          _type: 'graphic',
-          _subtype: 'token',
-          layer: 'objects',
-          _pageid: pageId
-        });
-      let nbCreatures = 0;
-      tokens.forEach(function(tok) {
-        if (tok.id === target.token.id) return;
-        let ci = tok.get('represents');
-        if (ci === '') return;
-        if (distanceCombat(tok, target.token, pageId) > 20) return;
-        let attrCom = charAttribute(ci, 'capitaine');
-        if (attrCom.length === 0) return;
-        let capitaine = persoOfIdName(attrCom[0].get('current'), pageId);
-        if (!capitaine || capitaine.token.id != target.token.id) return;
-        let perso = {
-          token: tok,
-          charId: ci
-        };
-        if (isActive(perso)) nbCreatures++;
-      });
-      if (nbCreatures > 3) {
-        if (showTotal) dmgDisplay = "(" + dmgDisplay + ") / 2";
-        else dmgDisplay += " / 2";
-        showTotal = true;
-        dmgTotal = Math.ceil(dmgTotal / 2);
-        if (options.memePasMal)
-          options.memePasMal = Math.ceil(options.memePasMal / 2);
-        dmSuivis = _.map(dmSuivis, function(d) {
-          return Math.ceil(d / 2);
-        });
-      }
+        let sousLesOrdres = new Set();
+        const equipes = stateCOF.equipes;
+        for (const ne in equipes) {
+          const equipe = equipes[ne];
+          if (!equipe.chef || equipe.chef != target.charId) continue;
+          for (const cid in equipe.membres) {
+            if (cid != target.charId) sousLesOrdres.add(cid);
+          }
+        }
+        if (sousLesOrdres.size > 0) {
+          let tokens =
+            findObjs({
+              _type: 'graphic',
+              _subtype: 'token',
+              layer: 'objects',
+              _pageid: pageId
+            });
+          let nbCreatures = 0;
+          tokens.forEach(function(tok) {
+            if (nbCreatures > 3) return;
+            if (tok.id === target.token.id) return;
+            let ci = tok.get('represents');
+            if (ci === '' || !sousLesOrdres.has(ci)) return;
+            if (distanceCombat(tok, target.token, pageId) > 20) return;
+            let perso = {
+              token: tok,
+              charId: ci
+            };
+            if (isActive(perso)) nbCreatures++;
+          });
+          if (nbCreatures > 3) {
+            if (showTotal) dmgDisplay = "(" + dmgDisplay + ") / 2";
+            else dmgDisplay += " / 2";
+            showTotal = true;
+            dmgTotal = Math.ceil(dmgTotal / 2);
+            if (options.memePasMal)
+              options.memePasMal = Math.ceil(options.memePasMal / 2);
+            dmSuivis = _.map(dmSuivis, function(d) {
+              return Math.ceil(d / 2);
+            });
+          }
+        }
     }
     if (dmgTotal < 1) {
       dmgTotal = 1;
