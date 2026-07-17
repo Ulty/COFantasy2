@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 16 juil. 2026,  02:45
+//Dernière modification : ven. 17 juil. 2026,  05:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -681,6 +681,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - equipes: liste des équipes de personnages. C'est un map du nom vers:
   //   - alliance (booléen), pour savoir si les membres de l'équipe sont alliés
   //   - membres; ensemble des charid des membres de l'équipe (sous forme d'objet)
+  //   - chef: charId, optionnel
   // - numeroEquipe : un numéro pour les nouvelles équipes sans nom
   // - roundMarkerId : l'id du token utilisé pour l'aura d'initiative
   // - tokensTemps : liste de tokens à durée de vie limitée, effacés à la fin du combat
@@ -1574,6 +1575,9 @@ var COFantasy2 = COFantasy2 || function() {
     if (evt.enleveCharIdEquipe) {
       const equipe = evt.enleveCharIdEquipe.equipe;
       ajouterMembre(evt.enleveCharIdEquipe.cid, equipe.membres, equipe.alliance);
+      if (evt.enleveCharIdEquipe.chef) {
+        nommerChef(equipe, evt.enleveCharIdEquipe.cid);
+      }
     }
     if (evt.ajouterAEquipe) {
       let equipe = evt.ajouterAEquipe.equipe;
@@ -1581,6 +1585,10 @@ var COFantasy2 = COFantasy2 || function() {
         delete equipe.membres[cid];
         if (equipe.alliance) recomputeAlliesParPerso(cid);
       });
+    }
+    if (evt.nommerChefDEquipe) {
+      const equipe = evt.nommerChefDEquipe.equipe;
+        nommerChef(equipe, evt.nommerChefDEquipe.chef);
     }
     if (evt.allierEquipe) {
       let equipe = evt.allierEquipe;
@@ -2126,7 +2134,10 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Il n'est plus possible de dépenser de DR pour " + nomPerso(perso), playerId);
       return;
     }
-    let {pv, pvMax} = pvPerso(perso);
+    let {
+      pv,
+      pvMax
+    } = pvPerso(perso);
     if (pv >= pvMax) {
       sendPerso(perso, "est déjà au max de PV");
       return;
@@ -2391,8 +2402,11 @@ var COFantasy2 = COFantasy2 || function() {
         //Et si le perso est un compagnon animal, on remet les PV au max
         if (ficheAttribute(perso, 'compagnon', '') !== '' && predicateAsBool(perso, 'animal')) {
           //Les compagnons animaux récupèrent tous leurs PVs
-          let {pv, pvMax} = pvPerso(perso);
-            if (pv < pvMax) updateCurrentBar(perso, 1, pvMax, evt);
+          let {
+            pv,
+            pvMax
+          } = pvPerso(perso);
+          if (pv < pvMax) updateCurrentBar(perso, 1, pvMax, evt);
           fin();
           return;
         }
@@ -2405,7 +2419,10 @@ var COFantasy2 = COFantasy2 || function() {
         setFicheAttr(perso, 'dr', dr, evt);
         drGagne = true;
       }
-          let {pv, pvMax} = pvPerso(perso);
+      let {
+        pv,
+        pvMax
+      } = pvPerso(perso);
       let explications = [];
       let depenseDR = '';
       let finDepenseDR = '';
@@ -3084,39 +3101,38 @@ var COFantasy2 = COFantasy2 || function() {
     return tokens;
   }
 
-  // renvoie la valeur du bonus si il y a un capitaine (ou commandant)
   //evt est optionnel
   function aUnCapitaine(cible, evt, pageId) {
-    let charId = cible.charId;
-    let attrs = charAttribute(cible, 'capitaine');
-    if (attrs.length === 0) return;
-    let attrCapitaine = attrs[0];
-    if (pageId === undefined) {
-      pageId = cible.token.get('pageid');
+      const equipes = stateCOF.equipes;
+    if (!equipes) return;
+    let attrsActif;
+    for (const ne in equipes) {
+      const equipe = equipes[ne];
+      if (!equipe.chef || !equipe.membres[cible.charId] || equipe.chef == cible.charId) continue;
+      if (!predicateAsBool({charId:equipe.chef}, 'capitaine')) continue;
+      if (cible.token) pageId = pageId || cible.token.get('pageid');
+      let chef = persoOfCharId(equipe.chef, pageId);
+      if (!chef) {
+        delete equipe.chef;
+        log("Impossible de trouver le chef de l'équipe "+ne);
+        continue;
+      }
+      if (pageId && !chef.token) continue;//On veut les capitaines sur la même page
+        attrsActif = charAttribute(cible.charId, 'aUnCapitaineActif');
+        if (isActive(chef)) {
+          if (attrsActif.length === 0) setTokenAttr(cible, 'aUnCapitaineActif', true, evt, {charAttr:true});
+          return true;
+        }
     }
-    let capitaine = persoOfIdName(attrCapitaine.get('current'), pageId);
-    if (evt && capitaine === undefined) {
-      deleteAttribute(attrCapitaine, evt);
-    }
-    let capitaineActif = attrs.find(function(a) {
-      return (a.get('name') == 'capitaineActif');
-    });
-    if (capitaine && isActive(capitaine)) {
-      if (capitaineActif || !evt) return attrCapitaine.get('max');
-      setTokenAttr(cible, 'capitaineActif', true, evt, {
-        charAttr: true
-      });
-      iterSelected(tokensEnCombat(), function(perso) {
-        if (perso.charId == charId) updateInit(perso, evt);
-      });
-      return attrCapitaine.get('max');
-    }
-    if (capitaineActif && evt) {
-      removeCharAttr(cible.charId, 'capitaineActif', evt);
-      iterSelected(tokensEnCombat(), function(perso) {
-        if (perso.charId == charId) updateInit(perso, evt);
-      });
-    }
+        if (attrsActif && attrsActif.length > 0) {
+          deleteAttribute(attrsActif[0], evt);
+          iterSelected(tokensEnCombat(), function(perso) {
+            if (perso.charId == cible.charId) {
+              if (evt) updateInit(perso, evt);
+              else updateNextInit(perso);
+            }
+          });
+        }
     return false;
   }
 
@@ -3195,15 +3211,10 @@ var COFantasy2 = COFantasy2 || function() {
       attBonus += b;
       messageAttaqueDM("Forme hybride", explications, options, b);
     }
-    let bonusCapitaine = aUnCapitaine(perso, evt);
-    if (bonusCapitaine) {
-      bonusCapitaine = toInt(bonusCapitaine, 2);
-      attBonus += bonusCapitaine;
-      let msgCapitaine = "Un ";
-      if (bonusCapitaine > 2) msgCapitaine += "commandant";
-      else msgCapitaine += "capitaine";
-      msgCapitaine += " donne des ordres";
-      messageAttaqueDM(msgCapitaine, explications, options, bonusCapitaine);
+    if (aUnCapitaine(perso, evt)) {
+      attBonus += 2;
+      let msgCapitaine = "Un capitaine donne des ordres";
+      messageAttaqueDM(msgCapitaine, explications, options, 2);
     }
     return attBonus;
   }
@@ -3387,7 +3398,10 @@ var COFantasy2 = COFantasy2 || function() {
     let pv;
     let pvMax;
     if (predicateAsBool(attaquant, 'hausserLeTon')) {
-      ({pv, pvMax} = pvPerso(attaquant));
+      ({
+        pv,
+        pvMax
+      } = pvPerso(attaquant));
       if (pv <= pvMax / 2) {
         attBonus += 3;
         options.additionalDmg = options.additionalDmg || [];
@@ -3400,7 +3414,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (predicateAsBool(attaquant, 'fureurDrakonide')) {
       if (pv === undefined) {
-      ({pv, pvMax} = pvPerso(attaquant));
+        ({
+          pv,
+          pvMax
+        } = pvPerso(attaquant));
       }
       if (pv <= pvMax / 2 || attributeAsBool(attaquant, 'fureurDrakonideCritique')) {
         attBonus += 1;
@@ -5655,9 +5672,9 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function ajouteDeBonus(options) {
-        if (options.deBonus === true) options.deBonus = 2;
-        else if (options.deBonus) options.deBonus++;
-        else options.deBonus = 1;
+    if (options.deBonus === true) options.deBonus = 2;
+    else if (options.deBonus) options.deBonus++;
+    else options.deBonus = 1;
   }
 
   function resoudreAttaque(args, attaquant, evt, explications, options) {
@@ -5719,7 +5736,9 @@ var COFantasy2 = COFantasy2 || function() {
       }
       explications.push(msg);
     }
-    if (!options.auto && predicateAsBool(attaquant, 'deBonusContreSurpris') && cibles.forAll(function(target) {return getState(target, 'surpris'); })) {
+    if (!options.auto && predicateAsBool(attaquant, 'deBonusContreSurpris') && cibles.forAll(function(target) {
+        return getState(target, 'surpris');
+      })) {
       explications.push("Dé bonus contre adversaire surpris");
       ajouteDeBonus(options);
     }
@@ -7156,24 +7175,9 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (options.devorer) {
           target.messages.push(nomPerso(attaquant) + " saisit " + nomPerso(target) + " entre ses crocs et ses griffes");
-          if (attackLabel) {
-            let cmdAttaqueGratuite = '!cof2-attaque ' + attaquant.token.id + ' ' + target.token.id + ' ' + attackLabel;
-            target.messages.push(boutonSimple(cmdAttaqueGratuite, 'Attaque gratuite'));
-          } else {
-            target.messages.push(nomPerso(attaquant) + " a droit à une attaque gratuite contre " + nomPerso(target));
-          }
-          let attackerForce = modCarac(attaquant, 'force');
-          let targetForce = modCarac(target, 'force');
-          if (targetForce <= attackerForce) {
-            if (attributeAsBool(target, 'armureDEau')) {
-              target.messages.push("L'armure d'eau empêche " + nomPerso(target) + " d'être saisi");
-            } else {
-              setState(target, 'renverse', true, evt);
-              setState(target, 'immobilise', true, evt);
-              setTokenAttr(attaquant, 'devore', target.token.id, evt);
-              setTokenAttr(target, 'estDevorePar', attaquant.token.id, evt);
-            }
-          }
+          let label = attackLabel || -1;
+          let cmdAttaqueGratuite = '!cof2-attaque ' + attaquant.token.id + ' ' + target.token.id + ' ' + label + ' --typeAction G';
+          target.messages.push(boutonSimple(cmdAttaqueGratuite, 'Attaque gratuite'));
         }
         if (options.ecraser) {
           target.messages.push(nomPerso(attaquant) + " saisit " + nomPerso(target) + " entre ses bras puissants");
@@ -7259,15 +7263,15 @@ var COFantasy2 = COFantasy2 || function() {
         if (predicateAsBool(attaquant, 'embuscade') && getState(target, 'surpris')) {
           sournoise += predicateAsInt(attaquant, 'dmContreSurpris', 0);
           if (predicateAsBool(attaquant, 'renverseSurpris')) {
-          target.etats = target.etats || [];
-          target.etats.push({
-            etat: 'renverse',
-            condition: {
-              type: 'moins',
-              attribute: 'FOR',
-              text: 'force'
-            }
-          });
+            target.etats = target.etats || [];
+            target.etats.push({
+              etat: 'renverse',
+              condition: {
+                type: 'moins',
+                attribute: 'FOR',
+                text: 'force'
+              }
+            });
           }
           target.messages.push("Embuscade !");
         }
@@ -7495,7 +7499,7 @@ var COFantasy2 = COFantasy2 || function() {
               let divide = dmSpec.divide / 2;
               if (divide == 1) delete dmSpec.divide;
             } else {
-            dmSpec.value += " +" + dmSpec.value;
+              dmSpec.value += " +" + dmSpec.value;
             }
           });
         }
@@ -10456,14 +10460,6 @@ var COFantasy2 = COFantasy2 || function() {
     return true;
   }
 
-  function removeCharAttr(charId, attribute, evt, msg) {
-    removeTokenAttr({
-      charId: charId
-    }, attribute, evt, {
-      msg
-    });
-  }
-
   //cherche l'attribut attribute de valeur par défaut def
   //et lui ajoute la valeur val. Crée l'attribut si besoin
   //retourne l'attribut
@@ -11162,6 +11158,7 @@ var COFantasy2 = COFantasy2 || function() {
   //N'ajoute pas l'événement à l'historique
   //perso et explications sont optionnels
   // si options.testeRessources, alors ne change rien
+  // evt est optionnel, en particulier si on test les ressources
   function limiteRessources(perso, options, defResource, msg, evt, explications) {
     let depMana = {
       cout_null: true
@@ -11287,7 +11284,7 @@ var COFantasy2 = COFantasy2 || function() {
             return true;
           }
         }
-        if (diffTest) {
+        if (diffTest && !options.testeRessources) {
           diffTest = diffTest * 5;
           //Il faut faire un jet d'attaque magique
           expliquerPerso(perso, "Jet d'attaque magique difficulté " + diffTest + " pour utiliser le parchemin");
@@ -11398,7 +11395,7 @@ var COFantasy2 = COFantasy2 || function() {
         let test = testLimiteUtilisationsCapa(perso, pred, 'combat', msgPlusDispo,
           msgPasCapa);
         if (test === undefined) return true;
-        utiliseCapacite(perso, test, evt);
+        if (!options.testeRessources) utiliseCapacite(perso, test, evt);
       } else {
         error("Impossible de savoir à qui appliquer la limitation du prédicat " + pred, options);
         return true;
@@ -11883,9 +11880,9 @@ var COFantasy2 = COFantasy2 || function() {
   };
 
 
-  const capaciteBouclierDeLaFoi = { 
-      bouclierDeLaFoi: "SELONRANG(1,1,1,1,2)",
-    };
+  const capaciteBouclierDeLaFoi = {
+    bouclierDeLaFoi: "SELONRANG(1,1,1,1,2)",
+  };
 
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
@@ -12772,7 +12769,7 @@ var COFantasy2 = COFantasy2 || function() {
       armeBenie: true,
     },
     'bouclier de la foi': capaciteBouclierDeLaFoi,
-    'bouclier de la f oi': capaciteBouclierDeLaFoi,//Dans le PDF, on a ce blanc étrange entre f et o.
+    'bouclier de la f oi': capaciteBouclierDeLaFoi, //Dans le PDF, on a ce blanc étrange entre f et o.
     //Voie de la prière
     'benediction': {
       bonusTestEvolutif_theologie: true,
@@ -12869,8 +12866,9 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-action reçoit un ordre à @{target|Cible|token_name} --donneAction A --cible @{target|Cible|token_name} --limiteParTour 1 ordreSergent --noSelect',
       },
     },
-    //Pour le capitaine, l'idée serait de se servier des équipes et d'en nommer un leader
-    //Et prévenir si le capitaine n'est le leader d'aucune équipe.
+    'capitaine': {
+      capitaine: true
+    },
     //Voie du cogneur
     'charge PNJ': {
       action: {
@@ -12902,11 +12900,14 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     //Voie du prédateur
-    'embuscade' : {
-      embuscade: true,//propose le bouton de surprise quand le perso rentre en combat
-      dmContreSurpris: 'PARAM.dm',//nombre de dés évolutifs
-      renverseSurpris: 'PARAM.renverse',//1 si on renverse
-      deBonusContreSurpris: 'PARAM.deBonus',//1 si on a un dé bonus en attaque contre les surpris
+    'embuscade': {
+      embuscade: true, //propose le bouton de surprise quand le perso rentre en combat
+      dmContreSurpris: 'PARAM.dm', //nombre de dés évolutifs
+      renverseSurpris: 'PARAM.renverse', //1 si on renverse
+      deBonusContreSurpris: 'PARAM.deBonus', //1 si on a un dé bonus en attaque contre les surpris
+    },
+    'devorer': {
+      devorer: true,
     },
     //Voie de la teigne
     'brise-genou': {
@@ -13016,7 +13017,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let param, rmax;
     if (options.pnj) {
-      param = options.pnj['npcroll-desc'];
+      param = options.pnj['npcroll-param'];
       rmax = 5;
     } else {
       param = ficheAttribute(perso, 'v' + numVoie + 'r' + rang + '_param', '');
@@ -13282,7 +13283,7 @@ var COFantasy2 = COFantasy2 || function() {
         else preds[p] = rmax + 2;
       } else {
         replaceSpecialInField(preds, p, numVoie, rmax, params);
-        if (preds[p] == '') delete preds[p];
+        if (preds[p] === '') delete preds[p];
       }
     }
     addPredicatesTo(capacites, preds);
@@ -13470,7 +13471,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         plusParVoieDeRang.forEach(function(ppvdr) {
           if (capacites[ppvdr.predicat] === undefined) {
-            error("On ne trouve pas le prédicat " + ppvdr.predicat, ppvdr);
+            error("On ne trouve pas le prédicat " + ppvdr.predicat + " pour "+nomPerso(perso), ppvdr);
           }
           let rpp = rangsParProfil[ppvdr.profil];
           if (!rpp) return;
@@ -15241,7 +15242,7 @@ var COFantasy2 = COFantasy2 || function() {
     } else {
       if (action.combat) return ligne;
     }
-    if (action.premierRound && stateCOF.combat &&  stateCOF.combat.tour > 1) return ligne;
+    if (action.premierRound && stateCOF.combat && stateCOF.combat.tour > 1) return ligne;
     if (action.milieu && stateCOF.milieu && action.milieu != stateCOF.milieu) return ligne;
     if (action.bufPersonnelNonCumulable && attributeAsBool(perso, action.bufPersonnelNonCumulable)) {
       if (estEffetIndetermine(action.bufPersonnelNonCumulable)) {
@@ -16502,6 +16503,7 @@ var COFantasy2 = COFantasy2 || function() {
     };
   }
 
+  //Peut renvoyer un perso sans token
   function persoOfCharId(charId, pageId) {
     let c = getObj('character', charId);
     if (!c) return;
@@ -16740,10 +16742,16 @@ var COFantasy2 = COFantasy2 || function() {
     if (perso.token) {
       let pvMax = toInt(perso.token.get('bar1_max'), 0);
       let pv = toInt(perso.token.get('bar1_value'), pvMax);
-      return {pv, pvMax};
+      return {
+        pv,
+        pvMax
+      };
     } else {
       let [pv, pvMax] = ficheAttributeAsIntWithMax(perso, 'pv', 0);
-      return {pv, pvMax};
+      return {
+        pv,
+        pvMax
+      };
     }
   }
 
@@ -17079,24 +17087,6 @@ var COFantasy2 = COFantasy2 || function() {
               }
               deleteAttribute(a, evt);
             });
-            //On libère les personnages dévorés, si il y en a.
-            let attrDevore = tokenAttribute(perso, 'devore');
-            attrDevore.forEach(function(a) {
-              let cible = persoOfIdName(a.get('current'), pageId);
-              if (cible) {
-                let attrCible = tokenAttribute(cible, 'estDevorePar');
-                attrCible.forEach(function(a) {
-                  let agrippant = persoOfIdName(a.get('current', pageId));
-                  if (agrippant.token.id == perso.token.id) {
-                    sendPerso(cible, 'se libère de ' + agrippant.tokName);
-                    toFront(cible.token);
-                    setState(cible, 'immobilise', false, evt);
-                    deleteAttribute(a, evt);
-                  }
-                });
-              }
-              deleteAttribute(a, evt);
-            });
             //On libère les personnages écrasés, si il y en a.
             let attrEcrase = tokenAttribute(perso, 'ecrase');
             attrEcrase.forEach(function(a) {
@@ -17206,7 +17196,9 @@ var COFantasy2 = COFantasy2 || function() {
                 return true;
               });
               if (prioriteSiphon.length > 0) {
-                let {pvMax} = pvPerso(perso);
+                let {
+                  pvMax
+                } = pvPerso(perso);
                 if (isNaN(pvMax) || pvMax < 1) pvMax = 1;
                 if (estPJ(perso)) {
                   let siphoneur = prioriteSiphon[0].perso;
@@ -18514,7 +18506,9 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function finAgitAZeroPV(perso, effet, attr, newInit, evt, options) {
-    let {pv} = pvPerso(perso);
+    let {
+      pv
+    } = pvPerso(perso);
     if (pv === 0) {
       mort(perso, undefined, evt);
     } else {
@@ -21259,6 +21253,10 @@ var COFantasy2 = COFantasy2 || function() {
     membres[cid] = true;
   }
 
+  function nommerChef(equipe, cid) {
+    equipe.chef = cid;
+  }
+
   //S'assure que tous les membres de l'équipe sont alliés
   function allierEquipe(equipe) {
     let seen = {};
@@ -21364,148 +21362,180 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("L'équipe " + nom + " existe déjà.", playerId);
       return;
     }
-    if (commande == 'effacer') {
-      if (nom == 'joueurs') {
-        sendPlayer("Mieux vaux ne pas effacer l'équipe des joueurs", playerId);
-        return;
-      }
-      let evt = {
-        type: "Effacer une équipe",
-        equipeEffacee: {
-          nom,
-          equipe
+    switch (commande) {
+      case 'effacer':
+        if (nom == 'joueurs') {
+          sendPlayer("Mieux vaux ne pas effacer l'équipe des joueurs", playerId);
+          return;
         }
-      };
-      addEvent(evt);
-      effacerEquipe(equipe, nom);
-      sendPlayer("L'équipe " + nom + " est effacée", playerId);
-      return;
-    }
-    if (commande == 'enleverCharId') {
-      if (options.commande.length < 2) {
-        error("Il manque l'id de la fiche à enlever de l'équipe " + nom, options);
+        let evt = {
+          type: "Effacer une équipe",
+          equipeEffacee: {
+            nom,
+            equipe
+          }
+        };
+        addEvent(evt);
+        effacerEquipe(equipe, nom);
+        sendPlayer("L'équipe " + nom + " est effacée", playerId);
         return;
-      }
-      let cid = options.commande[1];
-      if (equipe.membres[cid]) {
-        let evt = {
-          type: "Enlever un personnage d'une équipe",
-          enleveCharIdEquipe: {
+      case 'enleverCharId':
+        {
+        if (options.commande.length < 2) {
+          error("Il manque l'id de la fiche à enlever de l'équipe " + nom, options);
+          return;
+        }
+        let cid = options.commande[1];
+        if (equipe.membres[cid]) {
+          let chef = equipe.chef == cid;
+          let evt = {
+            type: "Enlever un personnage d'une équipe",
+            enleveCharIdEquipe: {
+              equipe,
+              cid,
+              chef,
+            }
+          };
+          addEvent(evt);
+          delete equipe.membres[cid];
+          if (chef) delete equipe.chef;
+          if (equipe.alliance) recomputeAlliesParPerso(cid);
+        } else {
+          error("Impossible de trouver le personnage à enlever de l'équipe " + nom, cid);
+        }
+        }
+        break;
+      case 'ajouter':
+        {
+        let {
+          selected
+        } = getSelected(pageId, options);
+        if (selected.length === 0) {
+          sendPlayer("Aucun token sélectionné pour ajouter à l'équipe " + nom, playerId);
+        } else {
+          let evt = {
+            type: "Ajouter à une équipe",
+            ajouterAEquipe: {
+              equipe,
+              nouveauxMembres: []
+            }
+          };
+          addEvent(evt);
+          let seen = new Set();
+          iterSelected(selected, function(perso) {
+            if (seen.has(perso.charId)) return;
+            seen.add(perso.charId);
+            if (equipe.membres[perso.charId]) {
+              sendPlayer(nomPerso(perso) + " fait déjà partie de l'équipe " + nom, playerId);
+              return;
+            }
+            evt.ajouterAEquipe.nouveauxMembres.push(perso.charId);
+            ajouterMembre(perso.charId, equipe.membres, equipe.alliance);
+          });
+        }
+        }
+        break;
+      case 'nommerChef':
+        {
+        if (options.commande.length < 2) {
+          error("Il manque l'id de la fiche à enlever de l'équipe " + nom, options);
+          return;
+        }
+        let cid = options.commande[1];
+          let evt = {type: "Nommer chef d'équipe", nommerChefDEquipe: {
             equipe,
-            cid
+            chef: equipe.chef,
           }
-        };
-        addEvent(evt);
-        delete equipe.membres[cid];
-        if (equipe.alliance) recomputeAlliesParPerso(cid);
-      } else {
-        error("Impossible de trouver le personnage à enlever de l'équipe " + nom, cid);
-      }
-    } else if (commande == 'ajouter') {
-      let {
-        selected
-      } = getSelected(pageId, options);
-      if (selected.length === 0) {
-        sendPlayer("Aucun token sélectionné pour ajouter à l'équipe " + nom, playerId);
-      } else {
-        let evt = {
-          type: "Ajouter à une équipe",
-          ajouterAEquipe: {
-            equipe,
-            nouveauxMembres: []
+          };
+          addEvent(evt);
+        nommerChef(equipe, cid);
+        }
+break;
+      case 'allier':
+        if (equipe.alliance) {
+          sendPlayer("L'équipe " + nom + " est déjà une alliance.", playerId);
+        } else {
+          const evt = {
+            type: "Allier une équipe",
+            allierEquipe: equipe
+          };
+          addEvent(evt);
+          equipe.alliance = true;
+          allierEquipe(equipe);
+        }
+        break;
+      case 'nonAllies':
+        if (equipe.alliance) {
+          const evt = {
+            type: "Équipe devient non alliée",
+            nonAllierEquipe: equipe
+          };
+          addEvent(evt);
+          equipe.alliance = false;
+          for (const cid in equipe.membres) {
+            recomputeAlliesParPerso(cid);
           }
-        };
-        addEvent(evt);
-        let seen = new Set();
-        iterSelected(selected, function(perso) {
-          if (seen.has(perso.charId)) return;
-          seen.add(perso.charId);
-          if (equipe.membres[perso.charId]) {
-            sendPlayer(nomPerso(perso) + " fait déjà partie de l'équipe " + nom, playerId);
+        } else {
+          sendPlayer("L'équipe " + nom + " n'est pas une alliance.", playerId);
+        }
+        break;
+      case 'renommer':
+        {
+        if (nom == 'joueurs') {
+          sendPlayer("Mieux vaux ne pas renommer l'équipe des joueurs", playerId);
+          return;
+        }
+        if (options.commande.length < 2) {
+          error("Il manque le nouveau nom de l'équipe " + nom, options);
+          return;
+        }
+        let nouveauNom = options.commande.slice(1).join(' ');
+        if (nouveauNom == nom) {
+          sendPlayer("L'équipe s'appelle déjà " + nom, playerId);
+        } else if (stateCOF.equipes[nouveauNom]) {
+          sendPlayer("Il existe déjà une équipe " + nouveauNom, playerId);
+        } else {
+          const evt = {
+            type: "Renommer équipe",
+            renommerEquipe: {
+              ancienNom: nom,
+              nouveauNom
+            }
+          };
+          addEvent(evt);
+          stateCOF.equipes[nouveauNom] = equipe;
+          delete stateCOF.equipes[nom];
+          nom = nouveauNom;
+        }
+        }
+        break;
+      case 'dupliquer':
+        {
+          if (options.commande.length < 2) {
+            error("Il manque le nouveau nom ddu double de l'équipe " + nom, options);
             return;
           }
-          evt.ajouterAEquipe.nouveauxMembres.push(perso.charId);
-          ajouterMembre(perso.charId, equipe.membres, equipe.alliance);
-        });
-      }
-    } else if (commande == 'allier') {
-      if (equipe.alliance) {
-        sendPlayer("L'équipe " + nom + " est déjà une alliance.", playerId);
-      } else {
-        const evt = {
-          type: "Allier une équipe",
-          allierEquipe: equipe
-        };
-        addEvent(evt);
-        equipe.alliance = true;
-        allierEquipe(equipe);
-      }
-    } else if (commande == 'nonAllies') {
-      if (equipe.alliance) {
-        const evt = {
-          type: "Équipe devient non alliée",
-          nonAllierEquipe: equipe
-        };
-        addEvent(evt);
-        equipe.alliance = false;
-        for (const cid in equipe.membres) {
-          recomputeAlliesParPerso(cid);
+          let nouveauNom = options.commande.slice(1).join(' ');
+          if (nouveauNom == nom) {
+            sendPlayer("L'équipe s'appelle déjà " + nom, playerId);
+          } else if (stateCOF.equipes[nouveauNom]) {
+            sendPlayer("Il existe déjà une équipe " + nouveauNom, playerId);
+          } else {
+            const evt = {
+              type: "Dupliquer équipe",
+              equipeCreee: nouveauNom
+            };
+            addEvent(evt);
+            let nouvelleEquipe = {
+              alliance: equipe.alliance,
+              membres: {...equipe.membres
+              }
+            };
+            nom = nouveauNom;
+            stateCOF.equipes[nom] = nouvelleEquipe;
+            equipe = nouvelleEquipe;
+          }
         }
-      } else {
-        sendPlayer("L'équipe " + nom + " n'est pas une alliance.", playerId);
-      }
-    } else if (commande == 'renommer') {
-      if (nom == 'joueurs') {
-        sendPlayer("Mieux vaux ne pas renommer l'équipe des joueurs", playerId);
-        return;
-      }
-      if (options.commande.length < 2) {
-        error("Il manque le nouveau nom de l'équipe " + nom, options);
-        return;
-      }
-      let nouveauNom = options.commande.slice(1).join(' ');
-      if (nouveauNom == nom) {
-        sendPlayer("L'équipe s'appelle déjà " + nom, playerId);
-      } else if (stateCOF.equipes[nouveauNom]) {
-        sendPlayer("Il existe déjà une équipe " + nouveauNom, playerId);
-      } else {
-        const evt = {
-          type: "Renommer équipe",
-          renommerEquipe: {
-            ancienNom: nom,
-            nouveauNom
-          }
-        };
-        addEvent(evt);
-        stateCOF.equipes[nouveauNom] = equipe;
-        delete stateCOF.equipes[nom];
-        nom = nouveauNom;
-      }
-    } else if (commande == 'dupliquer') {
-      if (options.commande.length < 2) {
-        error("Il manque le nouveau nom ddu double de l'équipe " + nom, options);
-        return;
-      }
-      let nouveauNom = options.commande.slice(1).join(' ');
-      if (nouveauNom == nom) {
-        sendPlayer("L'équipe s'appelle déjà " + nom, playerId);
-      } else if (stateCOF.equipes[nouveauNom]) {
-        sendPlayer("Il existe déjà une équipe " + nouveauNom, playerId);
-      } else {
-        const evt = {
-          type: "Dupliquer équipe",
-          equipeCreee: nouveauNom
-        };
-        addEvent(evt);
-        let nouvelleEquipe = {
-          alliance: equipe.alliance,
-          membres: {...equipe.membres
-          }
-        };
-        nom = nouveauNom;
-        stateCOF.equipes[nom] = nouvelleEquipe;
-        equipe = nouvelleEquipe;
-      }
     }
     let titre = "Équipe " + nom;
     if (nom != 'joueurs') {
@@ -21535,9 +21565,19 @@ var COFantasy2 = COFantasy2 || function() {
         delete equipe.membres[cid];
         continue;
       }
-      addCellInFramedDisplay(display, "&nbsp;" + character.get('name'), 100, true, fond);
+      let line = "&nbsp;";
+      let chef = cid == equipe.chef;
+      if (chef) line += "<b>"+character.get('name')+"</b>";
+      else line += character.get('name');
+      addCellInFramedDisplay(display, line, 100, true, fond);
+      let nommer = '';
+      if (!chef && equipe.alliance) {
+        let cmd = "!cof2-gerer-equipe "+nom+" --commande nommerChef "+cid;
+        let b = '<span title="nommer chef de l\'équipe", style="font-family: \'Pictos\'">S</span>';
+        nommer = boutonSimple(cmd, b, BS_BUTTON);
+      }
       let enlever = boutonSimple("!cof2-gerer-equipe " + nom + " --commande enleverCharId " + cid, '<span title="enlever de l\'équipe", style="font-family: \'Pictos\'">D</span>', BS_BUTTON);
-      addCellInFramedDisplay(display, enlever, 100, false, fond, "text-align:right;");
+      addCellInFramedDisplay(display, nommer+enlever, 100, false, fond, "text-align:right;");
       fond = !fond;
     }
     let ajouter = boutonSimple("!cof2-gerer-equipe " + nom + " --commande ajouter --select @{target|personnage à ajouter|token_id}", '<span title="ajouter un personnage", style="font-family: \'Pictos\'">+</span>', BS_BUTTON);
@@ -22028,7 +22068,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //TODO: revoir cette liste pour COF2
-  const attributesWithTokNames = new RegExp('^agrippe($|_)|^agrippePar($|_)|^devore($|_)|^devorePar($|_)||^ecrase($|_)|^ecrasePar($|_)|^aGobe($|_)|^estGobePar($|_)|^etreinteImmole($|_)|^etreinteImmolePar($|_)|^etreinteScorpion($|_)|^etreinteScorpionPar($|_)|^suit($|_)|^estSuiviPar($|_)');
+  const attributesWithTokNames = new RegExp('^agrippe($|_)|^agrippePar($|_)|^devorePar($|_)||^ecrase($|_)|^ecrasePar($|_)|^aGobe($|_)|^estGobePar($|_)|^etreinteImmole($|_)|^etreinteImmolePar($|_)|^etreinteScorpion($|_)|^etreinteScorpionPar($|_)|^suit($|_)|^estSuiviPar($|_)');
 
   function revelerNom(perso, ancienNom, nouveauNom, cache) {
     let character = getObj('character', perso.charId);
@@ -23287,7 +23327,10 @@ var COFantasy2 = COFantasy2 || function() {
       attributeAsBool(perso, 'poisonAffaiblissantLong')) {
       return true;
     }
-    let {pv, pvMax} = pvPerso(perso);
+    let {
+      pv,
+      pvMax
+    } = pvPerso(perso);
     if (pv == 1 && pvMax > 1) {
       return true;
     }
@@ -23364,7 +23407,7 @@ var COFantasy2 = COFantasy2 || function() {
     let typeJet = ficheAttribute(perso, carac + '_sup', 'N', optTransforme);
     switch (typeJet) {
       case 'N':
-      case '@{jetnormal}'://reliquat possible de COF1, TODO supprimer
+      case '@{jetnormal}': //reliquat possible de COF1, TODO supprimer
       case '0': //Pour les fiches de PNJ
         return false;
       case 'S':
@@ -24896,8 +24939,7 @@ var COFantasy2 = COFantasy2 || function() {
     // Familier du mage
     if (compagnonEnVue(perso, 'familierMage', pageId)) init += 2;
     if (predicateAsBool(perso, 'bonusTerrainDifficile') && estEnTerrainDifficile(perso)) init += 3;
-    let bonusCapitaine = aUnCapitaine(perso, undefined, pageId);
-    if (bonusCapitaine) init += 2;
+    if (aUnCapitaine(perso, undefined, pageId)) init += 2;
     return init;
   }
 
@@ -28867,7 +28909,10 @@ var COFantasy2 = COFantasy2 || function() {
       if (rd < 0) rd = 0;
     }
     if (predicateAsBool(target, 'hausserLeTon')) {
-      let {pv, pvMax} = pvPerso(target);
+      let {
+        pv,
+        pvMax
+      } = pvPerso(target);
       if (pv <= pvMax / 2) rd += 3;
     }
     if (target.attaquant && predicateAsBool(target, 'combatKinetique') &&
@@ -29023,7 +29068,10 @@ var COFantasy2 = COFantasy2 || function() {
       setAttrDuree(target, 'memePasMalBonus', 3, evt);
     }
     // calcul de l'effet sur la cible
-      let {pv:bar1, pvMax} = pvPerso(target);
+    let {
+      pv: bar1,
+      pvMax
+    } = pvPerso(target);
     let tempDmg = parseInt(token.get('bar4_value'));
     if (isNaN(tempDmg)) {
       if (target.tempDmg) { //on met la bar4 aux DM temporaires
@@ -29148,7 +29196,10 @@ var COFantasy2 = COFantasy2 || function() {
   function soignePerso(perso, soins, evt, callTrue, callMax, options) {
     options = options || {};
     let token = perso.token;
-      let {pv:bar1, pvMax} = pvPerso(perso);
+    let {
+      pv: bar1,
+      pvMax
+    } = pvPerso(perso);
     let updateBar1;
     if (bar1 >= pvMax) bar1 = pvMax;
     else updateBar1 = true;
@@ -29599,7 +29650,9 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer(nomPerso(cible) + " a déjà reçu des premiers soins.", playerId);
       return;
     }
-    let {pv} = pvPerso(cible);
+    let {
+      pv
+    } = pvPerso(cible);
     if (pv > 0 || !getState(cible, 'mort')) {
       sendPlayer(nomPerso(cible) + " n'est pas inconscient" + eForFemale(cible), playerId);
       return;
