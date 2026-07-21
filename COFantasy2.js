@@ -1,4 +1,4 @@
-//Dernière modification : ven. 17 juil. 2026,  05:46
+//Dernière modification : mar. 21 juil. 2026,  02:19
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -6102,8 +6102,7 @@ var COFantasy2 = COFantasy2 || function() {
       toProceed = true;
     }); //fin iterSelected
     if (toProceed) {
-      let options = args.preDmgOptions || {};
-      resolvePreDmgOptions(args, undefined, evt, options);
+      resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
     }
   }
 
@@ -6173,8 +6172,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     if (opt && opt.condition && !opt.condition(perso)) {
-      let preOptions = args.preDmgOptions || {};
-      resolvePreDmgOptions(args, undefined, evt, preOptions);
+      resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
     }
     let jetAdversaire = cible.attackRoll;
     if (jetAdversaire === undefined) {
@@ -6226,8 +6224,7 @@ var COFantasy2 = COFantasy2 || function() {
       typeAttaque,
       msgReussite
     });
-    let preOptions = args.preDmgOptions || {};
-    resolvePreDmgOptions(args, undefined, evt, preOptions);
+    resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
   }
 
 
@@ -6304,8 +6301,7 @@ var COFantasy2 = COFantasy2 || function() {
     args.choices = args.choices || {};
     args.choices[perso.token.id] = args.choices[perso.token.id] || {};
     args.choices[perso.token.id][predicat] = test;
-    let options = args.preDmgOptions || {};
-    resolvePreDmgOptions(args, undefined, evt, options);
+    resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
   }
 
   function commandeParadeProjectiles(cmd, playerId, pageId, optionsParade, moine) {
@@ -6571,9 +6567,43 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  function commandeChatimentDivin(cmd, playerId, pageId, options, pretre) {
+    let evt = findEvent(cmd[2]);
+    if (evt === undefined) {
+      error("L'attaque est trop ancienne ou a été annulée", cmd);
+      return;
+    }
+    if (!peutController(pretre, playerId)) {
+      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+      return;
+    }
+    let mana = toInt(cmd[3], 0);
+    let args = getEvtArgs(evt);
+    if (!args) {
+      sendPlayer("L'attaque avec le châtiment divin est annulée ou trop ancienne", playerId);
+      return;
+    }
+    if (mana > 0) {
+      let msg = "augmenter l'effet du châtiment divin";
+      let depMana = depenseManaPossible(pretre, mana, msg, options);
+      if (depMana) {
+        let explications = [];
+        depenseMana(pretre, depMana, msg, evt, explications, options);
+        explications.forEach(function(m) {
+          sendPerso(pretre, m);
+        });
+      } else {
+        mana = 0;
+      }
+    }
+    args.choices = args.choices || {};
+    args.choices.chatimentDivin = mana;
+    resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
+  }
+
   // Applique toutes les options de preDmg déjà sélectionnées
   // Retourne vrai si l'option "continuer" a déjà été choisie
-  function resolvePreDmgOptions(argsAppel, attaquant, evt, options) {
+  function resolvePreDmgOptions(argsAppel, attaquant, evt, options = {}) {
     let {
       attaquantId,
       cibles,
@@ -6581,7 +6611,6 @@ var COFantasy2 = COFantasy2 || function() {
       playerId,
       pageId,
       echecCritique,
-      attackd20roll,
       ciblesTouchees
     } = argsAppel;
     attaquant = attaquant || persoOfId(attaquantId);
@@ -6589,14 +6618,13 @@ var COFantasy2 = COFantasy2 || function() {
       error("Impossible de trouver l'attaquant dans resolvePreDmgOptions", argsAppel);
       return;
     }
-    let attackLabel = weaponStats.label;
     //Sauvegarde de l'état pour pouvoir relancer au niveau de cette fonction
     let args = getEvtArgs(evt);
     args.preDmgOptions = deepCopy(options);
     let display = deepCopy(args.preDmgDisplay);
     let explications = [...args.preDmgExplications];
     if (ciblesTouchees.length === 0) {
-      attackDealDmg(attaquant, args.ciblesTouchees, echecCritique, attackLabel, weaponStats, attackd20roll, display, options, evt, explications, playerId, pageId, cibles);
+      attackDealDmg(argsAppel, attaquant, display, explications, evt, options);
       return;
     }
     if (args.choices === undefined) {
@@ -6605,7 +6633,7 @@ var COFantasy2 = COFantasy2 || function() {
         afficheResultatsAttaque(display, explications, evt, attaquant, cibles, playerId, pageId, weaponStats, options, echecCritique);
         return;
       } else {
-        attackDealDmg(attaquant, args.ciblesTouchees, echecCritique, attackLabel, weaponStats, attackd20roll, display, options, evt, explications, playerId, pageId, cibles);
+        attackDealDmg(argsAppel, attaquant, display, explications, evt, options);
         return;
       }
     }
@@ -6623,7 +6651,7 @@ var COFantasy2 = COFantasy2 || function() {
             afficheResultatsAttaque(display, explications, evt, attaquant, cibles, playerId, pageId, weaponStats, options, echecCritique);
             return;
           } else {
-            attackDealDmg(attaquant, args.ciblesTouchees, echecCritique, attackLabel, weaponStats, attackd20roll, display, options, evt, explications, playerId, pageId, cibles);
+            attackDealDmg(argsAppel, attaquant, display, explications, evt, options);
           }
         }
       };
@@ -6897,7 +6925,17 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function attackDealDmg(attaquant, ciblesTouchees, echecCritique, attackLabel, weaponStats, d20roll, display, options, evt, explications, playerId, pageId, cibles) {
+  function attackDealDmg(args, attaquant, display, explications, evt, options) {
+    let {
+      cibles,
+      ciblesTouchees,
+      echecCritique,
+      weaponStats,
+      attackd20roll,
+      playerId,
+      pageId,
+    } = args;
+    let attackLabel = weaponStats.label;
     cibles.forEach(function(target) {
       if (options.test || options.feinte || !target.touche) {
         //On a fini avec cette cible, on imprime ce qui la concerne
@@ -6911,7 +6949,7 @@ var COFantasy2 = COFantasy2 || function() {
     let attackerTokName = nomPerso(attaquant);
     if (ciblesTouchees.length === 0 || options.test || options.feinte) {
       //Évaluation finale pour le cas où l'attaque a raté
-      evalITE(attaquant, undefined, d20roll, options, 1, evt, explications, options, function() {
+      evalITE(attaquant, undefined, attackd20roll, options, 1, evt, explications, options, function() {
         if (options.attrArmeDeJet) {
           if (options.retourneEnMain) {
             if (options.retourneEnMain.carac) {
@@ -6948,6 +6986,32 @@ var COFantasy2 = COFantasy2 || function() {
         attaqueNeTouchePas(attaquant, echecCritique, weaponStats, display, options, evt, explications, playerId, pageId, cibles);
       });
       return;
+    }
+    //Maintenant on sait que l'attaque va toucher, on peut proposer de dépenser de la mana pour le châtiment divin
+    if (options.chatimentDivin) {
+      if (!args.choices || args.choices.chatimentDivin === undefined) {
+        let depMana = depenseManaPossible(attaquant, 1);
+        if (depMana) {
+          let cmd = "!cof2-chatiment-divin " + attaquant.token.id + ' ' + evt.id + ' ';
+          let msg = "châtiment divin " + boutonSimple(cmd + '0', 'sans mana', BS_BUTTON) + ' ou ';
+          if (options.chatimentDivin < 2) cmd += '1';
+          else {
+            cmd += '?{Points de mana?';
+            for (let i = 1; i <= options.chatimentDivin; i++) cmd += '|' + i;
+            cmd += '}';
+          }
+          msg += boutonSimple(cmd, 'avec mana', BS_BUTTON);
+          sendPerso(attaquant, msg, true, true); //On envoie aussi au MJ pour décoincer, si besoin.
+          return;
+        }
+      } else if (args.choices.chatimentDivin > 0) {
+        //Les points de mana sont dépensés dans l'appel à !cof2-chatiment-divin
+        options.additionalDmg.push({
+          type: 'magique',
+          value: args.choices.chatimentDivin + 'd' + deEvolutif(attaquant),
+        });
+        explications.push("Châtiment divin => +" + args.choices.chatimentDivin + "d4° DM");
+      }
     }
     const attackingToken = attaquant.token;
     options.attaquant = attaquant;
@@ -7150,7 +7214,7 @@ var COFantasy2 = COFantasy2 || function() {
     };
     ciblesTouchees.forEach(function(target) {
       //l'évaluation finale des conditions quand on sait si l'attaque a touché.
-      evalITE(attaquant, target, d20roll, options, 1, evt, explications, options, function() {
+      evalITE(attaquant, target, attackd20roll, options, 1, evt, explications, options, function() {
         target.attaquant = attaquant;
         if (options.attrArmeDeJet) {
           if (options.retourneEnMain) {
@@ -7479,7 +7543,7 @@ var COFantasy2 = COFantasy2 || function() {
         additionalDmg = additionalDmg.filter(function(dmSpec) {
           if (dmSpec.conditions === undefined) return true;
           return dmSpec.conditions.every(function(cond) {
-            return testCondition(cond, attaquant, [target], d20roll, options);
+            return testCondition(cond, attaquant, [target], attackd20roll, options);
           });
         });
         if (!options.sortilege && !options.magique &&
@@ -7713,7 +7777,7 @@ var COFantasy2 = COFantasy2 || function() {
                   }
                   return;
                 }
-                if (testCondition(ce.condition, attaquant, [target], d20roll, options) && !getState(target, ce.etat)) {
+                if (testCondition(ce.condition, attaquant, [target], attackd20roll, options) && !getState(target, ce.etat)) {
                   setState(target, ce.etat, true, evt);
                   let msgEtat;
                   if (ce.etat == 'mort')
@@ -7874,7 +7938,7 @@ var COFantasy2 = COFantasy2 || function() {
             if (etats && saves > 0) {
               etats.forEach(function(ce, index) {
                 if (ce.save) {
-                  if (testCondition(ce.condition, attaquant, [target], d20roll, options)) {
+                  if (testCondition(ce.condition, attaquant, [target], attackd20roll, options)) {
                     let msgPour = " pour résister à un effet";
                     let msgEtat;
                     if (ce.etat == 'mort')
@@ -10933,7 +10997,7 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       } else bar2 = parseInt(manaAttr[0].get('current'));
-      msg = msg || '';
+      if (options.testeRessources) msg = false;
       if (bar2 < cout) {
         if (options.pasDeBrulureDeMana) {
           if (msg) sendPerso(personnage, "n'a pas assez de points de mana pour " + msg);
@@ -12774,6 +12838,15 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'bouclier de la foi': capaciteBouclierDeLaFoi,
     'bouclier de la f oi': capaciteBouclierDeLaFoi, //Dans le PDF, on a ce blanc étrange entre f et o.
+    'chatiment divin': {
+      action: {
+        nom: 'Châtiment divin',
+        type: 'L',
+        combat: true,
+        entrerEnCombat: true,
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --plus @{selected|CHA} --chatimentDivin SELONRANG(1,1,1,1,2)',
+      },
+    },
     //Voie de la prière
     'benediction': {
       bonusTestEvolutif_theologie: true,
@@ -21278,7 +21351,20 @@ var COFantasy2 = COFantasy2 || function() {
       const equipes = stateCOF.equipes;
       for (const nom in equipes) {
         let equipe = equipes[nom];
-        if (equipe.alliance) allierEquipe(equipe);
+        //On enlève d'abord les fiches qui n'existent plus
+        let n = 0;
+        for (const cid in equipe.membres) {
+          let character = getObj('character', cid);
+          if (character) {
+            n++;
+          } else {
+            if (equipe.chef == cid) delete equipe.chef;
+            delete equipe.membres[cid];
+          }
+        }
+        if (n === 0) delete equipes[nom];
+        else if (n == 1) delete equipe.chef;
+        else if (equipe.alliance) allierEquipe(equipe);
       }
     } else {
       stateCOF.numeroEquipe = 1;
@@ -29016,48 +29102,48 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (predicateAsBool(target, 'commandant') && alliesParPerso[target.charId]) {
       //On cherche si il y a au moins 4 créatures sous ses ordres à moins de 20 m
-        let sousLesOrdres = new Set();
-        const equipes = stateCOF.equipes;
-        for (const ne in equipes) {
-          const equipe = equipes[ne];
-          if (!equipe.chef || equipe.chef != target.charId) continue;
-          for (const cid in equipe.membres) {
-            if (cid != target.charId) sousLesOrdres.add(cid);
-          }
+      let sousLesOrdres = new Set();
+      const equipes = stateCOF.equipes;
+      for (const ne in equipes) {
+        const equipe = equipes[ne];
+        if (!equipe.chef || equipe.chef != target.charId) continue;
+        for (const cid in equipe.membres) {
+          if (cid != target.charId) sousLesOrdres.add(cid);
         }
-        if (sousLesOrdres.size > 0) {
-          let tokens =
-            findObjs({
-              _type: 'graphic',
-              _subtype: 'token',
-              layer: 'objects',
-              _pageid: pageId
-            });
-          let nbCreatures = 0;
-          tokens.forEach(function(tok) {
-            if (nbCreatures > 3) return;
-            if (tok.id === target.token.id) return;
-            let ci = tok.get('represents');
-            if (ci === '' || !sousLesOrdres.has(ci)) return;
-            if (distanceCombat(tok, target.token, pageId) > 20) return;
-            let perso = {
-              token: tok,
-              charId: ci
-            };
-            if (isActive(perso)) nbCreatures++;
+      }
+      if (sousLesOrdres.size > 0) {
+        let tokens =
+          findObjs({
+            _type: 'graphic',
+            _subtype: 'token',
+            layer: 'objects',
+            _pageid: pageId
           });
-          if (nbCreatures > 3) {
-            if (showTotal) dmgDisplay = "(" + dmgDisplay + ") / 2";
-            else dmgDisplay += " / 2";
-            showTotal = true;
-            dmgTotal = Math.ceil(dmgTotal / 2);
-            if (options.memePasMal)
-              options.memePasMal = Math.ceil(options.memePasMal / 2);
-            dmSuivis = _.map(dmSuivis, function(d) {
-              return Math.ceil(d / 2);
-            });
-          }
+        let nbCreatures = 0;
+        tokens.forEach(function(tok) {
+          if (nbCreatures > 3) return;
+          if (tok.id === target.token.id) return;
+          let ci = tok.get('represents');
+          if (ci === '' || !sousLesOrdres.has(ci)) return;
+          if (distanceCombat(tok, target.token, pageId) > 20) return;
+          let perso = {
+            token: tok,
+            charId: ci
+          };
+          if (isActive(perso)) nbCreatures++;
+        });
+        if (nbCreatures > 3) {
+          if (showTotal) dmgDisplay = "(" + dmgDisplay + ") / 2";
+          else dmgDisplay += " / 2";
+          showTotal = true;
+          dmgTotal = Math.ceil(dmgTotal / 2);
+          if (options.memePasMal)
+            options.memePasMal = Math.ceil(options.memePasMal / 2);
+          dmSuivis = _.map(dmSuivis, function(d) {
+            return Math.ceil(d / 2);
+          });
         }
+      }
     }
     if (dmgTotal < 1) {
       dmgTotal = 1;
@@ -32501,6 +32587,10 @@ var COFantasy2 = COFantasy2 || function() {
     bonusEvolutif: wordDefaultOption,
     bonusPeuple: wordDefaultOption,
     bonusPrestige: wordDefaultOption,
+    chatimentDivin: {
+      fn: integerOption,
+      min: 0,
+    },
     cible: {
       fn: selectionOption
     },
@@ -32615,6 +32705,7 @@ var COFantasy2 = COFantasy2 || function() {
     ifSaveFails: {
       fn: ifSaveFailOption
     },
+    grenaille: boolDefaultOption,
     imgAttack: wordDefaultOption,
     imgAttackEchec: wordDefaultOption,
     imgAttackEchecCritique: wordDefaultOption,
@@ -32895,7 +32986,6 @@ var COFantasy2 = COFantasy2 || function() {
     pasDeDmg: boolDefaultOption,
     reroll1: boolDefaultOption,
     test: boolDefaultOption,
-    grenaille: boolDefaultOption,
   };
 
   //Renseigne toujours options.playerId
@@ -34599,6 +34689,11 @@ var COFantasy2 = COFantasy2 || function() {
     'centrer-sur-token': {
       fn: commandeCentrerSurToken,
       minArgs: 1
+    },
+    'chatiment-divin': {
+      fn: commandeChatimentDivin,
+      minArgs: 3,
+      acteur: 1,
     },
     'clean-global-state': {
       fn: commandeCleanGlobalState
