@@ -1,4 +1,4 @@
-//Dernière modification : mar. 21 juil. 2026,  02:19
+//Dernière modification : mer. 22 juil. 2026,  05:05
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5824,77 +5824,55 @@ var COFantasy2 = COFantasy2 || function() {
     }
     // Munitions
     if (options.munition) {
-      if (estMook(attaquant)) {
-        error("Les munitions ne sont pas supportées pour les tokens qui ne sont pas liées à un personnage", attackingToken);
-      }
       let m = options.munition;
       let typeMunition = fieldAsString(m, 'ammo-type', 'fleche');
       let nom = fieldAsString(m, 'ammo-nom', typeMunition);
-      let munitions = fieldAsInt(m, 'ammo-qte', 1);
-      if (munitions < 1) {
-        sendPerso(attaquant,
-          "ne peut pas utiliser cette attaque, car " + sujetAttaquant +
-          " n'a plus de " + nom);
-        return;
-      }
       let label = fieldAsString(m, 'labelmunition', '0'); //TODO
-      //On cherche si la munition est empoisonnée
-      let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_munition_' + label);
-      effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
-      let munitionsMax = fieldAsInt(m, 'ammo-qte_max', munitions);
-      munitions--;
-      let perte = 0;
-      let taux = fieldAsInt(m, 'ammo-taux', 100);
-      if (rollDePlus(100, "perteMunition", evt).total < taux) {
-        munitionsMax--;
-        perte++;
-      }
-      let msgm = "Il ";
-      if (munitions === 0) {
-        msgm += "ne reste plus de ";
-      } else {
-        msgm += "reste " + munitions + " ";
-      }
-      msgm += nom + " à " + attackerTokName;
-      if (taux < 100 && perte > 0) {
-        msgm += ", et ";
-        switch (typeMunition) {
-          case 'fleche':
-            msgm += "la flèche utilisée";
-            break;
-          case 'carreau':
-            msgm += "le carreau utilisé";
-            break;
-          case 'balle':
-            msgm += "la balle utilisée";
-            break;
-          default:
-            msgm += "la munition utilisée";
+      let munitions = fieldAsInt(m, 'ammo-qte', 1);
+      if (weaponStats.recharger) {
+        //Les munitions sont celles dans l'armes
+        let nomAttrMunitions = 'munitionsChargees' + attackLabel;
+        let munitionsRaw = attributeAsString(attaquant, nomAttrMunitions);
+        if (!munitionsRaw) {
+          sendPerso(attaquant, "Pas de munition " + nom + " dans " + weaponName);
+          return;
         }
-        msgm += " n'est pas récupérable";
-      }
-      explications.push(msgm);
-      let name = m.prefixe + 'ammo-qte';
-      let attrQte = findObjs({
-        _type: 'attribute',
-        _characterid: attackingCharId,
-        name
-      }, {
-        caseInsensitive: true
-      });
-      if (attrQte.length > 0) {
-        attrQte = attrQte[0];
-        addAttributeToEvt(attrQte, evt, munitions, munitionsMax);
-        attrQte.set('current', munitions);
-        attrQte.set('max', munitionsMax);
+        let listeMunitions = predicateOfRaw(munitionsRaw);
+        let nb = toInt(listeMunitions[label], 0);
+        if (nb < 1) {
+          sendPerso(attaquant, "Pas de munition " + nom + " dans " + weaponName);
+          return;
+        }
+        nb--;
+        listeMunitions.total--;
+        if (listeMunitions.total < 1) {
+          removeTokenAttr(attaquant, nomAttrMunitions, evt);
+        } else {
+          if (nb === 0) delete listeMunitions[label];
+          else listeMunitions[label] = nb;
+          setTokenAttr(attaquant, nomAttrMunitions, predicateToRaw(listeMunitions), evt);
+        }
+        let munitionsMax = fieldAsInt(m, 'ammo-qte_max', munitions + nb);
+        let perte = effetAttaqueMunition(attaquant, m, label, nom, typeMunition, nb, " dans " + weaponName, explications, evt, options);
+        if (perte) {
+          munitionsMax--;
+          setQteMunition(attaquant, m, munitions, munitionsMax, evt);
+        }
       } else {
-        attrQte = createObj('attribute', {
-          characterid: attackingCharId,
-          name,
-          current: munitions,
-          max: munitionsMax
-        });
-        addCreatedAttributeToEvt(attrQte, evt);
+        if (estMook(attaquant)) {
+          error("Les munitions ne sont pas supportées pour les tokens qui ne sont pas liées à un personnage", attackingToken);
+        }
+        if (munitions < 1) {
+          sendPerso(attaquant,
+            "ne peut pas utiliser cette attaque, car " + sujetAttaquant +
+            " n'a plus de " + nom);
+          return;
+        }
+        let munitionsMax = fieldAsInt(m, 'ammo-qte_max', munitions);
+        munitions--;
+        let perte = effetAttaqueMunition(attaquant, m, label, nom, typeMunition, munitions, " à " + nomPerso(attaquant), explications, evt, options);
+        if (perte) munitionsMax--;
+        setQteMunition(attaquant, m, munitions, munitionsMax, evt);
       }
     }
     // Armes chargées
@@ -5907,19 +5885,7 @@ var COFantasy2 = COFantasy2 || function() {
           sendPerso(attaquant, "ne peut pas attaquer avec " + weaponName + " car elle n'est pas chargée");
           return;
         }
-        if (attackLabel && options.grenaille) { //TODO: à revoir complètement
-          let chargesGrenaille = tokenAttribute(attaquant, 'chargeGrenaille_' + attackLabel);
-          if (chargesGrenaille.length > 0) {
-            let currentChargeGrenaille = parseInt(chargesGrenaille[0].get('current'));
-            if (isNaN(currentChargeGrenaille) || currentChargeGrenaille < 1) {
-              sendPerso(attaquant, "ne peut pas attaquer avec " + weaponName + " car elle n'est pas chargée en grenaille");
-              return;
-            }
-            addAttributeToEvt(chargesGrenaille[0], evt, currentChargeGrenaille);
-            currentChargeGrenaille -= 1;
-            chargesGrenaille[0].set('current', currentChargeGrenaille);
-          }
-        }
+        //Les munitions spéciales ont normalement déjà été réduites avec le traitement de options.munitions
         currentCharge -= 1;
         //Si l'arme n'est plus chargée, on peut perdre le bonus d'initiative
         if (currentCharge === 0 &&
@@ -8830,13 +8796,52 @@ var COFantasy2 = COFantasy2 || function() {
     } else {
       options.contact = true;
     }
-    //Ce qui peut empêcher l'attaque quelles que soient les cibles
-    //Pour l'option grenaille implicite, il faut vérifier que toutes les charges de l'arme sont des charges de grenaille
-    //TODO: revoir ça avec la nouvelle gestion des charges
-    if (attackLabel && weaponStats.charge && !options.grenaille) {
-      let currentCharges = attributeAsInt(attaquant, 'charge_' + attackLabel, weaponStats.charge);
-      if (currentCharges > 0)
-        options.grenaille = attributeAsInt(attaquant, 'chargeGrenaille_' + attackLabel, 0) >= currentCharges;
+    //Prise en compte des munitions si l'arme est chargée et ne contient que des munitions spéciales
+    if (attackLabel && weaponStats.recharger && !options.munition) {
+      let munitions = attributeAsString(attaquant, 'munitionsChargees' + attackLabel);
+      if (munitions) {
+        let listeMunitions = predicateOfRaw(munitions);
+        if (listeMunitions.total > 0) {}
+        let maxCharges = maxChargesArme(attaquant, weaponStats.name);
+        let attrName = 'attributDeCombat_charge_' + attackLabel;
+        let charges = attributeAsInt(attaquant, attrName, maxCharges);
+        if (munitions.total >= charges) {
+          let total = listeMunitions.total;
+          delete listeMunitions.total;
+          let updateMunitions;
+          for (const label in listeMunitions) {
+            let nb = toInt(listeMunitions[label]);
+            if (nb > 0) {
+              total += nb;
+              if (label == 'grenaille') {
+                options.munition = ammoGrenaille;
+                options.grenaille = true;
+              } else {
+                let munitionsDispo = listAllMunitions(attaquant);
+                if (munitionsDispo[label]) {
+                  options.munition = munitionsDispo[label];
+                  let effetMunition = fieldAsString(options.munition, 'ammo-effet', '');
+                  let optionsMunition = fieldAsString(options.munition, 'ammo-exteff', '');
+                  if (optionsMunition.includes('--')) parseOptions(optionsMunition, pageId, options);
+                  if (effetMunition)
+                    addWeaponModToOptions(attaquant, effetMunition, options.playerId, pageId, options);
+                } else {
+                  delete listeMunitions[label];
+                  total -= nb;
+                  updateMunitions = true;
+                }
+              }
+            } else {
+              delete listeMunitions[label];
+              updateMunitions = true;
+            }
+          }
+          if (updateMunitions) {
+            listeMunitions.total = total;
+            setTokenAttr(attaquant, 'munitionsChargees' + attackLabel, predicateToRaw(listeMunitions));
+          }
+        }
+      }
     }
     if (options.grenaille) {
       options.diviseDmg = options.diviseDmg || 1;
@@ -8875,6 +8880,7 @@ var COFantasy2 = COFantasy2 || function() {
       } else effet = effet[0];
       options.fx = options.fx || effet.id;
     }
+    //Ce qui peut empêcher l'attaque quelles que soient les cibles
     if (options.eclairDEnergie) {
       //On augmente le nombre de dés de 1 et on utilise l'attaque magique
       weaponStats.attNbDices++;
@@ -11707,6 +11713,25 @@ var COFantasy2 = COFantasy2 || function() {
     return pred;
   }
 
+  function predicateToRaw(preds) {
+    let res = [];
+    for (const p in preds) {
+      let val = preds[p];
+      if (val === true) res.push(p);
+      else if (Array.isArray(val)) {
+        for (let i in val) {
+          const v = val[i];
+          if ((v + '').includes(' ')) {
+            res.push(p + ':"' + v.replaceAll('"', '\\"') + '"');
+          } else res.push(p + ':' + v);
+        }
+      } else if ((val + '').includes(' ')) {
+        res.push(p + ':"' + val.replaceAll('"', '\\"') + '"');
+      } else res.push(p + ':' + val);
+    }
+    return res.join(', ');
+  }
+
   function addPredicatesTo(destPredicates, srcPredicates) {
     for (const p in srcPredicates) {
       let pred = destPredicates[p];
@@ -12115,7 +12140,7 @@ var COFantasy2 = COFantasy2 || function() {
     'tir de grenaille': {
       bonusTestEvolutif_artificier: true,
       pasDeRisquePoudre: true,
-      //ensuite proposer de charger avec de la grenaille
+      grenaille: true,
     },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
@@ -14120,7 +14145,6 @@ var COFantasy2 = COFantasy2 || function() {
   // * remplace les abilities et macros récursivement
   // * regarde si l'action est possible
   // * ajoute les options d'attaque à la ligne si on a une attaque (pour une bonne gestion des ?{...}
-  // * ajouter les demandes de munitions (à faire)
   // * calcule picto+style en fonction de la commande
   // * traite les cas où on n'a pas une commande !cof2 et où on a plusieurs commandes
   // * remplace les id et attributs du lanceur dans les arguments et options
@@ -14379,7 +14403,10 @@ var COFantasy2 = COFantasy2 || function() {
     //Les modificateurs ne rendent jamais une attaque impossible
     options.noError = true;
     addWeaponStatsToOptions(attaquant, attackStats, undefined, pageId, options);
-    act = demandeMunition(attaquant, attackStats, options, act);
+    if (!attackStats.recharger) {
+      //Pour les armes qui se rechargent, on demande les munitions au moment de recharger, pas au moment de tirer
+      act = demandeMunition(attaquant, attackStats, options, act);
+    }
     if (options.request) act += options.request;
     let {
       picto,
@@ -14432,9 +14459,16 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function armeChargeeDeGrenaille(perso, arme) {
-    if (!arme.charge || !arme.poudre) return false;
-    let currentCharge = attributeAsInt(perso, 'chargeGrenaille_' + arme.label, 0);
-    return currentCharge > 0;
+    if (!arme.recharger || !arme.poudre) return false;
+    let munitions = attributeAsString(perso, 'munitionsChargees' + arme.label);
+    if (munitions === '') return false;
+    let listeMunitions = predicateOfRaw(munitions);
+    let nb = toInt(listeMunitions.grenaille, 0);
+    if (nb < 1) return false;
+    let maxCharges = maxChargesArme(perso, arme.name);
+    let attrName = 'attributDeCombat_charge_' + arme.label;
+    let charges = attributeAsInt(perso, attrName, maxCharges);
+    return nb == charges;
   }
 
   //options peut contenir:
@@ -14615,8 +14649,7 @@ var COFantasy2 = COFantasy2 || function() {
           continue;
         }
         if (armeDechargee(perso, a)) degainer += ' (vide)';
-        else if (a.poudre && attributeAsInt(perso, 'chargeGrenaille_' + l, 0) > 0)
-          degainer += ' (grenaille)';
+        else if (armeChargeeDeGrenaille(perso, a)) degainer += ' (grenaille)';
         degainer += "," + l + cote + "|";
         if (armeADegainer) armeADegainer.unique = undefined;
         else armeADegainer = {
@@ -15590,7 +15623,12 @@ var COFantasy2 = COFantasy2 || function() {
           _type: 'attribute',
           _characterid: perso.charId,
         });
-        let recharges = [];
+        //On va distinguer les arbalètes, les armes à poudre et les autres, car ils n'utilisent pas les mêmes types de munitions
+        let recharges = {
+          arbalete: [],
+          poudre: [],
+          autre: []
+        };
         attributs_perso.forEach(function(attr) {
           let name = attr.get('name');
           if (!name.startsWith('attributDeCombat_charge_')) return;
@@ -15617,35 +15655,21 @@ var COFantasy2 = COFantasy2 || function() {
             };
             let optionsArme = parseOptions(arme['arme-options'], pageId, opt);
             if (!typeActionPossible(perso, optionsArme.recharger)) return;
-            recharges.push({
+            let weaponStats = weaponStatsOfAttack(perso, label, arme);
+            let field = 'autre';
+            if (weaponStats.arbalete) field = 'arbalete';
+            else if (weaponStats.poudre) field = 'poudre';
+            recharges[field].push({
               nom: arme['arme-nom'],
               label,
-              typeAction: optionsArme.recharger
+              typeAction: optionsArme.recharger,
+              weaponStats,
             });
           }
         });
-        if (recharges.length > 0) {
-          let {
-            picto,
-            style
-          } = PICTO_RECHARGER;
-          let buttonStyleRecharger = ' style="' + style + BASIC_BUTTON_STYLE + '"';
-          let command = "!cof2-recharger " + perso.token.id + ' ';
-          let additional = '';
-          if (recharges.length == 1) {
-            command += recharges[0].label + ' --typeAction ' + recharges[0].typeAction;
-            additional = recharges[0].nom + ' (' + recharges[0].typeAction + ')';
-          } else {
-            command += "?{Arme?";
-            recharges.forEach(function(r) {
-              //TODO: escape les caractères gênants du nom de l'arme
-              command += '|' + r.nom + "," + r.label + ' -typeAction ' + r.typeAction;
-            });
-            command += '}';
-          }
-          let b = boutonSimple(command, picto + 'Recharger', buttonStyleRecharger);
-          ligne += b + additional + '<br />';
-        }
+        ligne = proposerDeRecharger(perso, recharges.arbalete, ligne);
+        ligne = proposerDeRecharger(perso, recharges.poudre, ligne);
+        ligne = proposerDeRecharger(perso, recharges.autre, ligne);
       }
     }
     //Les actions venant des capacités
@@ -25614,17 +25638,115 @@ var COFantasy2 = COFantasy2 || function() {
     return rawList;
   }
 
+  function setQteMunition(perso, m, nb, nbMax, evt) {
+    let name = m.prefixe + 'ammo-qte';
+    let attrQte = findObjs({
+      _type: 'attribute',
+      _characterid: perso.charId,
+      name
+    }, {
+      caseInsensitive: true
+    });
+    if (attrQte.length > 0) {
+      attrQte = attrQte[0];
+      addAttributeToEvt(attrQte, evt, nb, nbMax);
+      attrQte.set('current', nb);
+      attrQte.set('max', nbMax);
+    } else {
+      attrQte = createObj('attribute', {
+        characterid: perso.charId,
+        name,
+        current: nb,
+        max: nbMax
+      });
+      addCreatedAttributeToEvt(attrQte, evt);
+    }
+  }
+
+  //Les effets communs des munitions, qu'elles viennent du chargeur de l'arme ou directement de l'équiepement
+  function effetAttaqueMunition(attaquant, m, label, nom, typeMunition, nb, origine, explications, evt, options) {
+    //On cherche si la munition est empoisonnée
+    let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_munition_' + label);
+    effetPoisonSurMunitions(poisonAttr, attaquant, explications, options, evt);
+    let taux = fieldAsInt(m, 'ammo-taux', 100);
+    let perte;
+    if (taux > 0) {
+      if (rollDePlus(100, "perteMunition", evt).total < taux) {
+        perte = true;
+      }
+    }
+    let msgm = "Il ";
+    if (nb === 0) {
+      msgm += "ne reste plus de ";
+    } else {
+      msgm += "reste " + nb + " ";
+    }
+    msgm += nom + origine;
+    if (taux < 100 && perte) {
+      msgm += ", et ";
+      switch (typeMunition) {
+        case 'fleche':
+          msgm += "la flèche utilisée";
+          break;
+        case 'carreau':
+          msgm += "le carreau utilisé";
+          break;
+        case 'balle':
+          msgm += "la balle utilisée";
+          break;
+        default:
+          msgm += "la munition utilisée";
+      }
+      msgm += " n'est pas récupérable";
+    }
+    explications.push(msgm);
+    return perte;
+  }
+
+  let ammoGrenaille = {
+    'ammo-type': 'balle',
+    'ammo-qte': 2,
+    'ammo-qte_max': 2,
+    'ammo-nom': 'grenaille',
+    'ammo-taux': 0,
+    'prefixe': '',
+    labelmunition: 'grenaille',
+  };
+
   //Les options de l'arme doivent déjà être dans act
-  function demandeMunition(perso, weaponStats, options, act) {
+  function demandeMunition(perso, weaponStats, options, act, depuisChargeur = false) {
     if (act.includes('--munition')) return act;
-    let typeMunition;
+    let typeMunition = '';
+    let munitionsDeType = [];
+    if (depuisChargeur) {
+      let munitionsRaw = attributeAsString(perso, 'munitionsChargees' + weaponStats.label);
+      if (munitionsRaw === '') return act;
+      let listeMunitions = predicateOfRaw(munitionsRaw);
+      let total = listeMunitions.total;
+      if (total < 1) return act;
+      let maxCharges = maxChargesArme(perso, weaponStats.name);
+      let charges = attributeAsInt(perso, 'attributDeCombat_charge_' + weaponStats.label, maxCharges);
+      delete listeMunitions.total;
+      let munitions = listAllMunitions(perso);
+      for (const label in listeMunitions) {
+        let nb = toInt(listeMunitions[label], 0);
+        if (nb === 0) continue;
+        if (nb == charges) return act + ' --munition '+label;
+        let m = munitions[label];
+        if (!m && label == 'grenaille') m = ammoGrenaille;
+        munitionsDeType.push(m);
+      }
+    } else {
     if (weaponStats.arc) typeMunition = 'fleche';
     else if (weaponStats.arbalete) typeMunition = 'carreau';
-    else if (weaponStats.poudre) typeMunition = 'balle';
-    else if (weaponStats.fronde) typeMunition = 'autre'; //TODO: ajouter le type bille sur la fiche
+    else if (weaponStats.poudre) {
+      typeMunition = 'balle';
+      if (predicateAsBool(perso, 'grenaille')) {
+        munitionsDeType.push(ammoGrenaille);
+      }
+    } else if (weaponStats.fronde) typeMunition = 'autre'; //TODO: ajouter le type bille sur la fiche
     if (!typeMunition) return act;
     let munitions = listAllMunitions(perso);
-    let munitionsDeType = [];
     for (let label in munitions) {
       let munition = munitions[label];
       let tm = fieldAsString(munition, 'ammo-type', 'fleche');
@@ -25632,6 +25754,7 @@ var COFantasy2 = COFantasy2 || function() {
         let nb = fieldAsInt(munition, 'ammo-qte', 1);
         if (nb > 0) munitionsDeType.push(munition);
       }
+    }
     }
     if (munitionsDeType.length === 0) return act;
     let demande = ' ?{Munition|Normale,&amp;#32;';
@@ -25643,6 +25766,32 @@ var COFantasy2 = COFantasy2 || function() {
     return act + demande + '}';
   }
 
+
+  function proposerDeRecharger(perso, recharges, ligne) {
+    if (ligne.length === 0) return ligne;
+    let {
+      picto,
+      style
+    } = PICTO_RECHARGER;
+    let buttonStyleRecharger = ' style="' + style + BASIC_BUTTON_STYLE + '"';
+    let command = "!cof2-recharger " + perso.token.id + ' ';
+    let additional = '';
+    if (recharges.length == 1) {
+      command += recharges[0].label + ' --typeAction ' + recharges[0].typeAction;
+      additional = recharges[0].nom + ' (' + recharges[0].typeAction + ')';
+    } else {
+      command += "?{Arme?";
+      recharges.forEach(function(r) {
+        //TODO: escape les caractères gênants du nom de l'arme
+        command += '|' + r.nom + "," + r.label + ' -typeAction ' + r.typeAction;
+      });
+      command += '}';
+    }
+    command = demandeMunition(perso, recharges[0].weaponStats, {}, command);
+    let b = boutonSimple(command, picto + 'Recharger', buttonStyleRecharger);
+    ligne += b + additional + '<br />';
+    return ligne;
+  }
 
   const couleurType = {
     'normal': {
@@ -27747,6 +27896,10 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  //On utilise 2 attributs pour les armes qui se rechargent
+  // - attributeDeCombat_charge_label, qui indique combien il reste de charges au total dans l'arme.
+  //        L'attribut n'est présent qu'en combat, après qu'on a utilisé au moins une charge
+  // - munitionsChargeeslabel, n'est présent que si on a des munitions spéciales dans l'arme, et reste en dehors des combat. Il se parse comme des prédicats, et a un prédicat par munition (de valeur le nombre), plus total qui fait le total des munitions spéciales. l'attribut précédent - total donne le nombre de munitions normales dans l'arme
   function commandeRecharger(cmd, playerId, pageId, options, perso) {
     let label = cmd[2];
     const listeAttaques = listAllAttacks(perso);
@@ -27760,6 +27913,7 @@ var COFantasy2 = COFantasy2 || function() {
     let maxCharges = maxChargesArme(perso, nomArme);
     let charges = attributeAsInt(perso, attrName, maxCharges);
     if (charges >= maxCharges) {
+      //TODO: proposer de remplacer une des munitions par une munition normale
       sendPlayer("L'arme est déjà chargée", playerId);
       return;
     }
@@ -27769,7 +27923,74 @@ var COFantasy2 = COFantasy2 || function() {
     addEvent(evt);
     if (limiteRessources(perso, options, 'recharger', 'recharger', evt)) return;
     setTokenAttr(perso, attrName, charges + 1, evt);
-    sendPerso(perso, "recharge " + nomArme, options.secret);
+    let msgMunition = '';
+    if (options.munition) { //options.munition est un objet venant de listAllMunitions
+      let m = options.munition;
+      let tm = fieldAsString(m, 'ammo-type', 'fleche');
+      let nomMunition = fieldAsString(m, 'ammo-nom', tm + ' ' + m.labelmunition);
+      let nb = fieldAsInt(m, 'ammo-qte', 1);
+      if (nb < 1) {
+        sendPlayer("Plus de " + nomMunition + " en stock.", playerId);
+        return;
+      }
+      let nbMax = fieldAsInt(m, 'ammo-qte_max', nb);
+      let attrMunitionName = 'munitionsChargees' + label;
+      let munitions = attributeAsString(perso, attrMunitionName);
+      if (munitions === '') {
+        munitions = m.labelmunition + ':1, total:1';
+      } else {
+        let listeMunitions = predicateOfRaw(munitions);
+        let total = toInt(listeMunitions.total, 0);
+        delete listeMunitions.total; //On va le réécrire plus bas
+        if (total === 0 || total > charges) {
+          //On refait le total pour être sûr
+          total = 0;
+          for (const label in listeMunitions) {
+            let n = toInt(listeMunitions[label], 0);
+            if (n === 0) delete listeMunitions[label];
+            else total += n;
+          }
+        }
+        if (total > charges) {
+          error("Plus de munitions spéciales que de charges dans " + nomArme, listeMunitions);
+        }
+        if (total >= maxCharges) {
+          let munitionsDispo = listAllMunitions(perso);
+          //TODO: proposer un choix de munitions à enlever ?
+          for (const label in listeMunitions) {
+            if (label == m.labelmunition) continue;
+            let n = toInt(listeMunitions[label], 0);
+            let r = total - maxCharges + 1;
+            if (n <= r) {
+              delete listeMunitions[label];
+              r = n;
+            } else {
+              listeMunitions[label] = n - r;
+            }
+            total -= r;
+            sendPerso(perso, "retire " + r + " munition" + ((r > 1) ? 's' : '') + " " + nomMunition + " de son arme", true);
+            let mr = munitionsDispo[label];
+            if (mr) {
+              let nbr = fieldAsInt(mr, 'ammo-qte', 1);
+              let nbrMax = fieldAsInt(mr, 'ammo-qte_max', nbr + r);
+              setQteMunition(perso, mr, nbr + r, nbrMax, evt);
+            }
+            if (total < maxCharges) break;
+          }
+          if (total >= maxCharges) {
+            sendPlayer("L'arme est déjà chargée avec " + nomMunition, playerId);
+            return;
+          }
+        }
+        listeMunitions[m.labelmunition] = toInt(listeMunitions[m.labelmunition], 0);
+        listeMunitions[m.labelmunition]++;
+        listeMunitions.total = total + 1;
+        munitions = predicateToRaw(listeMunitions);
+      }
+      if (m.prefixe) setQteMunition(perso, m, nb - 1, nbMax, evt);
+      setTokenAttr(perso, attrMunitionName, munitions, evt);
+    }
+    sendPerso(perso, "recharge " + nomArme + msgMunition, options.secret);
     montrerActions(playerId, pageId, options);
   }
 
@@ -30396,10 +30617,6 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       }
-      let attrsChar = findObjs({
-        _type: 'attribute',
-        _characterid: charId
-      });
       let attaques = listAllAttacks(perso);
       let armeEnMain = armesEnMain(perso);
       let armeEnMainGauche = perso.armeGauche;
@@ -30415,22 +30632,47 @@ var COFantasy2 = COFantasy2 || function() {
           if (charge === 0) {
             line = nomArme + " n'est pas chargé";
           } else {
-            let na = fullAttributeName(perso, 'chargeGrenaille_' + armeLabel);
-            let grenaille = attrsChar.find(function(a) {
-              return a.get('name') == na;
-            });
-            if (grenaille) {
-              grenaille = parseInt(grenaille.get('current'));
-              if (isNaN(grenaille) || grenaille < 0) grenaille = 0;
-            } else grenaille = 0;
+            let nomMunitions = {};
+            let munitions = attributeAsString(perso, 'munitionsChargees' + armeLabel);
+            let nomMunitionPrincipal = '';
+            let nbMunitions = 0;
+            if (munitions !== '') {
+              let listeMunitions = predicateOfRaw(munitions);
+              nbMunitions = toInt(listeMunitions.total, 0);
+              if (nbMunitions > 0) {
+                delete listeMunitions.total;
+                let munitionsDispo = listAllMunitions(perso);
+                for (const label in listeMunitions) {
+                  let nb = toInt(listeMunitions[label], 0);
+                  if (nb < 1) continue;
+                  let nom;
+                  if (label == 'grenaille') nom = 'grenaille';
+                  else {
+                    let mu = munitionsDispo[label];
+                    if (!mu) {
+                      error("Impossible de trouver la munition " + label, munitionsDispo);
+                      nom = 'munition inconnue';
+                    } else {
+                      let tm = fieldAsString(mu, 'ammo-type', 'fleche');
+                      nom = fieldAsString(mu, 'ammo-nom', tm + ' ' + label);
+                    }
+                  }
+                  nomMunitions[nom] = nb;
+                  nomMunitionPrincipal = nom;
+                }
+              }
+            }
             if (charge == 1) {
               line = nomArme + " est chargé";
-              if (grenaille) line += " de grenaille";
+              if (nomMunitionPrincipal) line += " de " + nomMunitionPrincipal;
             } else if (charge > 1) {
               line = nomArme + " contient encore " + charge + " charges";
-              if (grenaille == charge) line += " de grenaille";
-              else if (grenaille)
-                line += ", dont " + grenaille + " de grenaille";
+              if (nomMunitions[nomMunitionPrincipal] == charge) line += " de " + nomMunitionPrincipal;
+              else if (nbMunitions > 0)
+                line += ", dont";
+              for (let nom in nomMunitions) {
+                line += ' ' + nomMunitions[nom] + ' ' + nom;
+              }
             }
           }
           if (armeEnMainLabel == armeLabel) line += " et en main";
@@ -32474,6 +32716,11 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     let labelMunition = cmd[1];
+    if (labelMunition == 'grenaille') {
+      options.munition = ammoGrenaille;
+      options.grenaille = true;
+      return;
+    }
     let munitions = listAllMunitions(attaquant);
     if (munitions[labelMunition]) {
       options.munition = munitions[labelMunition];
