@@ -1,4 +1,4 @@
-//Dernière modification : mer. 22 juil. 2026,  05:05
+//Dernière modification : jeu. 23 juil. 2026,  12:15
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12494,6 +12494,18 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-action déplace un objet de moins de [[50*RANG]] kg dans les airs",
       }
     },
+    'foudre':{
+      action: {
+        nom: 'Foudre',
+        type: 'A',
+        mana: 4,
+        combat: true,
+        entrerEnCombat: true,
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Foudre --toucher @{selected|atkmag} --dm 4d4E+@{selected|CHA} --ligne --electrique --sortilege --portee 10 --psave AGI [[10+@{selected|CHA}]] --fx beam-holy",
+      },
+    },
+    'forme etheree': {
+    },
     //Voie de l'envouteur
     injonction: {
       bonusTestEvolutif_injonction: true,
@@ -13021,6 +13033,17 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'teigneux PNJ': {
       teigne: true,
+    },
+    //Voie du tueur
+    'attaque mortelle': {
+      bonusTest_discretion: 5,
+      action: {
+        nom: 'Attaque mortelle (Cible de dos ou surprise)',
+        combat: true,
+        entrerEnCombet: true,
+        type: 'A',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --sournoise 2',
+      },
     },
     // Autres capacités
     'sans esprit': {
@@ -25731,30 +25754,30 @@ var COFantasy2 = COFantasy2 || function() {
       for (const label in listeMunitions) {
         let nb = toInt(listeMunitions[label], 0);
         if (nb === 0) continue;
-        if (nb == charges) return act + ' --munition '+label;
+        if (nb == charges) return act + ' --munition ' + label;
         let m = munitions[label];
         if (!m && label == 'grenaille') m = ammoGrenaille;
         munitionsDeType.push(m);
       }
     } else {
-    if (weaponStats.arc) typeMunition = 'fleche';
-    else if (weaponStats.arbalete) typeMunition = 'carreau';
-    else if (weaponStats.poudre) {
-      typeMunition = 'balle';
-      if (predicateAsBool(perso, 'grenaille')) {
-        munitionsDeType.push(ammoGrenaille);
+      if (weaponStats.arc) typeMunition = 'fleche';
+      else if (weaponStats.arbalete) typeMunition = 'carreau';
+      else if (weaponStats.poudre) {
+        typeMunition = 'balle';
+        if (predicateAsBool(perso, 'grenaille')) {
+          munitionsDeType.push(ammoGrenaille);
+        }
+      } else if (weaponStats.fronde) typeMunition = 'autre'; //TODO: ajouter le type bille sur la fiche
+      if (!typeMunition) return act;
+      let munitions = listAllMunitions(perso);
+      for (let label in munitions) {
+        let munition = munitions[label];
+        let tm = fieldAsString(munition, 'ammo-type', 'fleche');
+        if (tm == typeMunition) {
+          let nb = fieldAsInt(munition, 'ammo-qte', 1);
+          if (nb > 0) munitionsDeType.push(munition);
+        }
       }
-    } else if (weaponStats.fronde) typeMunition = 'autre'; //TODO: ajouter le type bille sur la fiche
-    if (!typeMunition) return act;
-    let munitions = listAllMunitions(perso);
-    for (let label in munitions) {
-      let munition = munitions[label];
-      let tm = fieldAsString(munition, 'ammo-type', 'fleche');
-      if (tm == typeMunition) {
-        let nb = fieldAsInt(munition, 'ammo-qte', 1);
-        if (nb > 0) munitionsDeType.push(munition);
-      }
-    }
     }
     if (munitionsDeType.length === 0) return act;
     let demande = ' ?{Munition|Normale,&amp;#32;';
