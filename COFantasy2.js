@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 23 juil. 2026,  12:15
+//Dernière modification : lun. 27 juil. 2026,  01:02
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -28500,7 +28500,7 @@ var COFantasy2 = COFantasy2 || function() {
     if ((!options.spectral && attributeAsBool(target, 'intangible') && attributeAsInt(target, 'intangibleValeur', 1)) ||
       (!options.magique && !options.sortilege && attributeAsBool(target, 'formeGazeuse'))
     ) {
-      expliquer("L'attaque passe à travers de " + nomPerso(target));
+      expliquer("L'attaque passe à travers " + nomPerso(target));
       if (displayRes) displayRes('0', 0, 0);
       return 0;
     }
