@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 30 juil. 2026,  06:04
+//Dernière modification : jeu. 30 juil. 2026,  06:11
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12742,6 +12742,14 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-tenebres @{selected|token_id} @{target|Cible|token_id}',//valeurs par défaut de la commande
       }
     },
+    'reptation': {
+      action: {
+        nom: 'Reptation',
+        type: 'M',
+        mana: 2,
+        cmd: '!cof2-effet reptation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
+      }
+    },
     //Voies de druide ////////////////////////////////////////////
     //Voie des animaux
     'langage des animaux': {
@@ -19480,6 +19488,12 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true,
       entrave: true,
       lock: true,
+    },
+    reptation: {
+      activation: "peut ramper sur les murs et plafonds",
+      actif: "peut ramper sur les murs et plafonds",
+      fin: "ne peut plus ramper sur les murs et plafonds",
+
     },
     soinsEnAttente: {
       //courant: l'expression des soins
