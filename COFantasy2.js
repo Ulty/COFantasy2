@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 30 juil. 2026,  03:23
+//Dernière modification : jeu. 30 juil. 2026,  04:46
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5203,7 +5203,7 @@ var COFantasy2 = COFantasy2 || function() {
           }
         } else if (!options.auto) {
           defense = defenseOfPerso(attaquant, target, pageId, evt, options);
-          if (interchange.result) {
+          if (interchange && interchange.result) {
             defense += 3;
           }
           defenseTxt = defense;
@@ -8016,7 +8016,7 @@ var COFantasy2 = COFantasy2 || function() {
                   } else {
                     target.dmgMessage += dmgDisplay;
                   }
-                  if (options.contact) {
+                  if (options.contact && !attributeAsBool(target, 'intangible')) {
                     //Les DMs automatiques en cas de toucher une cible
                     if (attributeAsBool(target, 'sousTension')) {
                       ciblesCount++;
@@ -11972,6 +11972,7 @@ var COFantasy2 = COFantasy2 || function() {
     Prestige: {}
   };
 
+  const cmdFoudre = "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Foudre --auto --dm 4d4E+@{selected|CHA} --ligne --electrique --sortilege --portee 10 --psave AGI [[10+@{selected|CHA}]] --fx beam-holy";
 
   const capaciteBouclierDeLaFoi = {
     bouclierDeLaFoi: "SELONRANG(1,1,1,1,2)",
@@ -11987,7 +11988,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  - mana : coût normal en mana
   //  - cmd : la commande à exécuter quand on fait l'action
   //  - combat : si true, l'action n'est affichée qu'en combat
-  //  - entrerEnCombat: l'action fait entrer en combat
+  //  - entrerEnCombat: l'action fait entrer en combat. Inutile si dm, car ça fait toujours entrer en combat
   //  - horsCombat: si true, l'action n'est affichée qu'hors combat
   //  - debutDuTour: l'action n'est plus proposée si le pesonnage a déjà agit ce tour
   //  - premierRound: seulement au premier round de combat
@@ -12169,7 +12170,6 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         combat: true,
         dm: true,
-        entrerEnCombat: true,
         limiteArmure: 'rodeur',
         armeEnMain: 'portee',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --deMalus --plus 3d4E"
@@ -12180,7 +12180,6 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Tir rapide',
         type: 'L',
         combat: true,
-        entrerEnCombat: true,
         limiteArmure: 'rodeur',
         dm: true,
         armeEnMain: 'portee',
@@ -12266,7 +12265,6 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Attaque éclair',
         combat: true,
         dm: true,
-        entrerEnCombat: true,
         limiteArmure: 'rodeur',
         armeDeContact: true,
         type: 'SELONRANG(L,L,L,L,A)',
@@ -12324,7 +12322,6 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         combat: true,
         dm: true,
-        entrerEnCombat: true,
         pasAuContactAdversaire: true,
         limiteArmure: 'barbare',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deplaceDe 5 10 --deBonus --plus 1d4E',
@@ -12489,7 +12486,7 @@ var COFantasy2 = COFantasy2 || function() {
       }, {
         nom: 'Décharge électrique',
         combat: true,
-        entrerEnCombat: true,
+        dm: true,
         type: 'A',
         seulementSiAttributBool: 'sousTension',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Décharge électrique --toucher @{selected|atkmag} --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
@@ -12504,7 +12501,7 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-action déplace un objet de moins de [[50*RANG]] kg dans les airs",
       }
     },
-    'foudre':{
+    'foudre': {
       action: {
         nom: 'Foudre',
         type: 'A',
@@ -12512,8 +12509,7 @@ var COFantasy2 = COFantasy2 || function() {
         sortilege: true,
         dm: true,
         combat: true,
-        entrerEnCombat: true,
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Foudre --toucher @{selected|atkmag} --dm 4d4E+@{selected|CHA} --ligne --electrique --sortilege --portee 10 --psave AGI [[10+@{selected|CHA}]] --fx beam-holy",
+        cmd: cmdFoudre,
       },
     },
     'forme etheree': {
@@ -12562,7 +12558,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Projectle de mana',
         combat: true,
-        entrerEnCombat: true,
         sortilege: true,
         dm: true,
         type: 'A',
@@ -12598,7 +12593,6 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         sortilege: true,
         dm: true,
-        entrerEnCombat: true,
         type: 'A',
         mana: 1,
         limiteArmure: 'magicien',
@@ -12623,7 +12617,6 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         sortilege: true,
         dm: true,
-        entrerEnCombat: true,
         type: 'A',
         mana: 3,
         limiteArmure: 'magicien',
@@ -12639,7 +12632,6 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         mana: 1,
         combat: true,
-        entrerEnCombat: true,
         limiteArmure: 'magicien',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Asphyxie --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 20 --effet asphyxie @{selected|INT} --valeur 1d4E",
       },
@@ -12888,7 +12880,6 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         sortilege: true,
         dm: true,
-        entrerEnCombat: true,
         type: 'A',
         mana: 3,
         armeEnMain: 'arc',
@@ -12924,7 +12915,6 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         dm: true,
         combat: true,
-        entrerEnCombat: true,
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --plus @{selected|CHA} --chatimentDivin SELONRANG(1,1,1,1,2)',
       },
     },
@@ -13101,6 +13091,47 @@ var COFantasy2 = COFantasy2 || function() {
     // Autres capacités
     'sans esprit': {
       sansEsprit: true,
+    },
+    //Les voies venant de capacités PJ
+    "voie de l'air": {
+      actions: [{
+        nom: 'Murmures dans le vent',
+        horsCombat: true,
+        sortilege: true,
+        type: 'G',
+        cmd: "!cof2-action chuchote un message à quelqu'un --select @{selected|token_id}"
+      }, {
+        nom: 'Se mettre sous tension',
+        combat: true,
+        sortilege: true,
+        type: 'M',
+        bufPersonnelNonCumulable: 'sousTension',
+        cmd: '!cof2-effet sousTension true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --fxCible glow-holy',
+      }, {
+        nom: 'Décharge électrique',
+        combat: true,
+        dm: true,
+        type: 'A',
+        seulementSiAttributBool: 'sousTension',
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Décharge électrique --toucher @{selected|atkmag} --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
+      }, {
+        nom: 'Télékinésie',
+        sortilege: true,
+        type: 'A',
+        cmd: "!cof2-action déplace un objet de moins de [[50*RANG]] kg dans les airs",
+      }, {
+        nom: 'Foudre',
+        type: 'A',
+        sortilege: true,
+        dm: true,
+        combat: true,
+        cmd: cmdFoudre,
+      }, {
+        nom: 'Forme éthérée',
+        type: 'L',
+        sortilege: true,
+        cmd: '!cof2-effet intangible true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
+      }],
     },
   };
 
@@ -15496,10 +15527,10 @@ var COFantasy2 = COFantasy2 || function() {
         if (command.startsWith('!cof2-soin ')) opt.pasDeBrulureDeMana = true;
         if (!depenseManaPossible(perso, action.mana, false, opt)) return ligne;
         command += " --mana " + action.mana;
-        if (stateCOF.combat || action.entrerEnCombat) command += " --typeAction " + action.type;
+        if (stateCOF.combat || action.entrerEnCombat || action.dm) command += " --typeAction " + action.type;
       }
     } else {
-      if (stateCOF.combat || action.entrerEnCombat) command += " --typeAction " + action.type;
+      if (stateCOF.combat || action.entrerEnCombat || action.dm) command += " --typeAction " + action.type;
     }
     command += ' --acteur ' + perso.token.id;
     let bopt = {
