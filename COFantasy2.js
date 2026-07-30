@@ -1,4 +1,4 @@
-//Dernière modification : lun. 27 juil. 2026,  01:02
+//Dernière modification : jeu. 30 juil. 2026,  03:23
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11982,6 +11982,8 @@ var COFantasy2 = COFantasy2 || function() {
   // action est un objet, est actions est une liste d'actions, avec les champs:
   //  - nom : affiché quand on propose l'action
   //  - type : L, A, M, G ou I, pas besoin si horsCombat
+  //  - sortilege : indique que c'est un sortilège
+  //  - dm : indique que l'action fait des dm
   //  - mana : coût normal en mana
   //  - cmd : la commande à exécuter quand on fait l'action
   //  - combat : si true, l'action n'est affichée qu'en combat
@@ -12097,6 +12099,7 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Détecter la magie',
         type: 'L',
+        sortilege: true,
         mana: 2,
         horsCombat: true,
         cmd: '!cof2-action détecte la présence de magie dans un rayon de 10 m --secret',
@@ -12165,6 +12168,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Tir dans le mille (L)",
         type: 'L',
         combat: true,
+        dm: true,
         entrerEnCombat: true,
         limiteArmure: 'rodeur',
         armeEnMain: 'portee',
@@ -12178,6 +12182,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         entrerEnCombat: true,
         limiteArmure: 'rodeur',
+        dm: true,
         armeEnMain: 'portee',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaque -2",
         debloqueActions: [{
@@ -12260,6 +12265,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Attaque éclair',
         combat: true,
+        dm: true,
         entrerEnCombat: true,
         limiteArmure: 'rodeur',
         armeDeContact: true,
@@ -12317,6 +12323,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Charge',
         type: 'L',
         combat: true,
+        dm: true,
         entrerEnCombat: true,
         pasAuContactAdversaire: true,
         limiteArmure: 'barbare',
@@ -12462,6 +12469,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Murmures dans le vent',
         horsCombat: true,
+        sortilege: true,
         type: 'G',
         mana: 1,
         limiteArmure: 'ensorceleur',
@@ -12472,6 +12480,7 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Se mettre sous tension',
         combat: true,
+        sortilege: true,
         type: 'M',
         mana: 2,
         limiteArmure: 'ensorceleur',
@@ -12489,6 +12498,7 @@ var COFantasy2 = COFantasy2 || function() {
     'telekinesie': {
       action: {
         nom: 'Télékinésie',
+        sortilege: true,
         type: 'A',
         mana: 3,
         cmd: "!cof2-action déplace un objet de moins de [[50*RANG]] kg dans les airs",
@@ -12499,12 +12509,21 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Foudre',
         type: 'A',
         mana: 4,
+        sortilege: true,
+        dm: true,
         combat: true,
         entrerEnCombat: true,
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Foudre --toucher @{selected|atkmag} --dm 4d4E+@{selected|CHA} --ligne --electrique --sortilege --portee 10 --psave AGI [[10+@{selected|CHA}]] --fx beam-holy",
       },
     },
     'forme etheree': {
+      action: {
+        nom: 'Forme éthérée',
+        type: 'L',
+        sortilege: true,
+        mana: 5,
+        cmd: '!cof2-effet intangible true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
+      },
     },
     //Voie de l'envouteur
     injonction: {
@@ -12512,6 +12531,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Injonction',
         type: 'A',
+        sortilege: true,
         mana: 1,
         limiteArmure: 'ensorceleur',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
@@ -12523,6 +12543,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Mirage',
         type: 'L',
+        sortilege: true,
         mana: 1,
         limiteArmure: 'ensorceleur',
         cmd: '!cof2-action crée une illusion --select @{selected|token_id}',
@@ -12542,6 +12563,8 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Projectle de mana',
         combat: true,
         entrerEnCombat: true,
+        sortilege: true,
+        dm: true,
         type: 'A',
         mana: 1,
         limiteArmure: 'magicien',
@@ -12552,6 +12575,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Lévitation',
         type: 'M',
+        sortilege: true,
         mana: 2,
         limiteArmure: 'magicien',
         cmd: "!cof2-effet levitation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
@@ -12561,6 +12585,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Forme gazeuse',
         type: 'A',
+        sortilege: true,
         mana: 3,
         limiteArmure: 'magicien',
         cmd: "!cof2-effet formeGazeuse true --dureeEnMinutes 1 --select @{selected|token_id}"
@@ -12571,6 +12596,8 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Arc de feu",
         combat: true,
+        sortilege: true,
+        dm: true,
         entrerEnCombat: true,
         type: 'A',
         mana: 1,
@@ -12582,6 +12609,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Saper les forces",
         combat: true,
+        sortilege: true,
         entrerEnCombat: true,
         type: 'A',
         mana: 2,
@@ -12593,6 +12621,8 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Flèche de feu",
         combat: true,
+        sortilege: true,
+        dm: true,
         entrerEnCombat: true,
         type: 'A',
         mana: 3,
@@ -12605,6 +12635,8 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Asphyxie',
         type: 'A',
+        sortilege: true,
+        dm: true,
         mana: 1,
         combat: true,
         entrerEnCombat: true,
@@ -12625,6 +12657,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Armure de mana",
         bufPersonnelNonCumulable: 'armureDeMana',
+        sortilege: true,
         type: 'M',
         mana: 1,
         cmd: "!cof2-effet armureDeMana valeurArmureDeMana --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
@@ -12634,6 +12667,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Chute ralentie',
         type: 'G',
+        sortilege: true,
         mana: 2,
         limiteArmure: 'magicien',
         cmd: '!cof2-action lance un sort de chute ralentie sur INT_TARGETS_NAMES --portee 10 --noSelect --message chute beaucoup moins vite',
@@ -12644,6 +12678,7 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Lumière',
         type: 'L',
+        sortilege: true,
         mana: 1,
         limiteArmure: 'magicien',
         cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10',
@@ -12687,6 +12722,7 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Invisibilité',
         type: 'A',
+        sortilege: true,
         mana: 3,
         limiteArmure: 'magicien',
         cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{selected|token_id}',
@@ -12804,6 +12840,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Baies magiques',
         horsCombat: true,
+        sortilege: true,
         type: 'L',
         mana: 1,
         limiteArmure: 'druide',
@@ -12814,6 +12851,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Forêt vivante',
         horsCombat: true,
+        sortilege: true,
         type: 'L',
         mana: 2,
         limiteArmure: 'druide',
@@ -12826,6 +12864,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Peau d'écorce",
         combat: true,
+        sortilege: true,
         type: 'M',
         mana: 1,
         bufPersonnelNonCumulable: 'peauDEcorce',
@@ -12837,6 +12876,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Prison végétale',
         combat: true,
+        sortilege: true,
         type: 'L',
         mana: 2,
         cmd: "!cof2-prison-vegetale @{target|token_id} 10 @{selected|PER} --portee 20",
@@ -12846,6 +12886,8 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Flèche vivante",
         combat: true,
+        sortilege: true,
+        dm: true,
         entrerEnCombat: true,
         type: 'A',
         mana: 3,
@@ -12863,6 +12905,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Miracle mineur",
         combat: true,
+        sortilege: true,
         type: 'A',
         mana: 2,
         limiteArmure: 'druide',
@@ -12879,6 +12922,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Châtiment divin',
         type: 'L',
+        dm: true,
         combat: true,
         entrerEnCombat: true,
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --plus @{selected|CHA} --chatimentDivin SELONRANG(1,1,1,1,2)',
@@ -12890,6 +12934,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Bénédiction',
         combat: true,
+        sortilege: true,
         type: 'L',
         mana: 1,
         cmd: '!cof2-effet benediction SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --alliesEnVue',
@@ -12899,6 +12944,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Sanctuaire',
         combat: true,
+        sortilege: true,
         entrerEnCombat: true,
         bufPersonnelNonCumulable: 'sanctuaire',
         type: 'L',
@@ -12919,6 +12965,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Récupération mineure",
         type: 'A',
+        sortilege: true,
         mana: 1,
         cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --select @{target|token_id} --portee 0',
       },
@@ -12928,6 +12975,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Vigueur divine",
         type: 'L',
+        sortilege: true,
         mana: 2,
         cmd: "!cof2-action soigne @{target|Cible|token_name} d'un poison ou d'une maladie --cible @{target|Cible|token_id} --portee 0 --noSelect",
       },
@@ -12943,6 +12991,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Récupération majeure",
         type: 'L',
+        sortilege: true,
         mana: 3,
         cmd: '!cof2-soin 3d4E+@{selected|CHA} --plusDeEvolPred bonusRecuperationMajeure --select @{target|token_id} --portee 20',
       },
@@ -12955,6 +13004,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Augure",
         type: 'L',
+        sortilege: true,
         mana: 2,
         cmd: "!cof2-jet CHA --titre Augure --difficulte 10 --select @{selected|token_id}",
       },
@@ -12990,6 +13040,7 @@ var COFantasy2 = COFantasy2 || function() {
     'charge PNJ': {
       action: {
         nom: 'charge',
+        dm: true,
         type: 'L',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deplaceDe 20 --deBonus --pietine',
       }
@@ -13012,6 +13063,7 @@ var COFantasy2 = COFantasy2 || function() {
       siphonDesAmes: 2,
       action: {
         nom: 'Vampirisation',
+        dm: true,
         type: 'A',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Vampirisation --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --seulementVivant --portee 30 --dm @{selected|demi_NC}d8 --drain',
       },
@@ -13040,6 +13092,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Attaque mortelle (Cible de dos ou surprise)',
         combat: true,
+        dm: true,
         entrerEnCombet: true,
         type: 'A',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --sournoise 2',
@@ -14406,6 +14459,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (!options.attaquePossible) {
       let impossible =
+        options.actionImpossible ||
         (attackStats.armeDeJet && attackStats.nbArmesDeJet < 1) ||
         (attackStats.portee &&
           (opt.attaqueFlamboyante || opt.seulementContact)) ||
@@ -15391,7 +15445,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (!typeActionPossible(perso, action.type)) return ligne;
-    if (action.limiteArmure) {
+    if (action.limiteArmure && !persoEstPNJ(perso)) {
       let ar = armureRestreinte(perso, action.limiteArmure);
       if (ar > 0) {
         if (action.mana) {
@@ -15405,7 +15459,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (action.inutileSiAttributBool && attributeAsBool(perso, action.inutileSiAttributBool)) return ligne;
     if (action.seulementSiAttributBool && !attributeAsBool(perso, action.seulementSiAttributBool)) return ligne;
-    if (action.bouclier && !ficheAttributeAsBool(perso, 'bouclier_eqp', false)) return ligne;
+    if (action.bouclier && !persoEstPNJ(perso) && !ficheAttributeAsBool(perso, 'bouclier_eqp', false)) return ligne;
     if (action.armeEnMain || action.armeDeContact) {
       let armeEnMain = armesEnMain(perso);
       if (!armeEnMain) return ligne;
@@ -15413,10 +15467,11 @@ var COFantasy2 = COFantasy2 || function() {
       if (action.armeDeContact && armeEnMain.portee && !armeEnMain.modificateurs.includes('armeDeContact')) return ligne;
     }
     if (action.pasAuContactAdversaire && ennemisAuContact(perso, perso.token.get('pageid')).length > 0) return ligne;
+    if ((action.sortilege || action.dm) && attributeAsBool(perso, 'intangible')) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
     command = TARGETSToSelection(command, perso);
     let request;
-    if (action.mana > 0) {
+    if (action.mana > 0 && !persoEstPNJ(perso)) {
       if (action.type == 'A' && typeActionPossible(perso, 'L')) {
         //Possibilité de se concentrer pour diminuer le coût
         let manaL = action.mana - 2;
@@ -15561,6 +15616,7 @@ var COFantasy2 = COFantasy2 || function() {
             attackStats: armePrincipale,
             text: nomCommande,
             typeAction: 'A',
+            actionImpossible: attributeAsBool(perso, 'intangible'),
           };
           if (armePrincipale.portee && predicateAsBool(perso, 'dansLeMille')) {
             bopt.ligneOptions = "?{Difficulté du tir|Normal,&#32;|-2,--bonusAttaque -2 --plus 1d" + deEvolutif(perso) + "|Dé malus,--deMalus --plus 2d" + deEvolutif(perso) + "}";
@@ -15593,6 +15649,7 @@ var COFantasy2 = COFantasy2 || function() {
           let bopt = {
             attackStats: perso.armeGauche,
             typeAction: 'A',
+            actionImpossible: attributeAsBool(perso, 'intangible'),
           };
           ligneArmeGauche = boutonAttaque(perso, perso.armeGauche.label, bopt);
         }
@@ -19321,6 +19378,12 @@ var COFantasy2 = COFantasy2 || function() {
       finF: "revient à elle",
       finFun: finSoinsEnAttente,
     },
+    intangible: {
+      activation: "devient translucide",
+      actif: "est intangible",
+      fin: "redevient solide",
+      visible: true
+    },
     formeGazeuse: {
       activation: "semble perdre de la consistance",
       actif: "est en forme gazeuse",
@@ -20889,8 +20952,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (objCharId !== '' &&
           (getState(perso, 'mort') ||
             getState(perso, 'assomme') || getState(perso, 'endormi') ||
-            (attributeAsBool(perso, 'intangible') && attributeAsInt(perso, 'intangibleValeur', 1)) ||
-            (attributeAsBool(perso, 'intangibleInvisible') && attributeAsInt(perso, 'intangibleInvisibleValeur', 1)) ||
+            attributeAsBool(perso, 'intangible') ||
             attributeAsBool(perso, 'estGobePar') ||
             attributeAsBool(perso, 'enveloppePar')
           )
@@ -21313,7 +21375,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (charId !== '' &&
       (getState(perso, 'mort') ||
         getState(perso, 'assomme') || getState(perso, 'endormi') ||
-        (attributeAsBool(perso, 'intangible') && attributeAsInt(perso, 'intangibleValeur', 1))
+        attributeAsBool(perso, 'intangible')
       )
     )
       return false;
@@ -28497,7 +28559,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.interposer) {
       return dealDamageAfterOthers(target, crit, {}, evt, expliquer, displayRes, options.interposer, dmg.display, false, {});
     }
-    if ((!options.spectral && attributeAsBool(target, 'intangible') && attributeAsInt(target, 'intangibleValeur', 1)) ||
+    if ((!options.spectral && attributeAsBool(target, 'intangible')) ||
       (!options.magique && !options.sortilege && attributeAsBool(target, 'formeGazeuse'))
     ) {
       expliquer("L'attaque passe à travers " + nomPerso(target));
