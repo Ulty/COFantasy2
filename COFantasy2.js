@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 30 juil. 2026,  04:46
+//Dernière modification : jeu. 30 juil. 2026,  06:04
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11875,6 +11875,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Plantes',
         description: "identifier les plantes et connaître leurs propriétés",
       },
+      savoirsSombres: {
+        nom: 'Savoirs sombres',
+        description: "tests d'INT concernant les démons, morts-vivants, rituels impies, etc...",
+      },
       strategie: {
         nom: 'Stratège',
         description: "stratégie, tactique militaire et commander une troupe",
@@ -12726,6 +12730,17 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'magicien',
         cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{target|token_id}',
       }],
+    },
+    //Voies de sorcier /////////////////////////////////////////////
+    //Voie de la sombre magie
+    'tenebres': {
+      bonusTestEvolutif_savoirsSombres: true,
+      action: {
+        nom: 'Ténèbres',
+        type: 'L',
+        mana: 1,
+        cmd: '!cof2-tenebres @{selected|token_id} @{target|Cible|token_id}',//valeurs par défaut de la commande
+      }
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des animaux
@@ -17489,9 +17504,10 @@ var COFantasy2 = COFantasy2 || function() {
     } else { //value est false
       if (etat == 'mort' && stateCOF.combat)
         removeTokenAttr(perso, 'a0PVDepuis', evt);
-      if (!options.fromTemp)
+      if (!options.fromTemp) {
         removeTokenAttr(perso, etat + 'Temp', evt);
-      removeTokenAttr(perso, etat + 'EnMinutes', evt);
+        removeTokenAttr(perso, etat + 'EnMinutes', evt);
+      }
     }
     if (!value) {
       unlockToken(perso, evt);
@@ -18916,6 +18932,16 @@ var COFantasy2 = COFantasy2 || function() {
       prejudiciable: true,
       visible: true
     },
+    aveugleEnMinutes: {
+      activation: "n'y voit plus rien !",
+      actif: "est aveuglé",
+      actifF: "est aveuglée",
+      fin: "retrouve la vue",
+      finFun: finEtatTemp,
+      msgSave: "retrouver la vue",
+      prejudiciable: true,
+      visible: true
+    },
     blesseTemp: {
       activation: "est blessé",
       activationF: "est blessée",
@@ -20169,6 +20195,7 @@ var COFantasy2 = COFantasy2 || function() {
           setState(target, 'apeure', true, evt);
           break;
         case 'aveugleTemp':
+        case 'aveugleEnMinutes':
           setState(target, 'aveugle', true, evt);
           break;
         case 'penombreTemp':
@@ -30662,6 +30689,111 @@ var COFantasy2 = COFantasy2 || function() {
     //"!cof2-effet prisonVegetale"
   }
 
+  //!cof-tenebres token-lanceur token-cible
+  function commandeTenebres(cmd, playerId, pageId, options, sorcier) {
+    let target = persoOfId(cmd[2], cmd[2], pageId);
+    if (!target) {
+      sendPlayer("Le second argument de !cof2-tenebres n'est pas un token valide", playerId);
+      return;
+    }
+    let portee = 20;
+    if (options.portee !== undefined) portee = options.portee;
+    let rayon = 5;
+    if (options.rayon !== undefined) rayon = options.rayon;
+        if (distanceCombat(sorcier.token, target.token, options.pageId, {
+        strict2: true
+      }) > portee) {
+      sendPlayer("Le point visé est trop loin (portée " + portee + ")", playerId);
+      return;
+    }
+    const evt = {type: 'Ténèbres'};
+    addEvent(evt);
+    if (limiteRessources(sorcier, options, 'tenebres', 'lancer un sort de ténèbres', evt)) return;
+    let dureeEnMinutes;
+    if (options.dureeEnMinutes !== undefined) dureeEnMinutes = options.dureeEnMinutes;
+    else dureeEnMinutes = modCarac(sorcier, 'INT');
+    let tokSpec = {
+      showname: true,
+      subtype: 'token',
+      pageid: pageId,
+      left: target.token.get("left"),
+      top: target.token.get("top"),
+      name: "Ténèbres de " + nomPerso(sorcier),
+      imgsrc: 'https://s3.amazonaws.com/files.d20.io/images/192072874/eJXFx20fD931DuBDvzAnQQ/thumb.png?1610469273',
+      width: 70,
+      height: 70,
+      layer: 'objects',
+      aura1_radius: 0,
+      aura1_color: "#c1c114",
+      aura1_square: true,
+      aura2_radius: scaleDistance(sorcier, rayon),
+      aura2_color: "#000000",
+      showplayers_aura2: true,
+    };
+        let token = createObj('graphic', tokSpec);
+    if (token) {
+      evt.tokens = [token.id];
+      toFront(token);
+      stateCOF.tokensTemps = stateCOF.tokensTemps || [];
+      let tour = 0;
+      if (stateCOF.combat) tour = stateCOF.combat.tour;
+      stateCOF.tokensTemps.push({
+        tid: token.id,
+        dureeEnMinutes,
+        tour,
+        init: getInit()
+      });
+    }
+        // Calcul des cibles à aveugler
+    let cibles = [];
+    let allToksDisque =
+      findObjs({
+        _type: 'graphic',
+        _pageid: pageId,
+        _subtype: 'token',
+        layer: 'objects'
+      });
+    let saufAllies = options.saufAllies;
+    let allies;
+    if (saufAllies) {
+      allies = alliesParPerso[sorcier.charId];
+      allies = (new Set(allies)).add(sorcier.charId);
+    }
+    allToksDisque.forEach(function(obj) {
+      if (obj.get('bar1_max') == 0) return; // jshint ignore:line
+      let objCharId = obj.get('represents');
+      if (objCharId === '') return;
+      if (saufAllies && allies.has(objCharId)) return;
+      let cible = {
+        token: obj,
+        charId: objCharId
+      };
+      if (getState(cible, 'mort')) return;
+      let distanceCentre =
+        distanceCombat(target.token, obj, pageId, {
+          strict1: true
+        });
+      if (distanceCentre > rayon) return;
+      cibles.push(cible);
+    });
+    let mEffet = messageEffet.aveugleEnMinutes;
+    let optEffet = {
+      dureeEnMinutes,
+    };
+    cibles.forEach(function(perso) {
+      activerEffet(sorcier, perso, 'aveugleEnMinutes', dureeEnMinutes, mEffet, pageId, evt, optEffet);
+    });
+    if (target.token.get('bar1_max') == 0) { // jshint ignore:line
+      //C'est juste un token utilisé pour définir le disque
+      target.token.remove(); //On l'enlève, normalement plus besoin
+    }
+    if (options.messages) {
+      options.messages.forEach(function(m) {
+        sendPerso(sorcier, m, options.secret);
+      });
+    }
+  }
+
   // Informations et affichage ------------------------------------------------
 
   // Affiche des informations sur le personnage sélectionné
@@ -35312,6 +35444,11 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeSuivre,
       minArgs: 2,
       acteur: 1
+    },
+    'tenebres': {
+      fn: commandeTenebres,
+      minArgs: 2,
+      acteur: 1,
     },
     'terminer-mvt': {
       fn: commandeTerminerMvt,
