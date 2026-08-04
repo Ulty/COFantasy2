@@ -1,4 +1,4 @@
-//Dernière modification : mar. 04 août 2026,  01:47
+//Dernière modification : mar. 04 août 2026,  03:46
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4665,7 +4665,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (options.terrainDifficile && options.aoe && options.aoe.type == 'disque') {
-      ajouteTerrainDifficile(options, evt);
+      ajouteTerrainDifficile(pageId, options, evt);
     }
     if (options.deplaceDe && options.deplaceDe.positionFinale) {
       let p = options.deplaceDe.positionFinale;
@@ -5940,6 +5940,10 @@ var COFantasy2 = COFantasy2 || function() {
     if (diceOptions.deMalus !== true && cibles.length === 1 && options.arme && (options.distance || !weaponStats.dague) && attributeAsBool(cibles[0], 'colleASaProie')) {
       diceOptions.deMalus = diceOptions.deMalus || 0;
       diceOptions.deMalus++;
+    }
+    if (cibles.length === 1 && options.distance && !options.sortilege && attributeAsBool(cibles[0], 'manteauDOmbre')) {
+      explications.push("Cible dans l'ombre => dé malus en attaque");
+      ajouterDeBonus(options, 'deMalus');
     }
     if (diceOptions.deBonus !== true) {
       let autre = compagnonDeAuContact(attaquant);
@@ -10438,8 +10442,9 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let attr = [];
     if (options.remplaceAttribut) {
-      attr= getObj('attribute', options.remplaceAttribut);
-      if (attr) attr = [attr]; else attr = [];
+      attr = getObj('attribute', options.remplaceAttribut);
+      if (attr) attr = [attr];
+      else attr = [];
     } else if (!options.copy) {
       attr = findObjs({
         _type: 'attribute',
@@ -10720,6 +10725,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   // retourne un tableau contenant la liste des ID de joueurs connectés controllant le personnage lié au Token
+  // perso peut ne pas avoir de toen
   function getPlayerIds(perso) {
     let character = getObj('character', perso.charId);
     if (character === undefined) return;
@@ -11889,6 +11895,7 @@ var COFantasy2 = COFantasy2 || function() {
       eclaireur: {
         nom: 'Éclaireur',
         description: "En milieu naturel: discrétion et vigilance",
+        competences: ['discrétion', 'vigilance'],
       },
       escalade: {
         nom: "Escalade",
@@ -12525,7 +12532,7 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 2,
         limiteArmure: 'ensorceleur',
         bufPersonnelNonCumulable: 'sousTension',
-        cmd: '!cof2-effet sousTension true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --fxCible glow-holy',
+        cmd: '!cof2-effet sousTension --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --fxCible glow-holy',
       }, {
         nom: 'Décharge électrique',
         combat: true,
@@ -12558,7 +12565,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Forme éthérée',
         type: 'L',
         mana: 5,
-        cmd: '!cof2-effet intangible true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
+        cmd: '!cof2-effet intangible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
       },
     },
     //Voie de l'envouteur
@@ -12609,7 +12616,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'M',
         mana: 2,
         limiteArmure: 'magicien',
-        cmd: "!cof2-effet levitation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
+        cmd: "!cof2-effet levitation --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
       },
     },
     'forme gazeuse': {
@@ -12618,7 +12625,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 3,
         limiteArmure: 'magicien',
-        cmd: "!cof2-effet formeGazeuse true --dureeEnMinutes 1 --select @{selected|token_id}"
+        cmd: "!cof2-effet formeGazeuse --dureeEnMinutes 1 --select @{selected|token_id}"
       },
     },
     //Voie de la magie destructrice
@@ -12770,7 +12777,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Reptation',
         type: 'M',
         mana: 2,
-        cmd: '!cof2-effet reptation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
+        cmd: '!cof2-effet reptation --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
       }
     },
     'strangulation': {
@@ -12781,6 +12788,14 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         cmd: cmdStrangulation + ' --attaqueMagiqueOpposee',
       },
+    },
+    "manteau d'ombre": {
+      action: {
+        nom: "Manteau d'ombre",
+        type: 'L',
+        mana: 4,
+        cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
+      }
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des animaux
@@ -13149,7 +13164,7 @@ var COFantasy2 = COFantasy2 || function() {
         sortilege: true,
         type: 'M',
         bufPersonnelNonCumulable: 'sousTension',
-        cmd: '!cof2-effet sousTension true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --fxCible glow-holy',
+        cmd: '!cof2-effet sousTension --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --fxCible glow-holy',
       }, {
         nom: 'Décharge électrique',
         combat: true,
@@ -13173,7 +13188,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Forme éthérée',
         type: 'L',
         sortilege: true,
-        cmd: '!cof2-effet intangible true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
+        cmd: '!cof2-effet intangible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
       }],
     },
   };
@@ -15659,7 +15674,7 @@ var COFantasy2 = COFantasy2 || function() {
             if (distanceCombat(perso.token, cible.token, pageId) > 20) return;
             let command = selectedToValue(cmdStrangulation, 'selected', perso);
             command = selectedToValue(command, 'target|Cible', cible);
-            command += ' --remplaceAttribut '+ attr.id +' --auto --typeAction M';
+            command += ' --remplaceAttribut ' + attr.id + ' --auto --typeAction M';
             if (!persoEstPNJ(perso)) command += ' --mana 1';
             let bopt = {};
             let b = boutonComplexe(command, 'Maintenir la strangulation', perso, bopt);
@@ -19515,6 +19530,13 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "retombe au sol",
       visible: true,
     },
+    manteauDOmbre: {
+      activation: "s'enveloppe d'ombre",
+      actif: "est enveloppé d'ombre",
+      actifF: "est enveloppée d'ombre",
+      fin: "redevient visible",
+      visible: true,
+    },
     murDeForce: {
       activation: "fait apparaître un mur de force",
       actif: "en entouré d'un mur de force",
@@ -19547,7 +19569,6 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "peut ramper sur les murs et plafonds",
       actif: "peut ramper sur les murs et plafonds",
       fin: "ne peut plus ramper sur les murs et plafonds",
-
     },
     soinsEnAttente: {
       //courant: l'expression des soins
@@ -19962,8 +19983,26 @@ var COFantasy2 = COFantasy2 || function() {
       enleverEffetAttribut(charId, efComplet, attrName, 'SaveParTourType', evt);
     }
     let mEffet = messageEffet[effet];
+    let pageId = options.pageId;
+    if (!pageId) {
+      let pids = getPlayerIds({
+        charId
+      });
+      if (pids.length === 0) {
+        let players = findObjs({
+          type: 'player'
+        });
+        let p = players.find(function(p) {
+          return playerIsGM(p.id);
+        });
+        if (p) pageId = p.get('lastpage');
+        else pageId = Campaign().get('playerpageid');
+      } else {
+        pageId = getPageId(pids[0]);
+      }
+    }
     if (mEffet && mEffet.statusMarker) {
-      iterTokensOfAttribute(charId, options.pageId, effet, attrName, function(token) {
+      iterTokensOfAttribute(charId, pageId, effet, attrName, function(token) {
         let perso = {
           charId,
           token
@@ -19974,16 +20013,16 @@ var COFantasy2 = COFantasy2 || function() {
       });
     }
     if (mEffet && mEffet.eclaire) {
-      iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
+      iterTokensOfAttribute(charId, pageId, efComplet, attrName, function(token) {
         let perso = {
           token,
           charId
         };
-        eteindreUneLumiere(perso, options.pageId, undefined, efComplet, evt);
+        eteindreUneLumiere(perso, pageId, undefined, efComplet, evt);
       });
     }
     if (mEffet.finFun) {
-      iterTokensOfAttribute(charId, options.pageId, efComplet, attrName,
+      iterTokensOfAttribute(charId, pageId, efComplet, attrName,
         function(token) {
           const perso = {
             charId,
@@ -19994,7 +20033,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.attrSave === undefined && charId) {
       let estMort = true;
-      iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
+      iterTokensOfAttribute(charId, pageId, efComplet, attrName, function(token) {
         estMort = estMort && getState({
           charId: charId,
           token: token
@@ -20029,7 +20068,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (attrTS.length > 0) {
       attrTS = attrTS[0];
       let side = attrTS.get('current');
-      iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
+      iterTokensOfAttribute(charId, pageId, efComplet, attrName, function(token) {
         changeTokenSide({
           token
         }, side, evt);
@@ -20041,7 +20080,7 @@ var COFantasy2 = COFantasy2 || function() {
     deleteAttribute(attr, evt);
     //Débloque les tokens si l'effet les immobilisait
     if (mEffet.lock) {
-      iterTokensOfAttribute(charId, options.pageId, efComplet, attrName, function(token) {
+      iterTokensOfAttribute(charId, pageId, efComplet, attrName, function(token) {
         let perso = {
           token: token,
           charId: charId
@@ -20473,14 +20512,14 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //Si options.terrainDifficile, doit avoir des champs imgsrc, nom et duree
-  function ajouteTerrainDifficile(options, evt) {
+  function ajouteTerrainDifficile(pageId, options, evt) {
     if (!options.aoe || !options.aoe.rayon) return;
     let terrainDifficile = options.terrainDifficile;
     if (!terrainDifficile || terrainDifficile.done) return;
     terrainDifficile.done = true;
-    let diametre = metresToPixels(options.aoe.rayon * 2, options.pageId);
+    let diametre = metresToPixels(options.aoe.rayon * 2, pageId);
     let t = createObj('graphic', {
-      _pageid: options.pageId,
+      _pageid: pageId,
       imgsrc: terrainDifficile.imgsrc,
       represents: '',
       left: options.aoe.centre.left,
@@ -23310,6 +23349,10 @@ var COFantasy2 = COFantasy2 || function() {
         if (predicateAsBool(perso, 'embuscade')) {
           expliquer("+5 en discrétion");
           bonus += 5;
+        }
+        if (attributeAsBool(perso, 'manteauDOmbre')) {
+          expliquer("Manteau d'ombre ; dé bonus en discrétion");
+          ajouterDeBonus(options, 'deBonus');
         }
         break;
       case 'intimidation':
@@ -28495,27 +28538,32 @@ var COFantasy2 = COFantasy2 || function() {
   // Les dégâts ------------------------------------------------------------
 
   //Appelé quand on met à 0 PV
-  function mort(personnage, expliquer, evt) {
-    if (getState(personnage, 'mort')) return; //déjà mort
+  function mort(perso, expliquer, evt) {
+    if (getState(perso, 'mort')) return; //déjà mort
     let addMsg = function(msg) {
       if (expliquer) {
-        expliquer(nomPerso(personnage) + ' ' + msg);
+        expliquer(nomPerso(perso) + ' ' + msg);
       } else {
-        sendPerso(personnage, msg);
+        sendPerso(perso, msg);
       }
     };
     //Phénix
-    let phenix = testLimiteUtilisationsCapa(personnage, 'phenix', 'combat');
+    let phenix = testLimiteUtilisationsCapa(perso, 'phenix', 'combat');
     if (phenix) { //TODO: revoir l'effet
-      addMsg("se relève, nimbé" + eForFemale(personnage) + " d'une aura de lumière et de feu prenant la forme d'un phénix.");
-      utiliseCapacite(personnage, phenix, evt);
-      soinsDuPhenix(personnage, evt, expliquer);
+      addMsg("se relève, nimbé" + eForFemale(perso) + " d'une aura de lumière et de feu prenant la forme d'un phénix.");
+      utiliseCapacite(perso, phenix, evt);
+      soinsDuPhenix(perso, evt, expliquer);
       return;
     }
-    setState(personnage, 'mort', true, evt);
+    //Manteau d'ombre
+    if (attributeAsBool(perso, 'manteauDOmbre')) {
+      let cmd = "!cof2-disparaitre-dans-son-ombre " + perso.token.id;
+      sendPerso(perso, boutonSimple(cmd, "Disparaître dans son ombre", BS_BUTTON) + ' ?', true, true);
+    }
+    setState(perso, 'mort', true, evt);
     let targetPos = {
-      x: personnage.token.get('left'),
-      y: personnage.token.get('top')
+      x: perso.token.get('left'),
+      y: perso.token.get('top')
     };
     spawnFxBetweenPoints(targetPos, {
       x: 400,
@@ -30757,7 +30805,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (cible.token.get('bar1_max') == 0) { // jshint ignore:line
       cible.token.remove(); //On l'enlève, normalement plus besoin
     }
-    let tokenPrison = ajouteTerrainDifficile(opt, evt);
+    let tokenPrison = ajouteTerrainDifficile(pageId, opt, evt);
     if (!tokenPrison) {
       error("Impossible de créer le terrain de la prison végétale");
       return;
@@ -30778,7 +30826,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.portee !== undefined) portee = options.portee;
     let rayon = 5;
     if (options.rayon !== undefined) rayon = options.rayon;
-    if (distanceCombat(sorcier.token, target.token, options.pageId, {
+    if (distanceCombat(sorcier.token, target.token, pageId, {
         strict2: true
       }) > portee) {
       sendPlayer("Le point visé est trop loin (portée " + portee + ")", playerId);
@@ -30874,6 +30922,20 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function commandeDisparaitreDansSonOMbre(cmd, playerId, pageId, options, sorcier) {
+    const evt = {
+      type: "Disparaître dans son ombre"
+    };
+    addEvent(evt);
+    finDEffetPerso(sorcier, 'manteauDOmbre', undefined, pageId, evt, options);
+    let opt = {
+      dureeEnMinutes: rollDePlus(6, "disparaitre", evt).total,
+    };
+    activerEffetNom(sorcier, sorcier, 'soinsEnAttente', '1d' + deEvolutif(sorcier), pageId, evt, opt);
+    spawnFx(sorcier.token.get('left'), sorcier.token.get('top'), 'explode-smoke', pageId);
+    setToken(sorcier.token, 'layer', 'gmlayer', evt);
+    sendPerso(sorcier, "disparaît dans son ombre...");
+  }
   // Informations et affichage ------------------------------------------------
 
   // Affiche des informations sur le personnage sélectionné
@@ -32597,7 +32659,7 @@ var COFantasy2 = COFantasy2 || function() {
     let effet = scope;
     let effets = scope.effets;
     if (effets && effets.length > 0) {
-      effet = effets[effets.length-1];
+      effet = effets[effets.length - 1];
     }
     let val = cmd[1];
     if (ctx.champEntier) {
@@ -35291,6 +35353,11 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'clean-global-state': {
       fn: commandeCleanGlobalState
+    },
+    'disparaitre-dans-son-ombre': {
+      fn: commandeDisparaitreDansSonOMbre,
+      minArgs: 1,
+      acteur: 1,
     },
     'intercepter': {
       fn: commandeIntercepter,
