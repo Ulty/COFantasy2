@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 30 juil. 2026,  06:11
+//Dernière modification : mar. 04 août 2026,  01:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -21,6 +21,38 @@ var COFantasy2 = COFantasy2 || function() {
   const flashyInitMarkerScale = 1.6;
   const IMG_INVISIBLE = 'https://s3.amazonaws.com/files.d20.io/images/24377109/6L7tn91HZLAQfrLKQI7-Ew/thumb.png?1476950708';
   //const IMG_BOMB = 'https://s3.amazonaws.com/files.d20.io/images/361033841/dmwnChkZNCI9a0_uKfGcNg/thumb.png?1695976505';
+
+  //Les FX custom dont on peut avoir l'utilité dans le script. Ils sont créés si besoin.
+  const effetsX = {
+    Fleche_de_feu: {
+      "additionalEmissionRatePerPixel": 0.35,
+      "additionalSpeedPerPixel": 0.085,
+      "alignParticles": true,
+      "angle": -1,
+      "angleRandom": 0,
+      "duration": 8,
+      "emissionRate": 12,
+      "emitRateGradients": [{
+        "factor": 1,
+        "gradient": 0
+      }, {
+        "factor": 0.2,
+        "gradient": 0.25
+      }, {
+        "factor": 0,
+        "gradient": 1
+      }],
+      "emitterSize": 4,
+      "lifeSpan": 13,
+      "lifeSpanRandom": 0,
+      "maxParticles": 500,
+      "rulerType": "line",
+      "size": 30,
+      "sizeRandom": 15,
+      "speed": 0,
+      "speedRandom": 0
+    }
+  };
 
 
   // Génération de unique ID pour les repeating fields
@@ -7779,37 +7811,39 @@ var COFantasy2 = COFantasy2 || function() {
             }
             if (effets) {
               effets.forEach(function(ef) {
+                let cibleEffet = target;
+                if (ef.surLanceur) cibleEffet = attaquant;
                 if (ef.finEffet) {
-                  if (!attributeAsBool(target, ef.effet)) {
+                  if (!attributeAsBool(cibleEffet, ef.effet)) {
                     let etat = effetEtatTemp(ef.effet);
                     if (!etat) return;
-                    if (getState(target, etat)) {
-                      setState(target, etat, false, evt);
-                      target.messages.push(nomPerso(target) + ' ' + messageFin(target, ef.message));
+                    if (getState(cibleEffet, etat)) {
+                      setState(cibleEffet, etat, false, evt);
+                      cibleEffet.messages.push(nomPerso(cibleEffet) + ' ' + messageFin(cibleEffet, ef.message));
                     }
                     return;
                   }
                   let feOptions = {
                     print: function(msg) {
-                      target.messages.push(nomPerso(target) + ' ' + msg);
+                      cibleEffet.messages.push(nomPerso(cibleEffet) + ' ' + msg);
                     }
                   };
-                  let f = finDEffetPerso(target, ef.effet, ef.message, pageId, evt, feOptions);
-                  if (f && f.newToken) target.token = f.newToken;
+                  let f = finDEffetPerso(cibleEffet, ef.effet, ef.message, pageId, evt, feOptions);
+                  if (f && f.newToken) cibleEffet.token = f.newToken;
                   return;
                 }
                 if (ef.save) {
                   savesEffets++;
                   return; //on le fera plus tard
                 }
-                if (ef.typeDmg && immuniseAuType(target, ef.typeDmg, attaquant, options)) {
-                  if (!target['msgImmunite_' + ef.typeDmg]) {
-                    target.messages.push(nomPerso(target) + " ne semble pas affecté par " + stringOfType(ef.typeDmg));
-                    target['msgImmunite_' + ef.typeDmg] = true;
+                if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, attaquant, options)) {
+                  if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
+                    cibleEffet.messages.push(nomPerso(cibleEffet) + " ne semble pas affecté par " + stringOfType(ef.typeDmg));
+                    cibleEffet['msgImmunite_' + ef.typeDmg] = true;
                   }
                   return;
                 }
-                setEffetFrom(attaquant, target, ef.effet, ef.message, evt, pageId, ef, options);
+                setEffetFrom(attaquant, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
               });
             }
             let expliquer = function(msg) {
@@ -7859,19 +7893,21 @@ var COFantasy2 = COFantasy2 || function() {
                       target.messages.push(nomPerso(target) + " n'est pas avalé.");
                     }
                   } else {
-                    if (ef.typeDmg && immuniseAuType(target, ef.typeDmg, attaquant, options)) {
-                      if (!target['msgImmunite_' + ef.typeDmg]) {
-                        target.messages.push(nomPerso(target) + " ne semble pas affecté par " + stringOfType(ef.typeDmg));
-                        target['msgImmunite_' + ef.typeDmg] = true;
+                    let cibleEffet = target;
+                    if (ef.surLanceur) cibleEffet = attaquant;
+                    if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, attaquant, options)) {
+                      if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
+                        cibleEffet.messages.push(nomPerso(cibleEffet) + " ne semble pas affecté par " + stringOfType(ef.typeDmg));
+                        cibleEffet['msgImmunite_' + ef.typeDmg] = true;
                       }
                       return;
                     }
                     let msgPour = " pour ";
                     if (ef.msgSave) msgPour += ef.msgSave;
                     else msgPour += "résister à un effet";
-                    let msgRate = ", " + nomPerso(target) + " ";
+                    let msgRate = ", " + nomPerso(cibleEffet) + " ";
                     if (ef.message) {
-                      msgRate += messageActivation(target, ef.message, ef.effet);
+                      msgRate += messageActivation(cibleEffet, ef.message, ef.effet);
                       if (ef.message.dureeEnTours && stateCOF.options.affichage.val.duree_effets.val) msgRate += " (" + ef.valeur + " tours)";
                     }
                     ef.pasDeMessageDActivation = true;
@@ -7883,10 +7919,10 @@ var COFantasy2 = COFantasy2 || function() {
                       type: ef.typeDmg,
                     };
                     ef.save.etat = effetEtatTemp(ef.effet);
-                    let rollId = 'effet_' + ef.effet + index + '_' + target.token.id;
+                    let rollId = 'effet_' + ef.effet + index + '_' + cibleEffet.token.id;
                     let duree;
                     if (ef.message.dureeEnTours) duree = ef.arg;
-                    let reussite = save(ef.save, target, rollId, expliquer, saveOpts, evt);
+                    let reussite = save(ef.save, cibleEffet, rollId, expliquer, saveOpts, evt);
                     if (reussite && duree && ef.save.demiDuree) {
                       reussite = false;
                       duree = Math.ceil(duree / 2);
@@ -7895,7 +7931,7 @@ var COFantasy2 = COFantasy2 || function() {
                       if (stateCOF.options.affichage.val.duree_effets.val) expliquer("La durée est réduite à " + duree + " tours");
                     }
                     if (!reussite) {
-                      setEffetFrom(attaquant, target, ef.effet, ef.message, evt, pageId, ef, options);
+                      setEffetFrom(attaquant, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
                     }
                   }
                 }
@@ -10401,7 +10437,10 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     let attr = [];
-    if (!options.copy) {
+    if (options.remplaceAttribut) {
+      attr= getObj('attribute', options.remplaceAttribut);
+      if (attr) attr = [attr]; else attr = [];
+    } else if (!options.copy) {
       attr = findObjs({
         _type: 'attribute',
         _characterid: charId,
@@ -11978,6 +12017,9 @@ var COFantasy2 = COFantasy2 || function() {
 
   const cmdFoudre = "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Foudre --auto --dm 4d4E+@{selected|CHA} --ligne --electrique --sortilege --portee 10 --psave AGI [[10+@{selected|CHA}]] --fx beam-holy";
 
+  //Il est important de terminer par l'effet de strangulationReconductible
+  const cmdStrangulation = "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Strangulation --sortilege --seulementVivant --dm 1d4E+@{selected|INT} --portee 20 --effet strangulation 1 --effetSurLanceur strangulationReconductible 2 0 --valeur @{target|Cible|token_id}";
+
   const capaciteBouclierDeLaFoi = {
     bouclierDeLaFoi: "SELONRANG(1,1,1,1,2)",
   };
@@ -11987,7 +12029,7 @@ var COFantasy2 = COFantasy2 || function() {
   // action est un objet, est actions est une liste d'actions, avec les champs:
   //  - nom : affiché quand on propose l'action
   //  - type : L, A, M, G ou I, pas besoin si horsCombat
-  //  - sortilege : indique que c'est un sortilège
+  //  - sortilege : indique que c'est un sortilège (inutile si on a une dépense de mana)
   //  - dm : indique que l'action fait des dm
   //  - mana : coût normal en mana
   //  - cmd : la commande à exécuter quand on fait l'action
@@ -12104,7 +12146,6 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Détecter la magie',
         type: 'L',
-        sortilege: true,
         mana: 2,
         horsCombat: true,
         cmd: '!cof2-action détecte la présence de magie dans un rayon de 10 m --secret',
@@ -12470,7 +12511,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Murmures dans le vent',
         horsCombat: true,
-        sortilege: true,
         type: 'G',
         mana: 1,
         limiteArmure: 'ensorceleur',
@@ -12481,7 +12521,6 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Se mettre sous tension',
         combat: true,
-        sortilege: true,
         type: 'M',
         mana: 2,
         limiteArmure: 'ensorceleur',
@@ -12499,7 +12538,6 @@ var COFantasy2 = COFantasy2 || function() {
     'telekinesie': {
       action: {
         nom: 'Télékinésie',
-        sortilege: true,
         type: 'A',
         mana: 3,
         cmd: "!cof2-action déplace un objet de moins de [[50*RANG]] kg dans les airs",
@@ -12510,7 +12548,6 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Foudre',
         type: 'A',
         mana: 4,
-        sortilege: true,
         dm: true,
         combat: true,
         cmd: cmdFoudre,
@@ -12520,7 +12557,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Forme éthérée',
         type: 'L',
-        sortilege: true,
         mana: 5,
         cmd: '!cof2-effet intangible true --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
       },
@@ -12531,7 +12567,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Injonction',
         type: 'A',
-        sortilege: true,
         mana: 1,
         limiteArmure: 'ensorceleur',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
@@ -12543,7 +12578,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Mirage',
         type: 'L',
-        sortilege: true,
         mana: 1,
         limiteArmure: 'ensorceleur',
         cmd: '!cof2-action crée une illusion --select @{selected|token_id}',
@@ -12562,7 +12596,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Projectle de mana',
         combat: true,
-        sortilege: true,
         dm: true,
         type: 'A',
         mana: 1,
@@ -12574,7 +12607,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Lévitation',
         type: 'M',
-        sortilege: true,
         mana: 2,
         limiteArmure: 'magicien',
         cmd: "!cof2-effet levitation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
@@ -12584,7 +12616,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Forme gazeuse',
         type: 'A',
-        sortilege: true,
         mana: 3,
         limiteArmure: 'magicien',
         cmd: "!cof2-effet formeGazeuse true --dureeEnMinutes 1 --select @{selected|token_id}"
@@ -12595,7 +12626,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Arc de feu",
         combat: true,
-        sortilege: true,
         dm: true,
         type: 'A',
         mana: 1,
@@ -12607,7 +12637,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Saper les forces",
         combat: true,
-        sortilege: true,
         entrerEnCombat: true,
         type: 'A',
         mana: 2,
@@ -12619,12 +12648,11 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Flèche de feu",
         combat: true,
-        sortilege: true,
         dm: true,
         type: 'A',
         mana: 3,
         limiteArmure: 'magicien',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Flèche de feu --sortilege --toucher @{selected|atkmag} --dm 3d4E+@{selected|int} --feu --portee 30 --fx missile-fire --effet enflamme",
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Flèche de feu --sortilege --toucher @{selected|atkmag} --dm 3d4E+@{selected|int} --feu --portee 30 --fx custom Fleche_de_feu --effet enflamme",
       },
     },
     //Voie de la magie élémentaire
@@ -12632,7 +12660,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Asphyxie',
         type: 'A',
-        sortilege: true,
         dm: true,
         mana: 1,
         combat: true,
@@ -12653,7 +12680,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Armure de mana",
         bufPersonnelNonCumulable: 'armureDeMana',
-        sortilege: true,
         type: 'M',
         mana: 1,
         cmd: "!cof2-effet armureDeMana valeurArmureDeMana --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
@@ -12663,7 +12689,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Chute ralentie',
         type: 'G',
-        sortilege: true,
         mana: 2,
         limiteArmure: 'magicien',
         cmd: '!cof2-action lance un sort de chute ralentie sur INT_TARGETS_NAMES --portee 10 --noSelect --message chute beaucoup moins vite',
@@ -12674,7 +12699,6 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Lumière',
         type: 'L',
-        sortilege: true,
         mana: 1,
         limiteArmure: 'magicien',
         cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10',
@@ -12718,7 +12742,6 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Invisibilité',
         type: 'A',
-        sortilege: true,
         mana: 3,
         limiteArmure: 'magicien',
         cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{selected|token_id}',
@@ -12739,7 +12762,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Ténèbres',
         type: 'L',
         mana: 1,
-        cmd: '!cof2-tenebres @{selected|token_id} @{target|Cible|token_id}',//valeurs par défaut de la commande
+        cmd: '!cof2-tenebres @{selected|token_id} @{target|Cible|token_id}', //valeurs par défaut de la commande
       }
     },
     'reptation': {
@@ -12749,6 +12772,15 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 2,
         cmd: '!cof2-effet reptation true --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
       }
+    },
+    'strangulation': {
+      action: {
+        nom: 'Strangulation',
+        type: 'A',
+        mana: 3,
+        dm: true,
+        cmd: cmdStrangulation + ' --attaqueMagiqueOpposee',
+      },
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des animaux
@@ -12855,7 +12887,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Baies magiques',
         horsCombat: true,
-        sortilege: true,
         type: 'L',
         mana: 1,
         limiteArmure: 'druide',
@@ -12866,7 +12897,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Forêt vivante',
         horsCombat: true,
-        sortilege: true,
         type: 'L',
         mana: 2,
         limiteArmure: 'druide',
@@ -12879,7 +12909,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Peau d'écorce",
         combat: true,
-        sortilege: true,
         type: 'M',
         mana: 1,
         bufPersonnelNonCumulable: 'peauDEcorce',
@@ -12891,7 +12920,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Prison végétale',
         combat: true,
-        sortilege: true,
         type: 'L',
         mana: 2,
         cmd: "!cof2-prison-vegetale @{target|token_id} 10 @{selected|PER} --portee 20",
@@ -12901,7 +12929,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Flèche vivante",
         combat: true,
-        sortilege: true,
         dm: true,
         type: 'A',
         mana: 3,
@@ -12919,7 +12946,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Miracle mineur",
         combat: true,
-        sortilege: true,
         type: 'A',
         mana: 2,
         limiteArmure: 'druide',
@@ -12947,7 +12973,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Bénédiction',
         combat: true,
-        sortilege: true,
         type: 'L',
         mana: 1,
         cmd: '!cof2-effet benediction SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --alliesEnVue',
@@ -12957,7 +12982,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: 'Sanctuaire',
         combat: true,
-        sortilege: true,
         entrerEnCombat: true,
         bufPersonnelNonCumulable: 'sanctuaire',
         type: 'L',
@@ -12978,7 +13002,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Récupération mineure",
         type: 'A',
-        sortilege: true,
         mana: 1,
         cmd: '!cof2-soin 1d4E+@{selected|CHA} --limiteParJour maxRecuperationsMineures --select @{target|token_id} --portee 0',
       },
@@ -12988,7 +13011,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Vigueur divine",
         type: 'L',
-        sortilege: true,
         mana: 2,
         cmd: "!cof2-action soigne @{target|Cible|token_name} d'un poison ou d'une maladie --cible @{target|Cible|token_id} --portee 0 --noSelect",
       },
@@ -13004,7 +13026,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Récupération majeure",
         type: 'L',
-        sortilege: true,
         mana: 3,
         cmd: '!cof2-soin 3d4E+@{selected|CHA} --plusDeEvolPred bonusRecuperationMajeure --select @{target|token_id} --portee 20',
       },
@@ -13017,7 +13038,6 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Augure",
         type: 'L',
-        sortilege: true,
         mana: 2,
         cmd: "!cof2-jet CHA --titre Augure --difficulte 10 --select @{selected|token_id}",
       },
@@ -15521,7 +15541,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (action.armeDeContact && armeEnMain.portee && !armeEnMain.modificateurs.includes('armeDeContact')) return ligne;
     }
     if (action.pasAuContactAdversaire && ennemisAuContact(perso, perso.token.get('pageid')).length > 0) return ligne;
-    if ((action.sortilege || action.dm) && attributeAsBool(perso, 'intangible')) return ligne;
+    if ((action.mana || action.sortilege || action.dm) && attributeAsBool(perso, 'intangible')) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
     command = TARGETSToSelection(command, perso);
     let request;
@@ -15627,6 +15647,24 @@ var COFantasy2 = COFantasy2 || function() {
             }
             ligne += "<br/>";
           }
+        }
+        //Maintenir une strangulation
+        if (!attributeAsBool(perso, 'intangible')) {
+          let attrStr = tokenAttribute(perso, 'strangulationReconductible');
+          attrStr.forEach(function(attr) {
+            let dureeRestante = toInt(attr.get('current'), 0);
+            if (dureeRestante != 1) return;
+            let cible = persoOfId(getValeurOfEffet(perso, 'strangulationReconductible', attr));
+            if (!cible) return;
+            if (distanceCombat(perso.token, cible.token, pageId) > 20) return;
+            let command = selectedToValue(cmdStrangulation, 'selected', perso);
+            command = selectedToValue(command, 'target|Cible', cible);
+            command += ' --remplaceAttribut '+ attr.id +' --auto --typeAction M';
+            if (!persoEstPNJ(perso)) command += ' --mana 1';
+            let bopt = {};
+            let b = boutonComplexe(command, 'Maintenir la strangulation', perso, bopt);
+            if (!bopt.actionImpossible) ligne += b + ' sur ' + nomPerso(cible) + '<br />';
+          });
         }
       }
       if (typeActionPossible(perso, 'A')) {
@@ -19314,6 +19352,22 @@ var COFantasy2 = COFantasy2 || function() {
       dureeEnTours: true,
       visible: true
     },
+    strangulation: {
+      activation: "étouffe",
+      actif: "étouffe sous l'effet d'une sombre magie",
+      fin: "retrouve son souffle",
+      dureeEnTours: true,
+      prejudiciable: true,
+      visible: true,
+    },
+    strangulationReconductible: {
+      activation: "maintient un sort de strangulation",
+      actif: "maintient un sort de strangulation",
+      fin: "la strangulation prend fin",
+      dureeEnTours: true,
+      visible: false,
+      plusieurs: true,
+    },
     armureMagique: {
       activation: "est entouré d'un halo magique",
       activationF: "est entourée d'un halo magique",
@@ -19748,7 +19802,8 @@ var COFantasy2 = COFantasy2 || function() {
   //  - secret
   //  - copy
   function setAttrDuree(perso, attr, duree, evt, options = {}) {
-    options.maxVal = getInit();
+    if (options.rangInit === undefined) options.maxVal = getInit();
+    else options.maxVal = options.rangInit;
     return setTokenAttr(perso, attr, duree, evt, options);
   }
 
@@ -20132,6 +20187,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - actif : message à afficher quand l'effet est actif
   // - activation: message à afficher quand l'effet s'active
   // - fin : message à afficher à la fin de l'effet
+  // - rangInit: à utiliser à la place de l'initiative courante
   function setEffet(target, effet, mEffet, valeur, pageId, evt, ef = {}, options = {}) {
     if (!ef.insensibleTeste && estInsensibleAEffet(target, effet, mEffet, options)) return;
     if (ef.actif !== undefined) {
@@ -20181,7 +20237,9 @@ var COFantasy2 = COFantasy2 || function() {
     let opt = {
       msg: targetMsg,
       secret,
-      copy: mEffet && mEffet.plusieurs,
+      copy: mEffet && mEffet.plusieurs && !ef.remplaceAttribut,
+      rangInit: ef.rangInit,
+      remplaceAttribut: ef.remplaceAttribut,
     };
     let attrEffet;
     //On active l'effet
@@ -20267,7 +20325,8 @@ var COFantasy2 = COFantasy2 || function() {
         maxVal = attrEffet.id;
       }
       setTokenAttr(target, effet + 'Valeur', ef.valeur, evt, {
-        maxVal
+        maxVal,
+        copy: opt.copy,
       });
     }
     if (ef.options !== undefined) {
@@ -20471,6 +20530,7 @@ var COFantasy2 = COFantasy2 || function() {
       insensibleTeste: options.insensibleTeste,
       valeurAjoutee: options.valeurAjoutee,
       dureeEnMinutes: options.dureeEnMinutes,
+      remplaceAttribut: options.remplaceAttribut,
     };
     setEffet(perso, effet, mEffet, valeur, pageId, evt, ef, options);
   }
@@ -23633,6 +23693,10 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push(nomPerso(perso) + " sprinte => dé malus");
         deMalus++;
       }
+      if (attributeAsBool(perso, 'strangulation')) {
+        explications.push(nomPerso(perso) + " étouffe => dé malus");
+        deMalus++;
+      }
     }
     if (estCible && options.controleMental && predicateAsBool(perso, 'vetementsSacres') && ficheAttributeAsInt(perso, 'armure_eqp', 0) === 0) {
       deBonus++;
@@ -25925,7 +25989,7 @@ var COFantasy2 = COFantasy2 || function() {
 
 
   function proposerDeRecharger(perso, recharges, ligne) {
-    if (ligne.length === 0) return ligne;
+    if (recharges.length === 0) return ligne;
     let {
       picto,
       style
@@ -30714,13 +30778,15 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.portee !== undefined) portee = options.portee;
     let rayon = 5;
     if (options.rayon !== undefined) rayon = options.rayon;
-        if (distanceCombat(sorcier.token, target.token, options.pageId, {
+    if (distanceCombat(sorcier.token, target.token, options.pageId, {
         strict2: true
       }) > portee) {
       sendPlayer("Le point visé est trop loin (portée " + portee + ")", playerId);
       return;
     }
-    const evt = {type: 'Ténèbres'};
+    const evt = {
+      type: 'Ténèbres'
+    };
     addEvent(evt);
     if (limiteRessources(sorcier, options, 'tenebres', 'lancer un sort de ténèbres', evt)) return;
     let dureeEnMinutes;
@@ -30744,7 +30810,7 @@ var COFantasy2 = COFantasy2 || function() {
       aura2_color: "#000000",
       showplayers_aura2: true,
     };
-        let token = createObj('graphic', tokSpec);
+    let token = createObj('graphic', tokSpec);
     if (token) {
       evt.tokens = [token.id];
       toFront(token);
@@ -30758,7 +30824,7 @@ var COFantasy2 = COFantasy2 || function() {
         init: getInit()
       });
     }
-        // Calcul des cibles à aveugler
+    // Calcul des cibles à aveugler
     let cibles = [];
     let allToksDisque =
       findObjs({
@@ -31866,10 +31932,17 @@ var COFantasy2 = COFantasy2 || function() {
         name: cmd[2]
       });
       if (effet.length === 0) {
-        sendChat("COF", "L'effet custom " + cmd[2] + " est inconnu.");
-        return;
-      }
-      obj[argName] = effet[0].id;
+        let definition = effetsX[cmd[2]];
+        if (definition) effet = createObj('custfx', {
+          name: cmd[2],
+          definition
+        });
+        if (!definition || !effet) {
+          sendChat("COF", "L'effet custom " + cmd[2] + " est inconnu.");
+          return;
+        }
+      } else effet = effet[0];
+      obj[argName] = effet.id;
     } else obj[argName] = cmd[1];
   }
 
@@ -32476,7 +32549,8 @@ var COFantasy2 = COFantasy2 || function() {
       effet,
       message: mEffet,
       finEffet: ctx.fin,
-      typeDmg: state.lastType
+      typeDmg: state.lastType,
+      surLanceur: ctx.surLanceur,
     };
     if (mEffet.dureeEnTours) {
       let duree = 1;
@@ -32493,6 +32567,10 @@ var COFantasy2 = COFantasy2 || function() {
                 cmd);
             return;
           }
+        }
+        if (cmd.length > 3) {
+          //On précise l'initiative à laquelle baisser la durée restante
+          state.lastEtat.rangInit = toInt(cmd[3], getInit());
         }
       }
       state.lastEtat.arg = duree;
@@ -32519,7 +32597,7 @@ var COFantasy2 = COFantasy2 || function() {
     let effet = scope;
     let effets = scope.effets;
     if (effets && effets.length > 0) {
-      effet = effets[0];
+      effet = effets[effets.length-1];
     }
     let val = cmd[1];
     if (ctx.champEntier) {
@@ -33168,6 +33246,10 @@ var COFantasy2 = COFantasy2 || function() {
     effet: {
       fn: effetOption
     },
+    effetSurLanceur: {
+      fn: effetOption,
+      surLanceur: true,
+    },
     electrique: {
       fn: dmgTypeOption
     },
@@ -33192,6 +33274,8 @@ var COFantasy2 = COFantasy2 || function() {
     etatSi: {
       fn: etatOption,
     },
+    explodeMax: boolDefaultOption,
+    explosion: boolDefaultOption,
     feu: {
       fn: dmgTypeOption
     },
@@ -33295,6 +33379,7 @@ var COFantasy2 = COFantasy2 || function() {
     pasDEchecCritique: {
       fn: tricheOption
     },
+    pasDeDmg: boolDefaultOption,
     pietine: boolDefaultOption,
     perforant: boolDefaultOption,
     peur: {
@@ -33336,12 +33421,16 @@ var COFantasy2 = COFantasy2 || function() {
     },
     recharger: wordDefaultOption,
     relanceSiMax: boolDefaultOption,
+    remplaceAttribut: {
+      fn: effetSubOption,
+    },
     repousseCible: {
       fn: integerOption,
       min: 0,
       local: true,
       additif: true,
     },
+    reroll1: boolDefaultOption,
     saufAllies: {
       fn: selectionOption
     },
@@ -33393,6 +33482,7 @@ var COFantasy2 = COFantasy2 || function() {
     terrainDifficile: {
       fn: terrainDifficileOption,
     },
+    test: boolDefaultOption,
     titre: stringDefaultOption,
     tokenSide: {
       fn: integerOption,
@@ -33490,11 +33580,6 @@ var COFantasy2 = COFantasy2 || function() {
     hache: boolDefaultOption,
     marteau: boolDefaultOption,
     poudre: boolDefaultOption,
-    explodeMax: boolDefaultOption,
-    explosion: boolDefaultOption,
-    pasDeDmg: boolDefaultOption,
-    reroll1: boolDefaultOption,
-    test: boolDefaultOption,
   };
 
   //Renseigne toujours options.playerId

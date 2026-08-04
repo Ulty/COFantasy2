@@ -433,7 +433,8 @@ tr {line-height: 25px;}
                   <li><code>--tempsRecharge <i>effet</i> <i>duree</i></code> : l'attaque n'est possible que si l'effet est inactif sur l'attaquant, et de plus active l'effet sur l'attaquant pour la durée indiquée si l'attaque est possible. Il existe un effet temporaire générique, <code>rechargeGen(<i>desc</i>)</code> que vous pouvez utiliser si aucun effet existant ne correspond pour votre attaque.</li>
                   <li><code>--etat <i>e</i></code>: si l'attaque touche, la cible passe dans l'état <i>e</i>. Il est aussi possible de spécifier une caractéristique et un seuil (comme pour <code>!cof-set-state</code>) pour faire afficher à chaque tour une action permettant de se libérer de l'état.</li>
                   <li><code>--finEtat <i>e</i></code>: si l'attaque touche, la cible sort de l'état <i>e</i>.</li>
-                  <li><code>--effet <i>e duree</i></code> : ajoute à la cible l'effet temporaire <i>e</i> pour la duree spécifiée. Pour que cela soit automatiquement mis à jour, il faut utiliser le turn tracker. Noter que l'argument de durée peut être omis pour certains effets, comme ceux qui par définition durent tout le combat.</li>
+                  <li><code>--effet <i>e duree</i></code> : ajoute à la cible l'effet temporaire <i>e</i> pour la duree spécifiée. Pour que cela soit automatiquement mis à jour, il faut utiliser le turn tracker. Noter que l'argument de durée peut être omis pour certains effets, comme ceux qui par définition durent tout le combat. Optionnellement, on peut ajouter en troisième argument le rang d'initiative à laquelle on diminute la durée restante de l'effet.</li>
+                  <li><code>--effetSurLanceur <i>e duree</i></code> : comme <code>--effet</code> mais sur le personnage à l'origine de l'attaque.</li>
                   <li><code>--finEffet <i>e </i></code> : enlève à la cible l'effet temporaire <i>e</i>.</li>
                   <li><code>--valeur <i>v</i></code> : spécifie une valeur au dernier effet mentionné.</li>
                   <li><code>--optionEffet <i>opt arg1 arg2 ...</i></code> : spécifie une option au dernier effet mentionné. L'option <i>opt</i> doit être donnée sans le <code>--</code> et sera passée telle quelle à l'effet, par exemple pour les dégâts périodiques, si on ne veut pas que la RD s'applique, on pourra ajouter <code>--optionEffet ignoreRD</code>.</li>
@@ -756,6 +757,7 @@ tr {line-height: 25px;}
                     <li><code>--dureeEnMinutes <i>duree</i></code> : indique une durée en minute pour les effets qui durent plus d'un combat</li>
                     <li><code>--accumuleDuree <i>n</i></code> : l'effet peut être accumulé : chaque fois qu'on applique à nouveau l'effet avec une durée donnée, on ajoute cette durée à la durée courante de l'effet sur la cible. On ne peut cumuler ainsi que <i>n</i> instances de l'effet.</li>
                     <li><code>--valeur <i>n</i></code> : pour certains effet, permet de spécifier une valeur qui remplace la valeur par défaut de l'effet.</li>
+                    <li><code>--remplaceAttribut <i>id</i></code> : pour les effest qui peuvent exister en plusieurs exemplaires, permet de spécifier un attribut particulier à mettre à jour.</li>
                     <li><code>--optionEffet <i>opt arg1 arg2 ...</i></code> : spécifie une option à l'effet. L'option <i>opt</i> doit être donnée sans le <code>--</code> et sera passée telle quelle à l'effet, par exemple pour les dégâts périodiques. Si on a besoin de plusieurs options, il faut utiliser plusieurs fois <code>--optionEffet</code>.</li>
                     <li><code>--secret</code> : le résultat de l'effet est chuchoté au joueur qui lance la commande.</li>
                     <li><code>--fx <i>effet</i></code> : affiche l'effet spécial entre le lanceur et ses cibles. Il est possible d'utiliser un effet que vous avez défini vous-même en utilisant l'option <code>--fx custom <i>nom</i></code>, où <i>nom</i> est le nom de votre effet.</li>
@@ -1341,6 +1343,7 @@ tr {line-height: 25px;}
                 <ol>
                   <li><strong>Ténèbres :</strong> le script propose le sort et ajoute la compétence évolutive. Pour le sort, le script ne gère pas quand un personnage entre ou sort de la zone, il faut que le MJ ajuste lui-même l'état aveuglé.</li>
                   <li><strong>Reptation :</strong> le script propose le sort, qui se contente d'ajouter un état de reptation. Le reste est à simuler par le MJ.</li>
+                  <li><strong>Strangulation :</strong> le script propose le sort, ainsi que la possibilité de le prolonger chaque tour.</li>
                 </ol>
                 <h4 class="text-secondary">Voie des arcanes osbcurs</h4>
               </div>
