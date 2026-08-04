@@ -1,4 +1,4 @@
-//Dernière modification : mar. 04 août 2026,  03:46
+//Dernière modification : mar. 04 août 2026,  06:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5713,6 +5713,12 @@ var COFantasy2 = COFantasy2 || function() {
     else options.deBonus = 1;
   }
 
+  function ajouteDeMalus(options) {
+    if (options.deMalus === true) options.deMalus = 2;
+    else if (options.deMalus) options.deMalus++;
+    else options.deMalus = 1;
+  }
+
   function resoudreAttaque(args, attaquant, evt, explications, options) {
     let {
       cibles,
@@ -5943,7 +5949,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (cibles.length === 1 && options.distance && !options.sortilege && attributeAsBool(cibles[0], 'manteauDOmbre')) {
       explications.push("Cible dans l'ombre => dé malus en attaque");
-      ajouterDeBonus(options, 'deMalus');
+      ajouteDeMalus(diceOptions);
     }
     if (diceOptions.deBonus !== true) {
       let autre = compagnonDeAuContact(attaquant);
@@ -11382,7 +11388,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         options.typeAction = 'L';
       }
-      if (!options.testeRessources) {
+      if (!persoEstPNJ(perso)) {
         let infos = getInfos(perso);
         let profilP = options.parchemin.profil;
         let diffTest;
@@ -11398,9 +11404,11 @@ var COFantasy2 = COFantasy2 || function() {
                 break;
               }
             }
-            //Impossible de lire le parchemin
-            expliquerPerso(perso, "ne peut pas lire ce parchemin");
-            return true;
+            if (!diffTest) {
+              //Impossible de lire le parchemin
+              if (!options.testeRessources) expliquerPerso(perso, "ne peut pas lire ce parchemin");
+              return true;
+            }
           }
         }
         if (diffTest && !options.testeRessources) {
@@ -12515,6 +12523,7 @@ var COFantasy2 = COFantasy2 || function() {
         value: '1',
         limiteArmure: 'ensorceleur',
       }],
+      profil: 'ensorceleur',
       action: {
         nom: 'Murmures dans le vent',
         horsCombat: true,
@@ -12525,6 +12534,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'sous tension': {
+      profil: 'ensorceleur',
       actions: [{
         nom: 'Se mettre sous tension',
         combat: true,
@@ -12543,6 +12553,7 @@ var COFantasy2 = COFantasy2 || function() {
       }],
     },
     'telekinesie': {
+      profil: 'ensorceleur',
       action: {
         nom: 'Télékinésie',
         type: 'A',
@@ -12551,6 +12562,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'foudre': {
+      profil: 'ensorceleur',
       action: {
         nom: 'Foudre',
         type: 'A',
@@ -12561,6 +12573,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'forme etheree': {
+      profil: 'ensorceleur',
       action: {
         nom: 'Forme éthérée',
         type: 'L',
@@ -12571,6 +12584,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie de l'envouteur
     injonction: {
       bonusTestEvolutif_injonction: true,
+      profil: 'ensorceleur',
       action: {
         nom: 'Injonction',
         type: 'A',
@@ -12582,6 +12596,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie des illusions
     'mirage': {
       bonusTestEvolutif_supercherie: true,
+      profil: 'ensorceleur',
       action: {
         nom: 'Mirage',
         type: 'L',
@@ -12594,6 +12609,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie de la magie des arcanes
     'projectile de mana': {
       bonusProjectileDeMana: 0,
+      profil: 'magicien',
       plusParVoieDeRang: {
         predicat: 'bonusProjectileDeMana',
         profil: 'magicien',
@@ -12611,6 +12627,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'levitation': {
+      profil: 'magicien',
       action: {
         nom: 'Lévitation',
         type: 'M',
@@ -12620,6 +12637,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'forme gazeuse': {
+      profil: 'magicien',
       action: {
         nom: 'Forme gazeuse',
         type: 'A',
@@ -12630,6 +12648,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie de la magie destructrice
     'arc de feu': {
+      profil: 'magicien',
       action: {
         nom: "Arc de feu",
         combat: true,
@@ -12641,6 +12660,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'saper les forces': {
+      profil: 'magicien',
       action: {
         nom: "Saper les forces",
         combat: true,
@@ -12652,6 +12672,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'fleche de feu': {
+      profil: 'magicien',
       action: {
         nom: "Flèche de feu",
         combat: true,
@@ -12664,6 +12685,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie de la magie élémentaire
     'asphyxie': {
+      profil: 'magicien',
       action: {
         nom: 'Asphyxie',
         type: 'A',
@@ -12676,6 +12698,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie de la magie protectrice
     'armure de mana': {
+      profil: 'magicien',
       valeurArmureDeMana: 'SELONRANG(3,3,4,4,4)',
       plusParVoieDeRang: {
         predicat: 'valeurArmureDeMana',
@@ -12693,6 +12716,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'chute ralentie': {
+      profil: 'magicien',
       action: {
         nom: 'Chute ralentie',
         type: 'G',
@@ -12703,6 +12727,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie de la magie universelle
     'lumiere': {
+      profil: 'magicien',
       actions: [{
         nom: 'Lumière',
         type: 'L',
@@ -12746,6 +12771,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'invisibilite': {
+      profil: 'magicien',
       actions: [{
         nom: 'Invisibilité',
         type: 'A',
@@ -12764,6 +12790,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voies de sorcier /////////////////////////////////////////////
     //Voie de la sombre magie
     'tenebres': {
+      profil: 'sorcier',
       bonusTestEvolutif_savoirsSombres: true,
       action: {
         nom: 'Ténèbres',
@@ -12773,6 +12800,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'reptation': {
+      profil: 'sorcier',
       action: {
         nom: 'Reptation',
         type: 'M',
@@ -12781,6 +12809,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'strangulation': {
+      profil: 'sorcier',
       action: {
         nom: 'Strangulation',
         type: 'A',
@@ -12790,6 +12819,7 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     "manteau d'ombre": {
+      profil: 'sorcier',
       action: {
         nom: "Manteau d'ombre",
         type: 'L',
@@ -12899,6 +12929,7 @@ var COFantasy2 = COFantasy2 || function() {
     'baies magiques': {
       bonusTestEvolutif_eclaireur: true,
       Restriction_bonusTestEvolutif_eclaireur: 'milieuNaturel',
+      profil: 'druide',
       action: {
         nom: 'Baies magiques',
         horsCombat: true,
@@ -12909,6 +12940,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'foret vivante': {
+      profil: 'druide',
       action: {
         nom: 'Forêt vivante',
         horsCombat: true,
@@ -12921,6 +12953,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie des végétaux
     "peau d’ecorce": {
       bonusTestEvolutif_plantes: true,
+      profil: 'druide',
       action: {
         nom: "Peau d'écorce",
         combat: true,
@@ -12932,6 +12965,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'prison vegetale': {
+      profil: 'druide',
       action: {
         nom: 'Prison végétale',
         combat: true,
@@ -12941,6 +12975,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'fleche vivante': {
+      profil: 'druide',
       action: {
         nom: "Flèche vivante",
         combat: true,
@@ -12958,6 +12993,7 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_convertir: true,
     },
     'miracle mineur': {
+      profil: 'pretre',
       action: {
         nom: "Miracle mineur",
         combat: true,
@@ -12985,6 +13021,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie de la prière
     'benediction': {
       bonusTestEvolutif_theologie: true,
+      profil: 'pretre',
       action: {
         nom: 'Bénédiction',
         combat: true,
@@ -12994,6 +13031,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     },
     'sanctuaire': {
+      profil: 'pretre',
       action: {
         nom: 'Sanctuaire',
         combat: true,
@@ -13014,6 +13052,7 @@ var COFantasy2 = COFantasy2 || function() {
         rang: 3,
         def: 1,
       },
+      profil: 'pretre',
       action: {
         nom: "Récupération mineure",
         type: 'A',
@@ -13023,6 +13062,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'vigueur divine': {
       bonusTestEvolutif_vigueur: true,
+      profil: 'pretre',
       action: {
         nom: "Vigueur divine",
         type: 'L',
@@ -13038,6 +13078,7 @@ var COFantasy2 = COFantasy2 || function() {
         rang: 5,
         def: 0,
       },
+      profil: 'pretre',
       action: {
         nom: "Récupération majeure",
         type: 'L',
@@ -13050,6 +13091,7 @@ var COFantasy2 = COFantasy2 || function() {
       vetementsSacres: 'SELONRANG(2,2,3,3,4)',
     },
     'augure': {
+      profil: 'pretre',
       action: {
         nom: "Augure",
         type: 'L',
@@ -13298,6 +13340,7 @@ var COFantasy2 = COFantasy2 || function() {
     let warnParam = true;
     preds = deepCopy(preds);
     delete preds.capaciteAmbigue;
+    delete preds.profil;
     let psp = preds.predSelonParam;
     if (psp) {
       let choice = param;
@@ -14574,6 +14617,7 @@ var COFantasy2 = COFantasy2 || function() {
       act = demandeMunition(attaquant, attackStats, options, act);
     }
     if (options.request) act += options.request;
+          if (options.ressource) act += " --decrAttribute " + options.ressource.id;
     let {
       picto,
       style
@@ -23268,12 +23312,6 @@ var COFantasy2 = COFantasy2 || function() {
     return res;
   }
 
-  function ajouterDeBonus(options, champ) {
-    if (options[champ] === true) return;
-    options[champ] = options[champ] || 0;
-    options[champ]++;
-  }
-
   //renvoie un bonus, mais peut aussi modifier les champs deBonus et deMalus des options
   function bonusAuxCompetences(perso, comp, expliquer, options = {}) {
     let bonus = predicateAsInt(perso, 'bonusTest_' + comp, 0);
@@ -23335,7 +23373,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'discretion':
         if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : dé malus en discrétion");
-          ajouterDeBonus(options, 'deMalus');
+          ajouteDeMalus(options);
         }
         if (predicateAsBool(perso, 'toutPetit')) {
           expliquer("Tout petit : +5 en discrétion");
@@ -23352,7 +23390,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (attributeAsBool(perso, 'manteauDOmbre')) {
           expliquer("Manteau d'ombre ; dé bonus en discrétion");
-          ajouterDeBonus(options, 'deBonus');
+          ajouteDeBonus(options);
         }
         break;
       case 'intimidation':
@@ -23407,13 +23445,13 @@ var COFantasy2 = COFantasy2 || function() {
       case 'orientation':
         if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : dé malus en orientation");
-          ajouterDeBonus(options, 'deMalus');
+          ajouteDeMalus(options);
         }
         break;
       case 'perception':
         if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : dé malus en perception");
-          ajouterDeBonus(options, 'deMalus');
+          ajouteDeMalus(options);
         }
         break;
       case 'persuasion':
@@ -23439,7 +23477,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'survie':
         if (attributeAsBool(perso, 'foretVivanteEnnemie')) {
           expliquer("Forêt hostile : dé malus en survie");
-          ajouterDeBonus(options, 'deMalus');
+          ajouteDeMalus(options);
         }
         break;
     }
@@ -30435,6 +30473,10 @@ var COFantasy2 = COFantasy2 || function() {
       let ligne = c.quantite + ' ';
       let action = c.effet;
       if (action === '') action = '!cof-action utilise ' + c.nom;
+      else if (action.startsWith('parchemin ')) {
+        let command = actionDeParchemin(perso, action.substring(10), playerId, pageId, options);
+        if (command) action = command;
+      }
       ligne += boutonComplexe(action, c.nom, perso, {
         ressource: c.attr
       });
@@ -30497,6 +30539,50 @@ var COFantasy2 = COFantasy2 || function() {
     else
       addLineToFramedDisplay(display, "<code>Vous n'avez aucun consommable</code>");
     sendFramedDisplay(display);
+  }
+
+  function actionDeParchemin(perso, nom, playerId, pageId, options) {
+    let capacite = removeAccents(nom).toLowerCase();
+    let indexPar = capacite.indexOf('(');
+    if (indexPar > 0) capacite = capacite.substring(0, indexPar);
+    capacite = capacite.trim();
+    let preds = predicatsParCapacite[capacite];
+    if (!preds) {
+      log("Capacité " + nom + " pas (encore ?) reconnue");
+      return;
+    }
+    let action = preds.action;
+    if (!action) {
+      if (preds.actions) {
+        log("Plus d'une action possible pour " + nom + ", ce n'est pas encore géré.");
+      } else {
+        log("Pas d'action associée à la capacité " + nom);
+      }
+      return;
+    }
+    let parchemin = options.parchemin;
+    if (!parchemin) {
+      let rang = action.mana;
+      if (!rang) {
+        log("La capacité " + nom + " n'est pas un sortilège. Il faut préciser un rang avec l'option --parchemin");
+        return;
+      }
+      let profil = preds.profil;
+      if (!profil) {
+        log("Le profil de la capacité " + nom + " n'est pas connu. En attendant de corriger cela, préciser le profil avec l'option --parchemin");
+        return;
+      }
+      parchemin = {
+        rang,
+        profil
+      };
+    }
+    let command = selectedToValue(action.cmd, 'selected', perso);
+    command = TARGETSToSelection(command, perso);
+    if (!options.acteur) command += ' --acteur ' + perso.token.id;
+    if (!options.select) command += ' --select ' + perso.token.id;
+    if (!options.parchemin) command += ' --parchemin ' + parchemin.rang + ' ' + parchemin.profil;
+    return command;
   }
 
   //!cof2-donner-consommable tid1 tid2 attrid
@@ -30762,7 +30848,6 @@ var COFantasy2 = COFantasy2 || function() {
       allies = alliesParPerso[options.acteur.charId];
     }
     //On affecte tous les personnages dans la zone.
-    let mEffet = messageEffet.prisonVegetale;
     let optEffet = {
       dureeEnMinutes: per,
       saveActifParTour: {
@@ -30782,7 +30867,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (!perso) return;
       if (distanceCombat(cible.token, token, pageId, optDist) > diametre / 2) return;
       if (allies.has(perso.charId)) return;
-      activerEffet(options.acteur, perso, 'prisonVegetale', per, mEffet, pageId, evt, optEffet);
+      activerEffetNom(options.acteur, perso, 'prisonVegetale', per, pageId, evt, optEffet);
     });
     //On crée l'image sur la carte.
     const opt = {
@@ -30904,12 +30989,11 @@ var COFantasy2 = COFantasy2 || function() {
       if (distanceCentre > rayon) return;
       cibles.push(cible);
     });
-    let mEffet = messageEffet.aveugleEnMinutes;
     let optEffet = {
       dureeEnMinutes,
     };
     cibles.forEach(function(perso) {
-      activerEffet(sorcier, perso, 'aveugleEnMinutes', dureeEnMinutes, mEffet, pageId, evt, optEffet);
+      activerEffetNom(sorcier, perso, 'aveugleEnMinutes', dureeEnMinutes, pageId, evt, optEffet);
     });
     if (target.token.get('bar1_max') == 0) { // jshint ignore:line
       //C'est juste un token utilisé pour définir le disque
