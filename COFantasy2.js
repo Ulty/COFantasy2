@@ -1,4 +1,4 @@
-//Dernière modification : mar. 04 août 2026,  06:12
+//Dernière modification : mer. 05 août 2026,  12:32
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -9297,7 +9297,8 @@ var COFantasy2 = COFantasy2 || function() {
           sendPerso(attaquant, "est trop proche de " + nomPerso(target) + " pour cette attaque");
           return false;
         }
-        if (portee > 0 && !options.armeDeContact && (weaponStats.arc || weaponStats.fronde || weaponStats.arbalete)) {
+        if (portee > 0 && !options.armeDeContact && (weaponStats.arc || weaponStats.fronde || 
+          ((weaponStats.arbalete || weaponStats.poudre) && !predicateAsBool(attaquant, 'plusViteQueSonOmbre')))) {
           options.deMalus = true;
           target.tirAuContact = true;
         }
@@ -12022,6 +12023,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Science',
         description: "tests scientifiques, occultes ou ordinaires",
       },
+      tavernes: {
+        nom: 'Pilier de bar',
+        descriptions: "interactions dans les tavernes ou auberges (renseignement, négiciation, séduction, ...)&#13; et résister à l'alcool"
+      },
       teigneux: {
         nom: 'Teigneux',
         description: "résister à l'alcool et à la privation de nourriture ou de sommeil",
@@ -12205,6 +12210,20 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_artificier: true,
       pasDeRisquePoudre: true,
       grenaille: true,
+    },
+    //Voie du mercenaire
+    'pilier de bar': {
+      bonusTestEvolutif_tavernes: true,//TODO: jets pour résister a l'alcool
+      deEvolutifMainsNues: true,
+      resistanceA_tempDmg: true,
+    },
+    //Voie du pistolero
+    'plus vite que son ombre': {
+      plusViteQueSonOmbre: true,
+    },
+    //Voie de la précision
+    'joli coup': {
+      reduitCouvertureCible: true,
     },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
@@ -14617,7 +14636,7 @@ var COFantasy2 = COFantasy2 || function() {
       act = demandeMunition(attaquant, attackStats, options, act);
     }
     if (options.request) act += options.request;
-          if (options.ressource) act += " --decrAttribute " + options.ressource.id;
+    if (options.ressource) act += " --decrAttribute " + options.ressource.id;
     let {
       picto,
       style
@@ -14723,7 +14742,7 @@ var COFantasy2 = COFantasy2 || function() {
     name: 'Mains nues',
     attSkill: '@{atkcac}',
     attNbDices: 1,
-    attDice: 4,
+    attDice: 3,
     attDMBonusCommun: 0,
     attCarBonus: '@{for}',
     crit: 20,
@@ -15382,7 +15401,13 @@ var COFantasy2 = COFantasy2 || function() {
                 let attackLabel = actionCommands[1].trim();
                 if (attackLabel == -1) { //attaque avec l'arme en main
                   attackStats = armesEnMain(perso);
-                  if (attackStats === undefined) attackStats = attaqueAMainsNues;
+                  if (attackStats === undefined) {
+                    attackStats = attaqueAMainsNues;
+                    if (predicateAsBool(perso, 'deEvolutifMainsNues')) {
+                      attackStats = deepCopy(attackStats);
+                      attackStats.attDice = deEvolutif(perso);
+                    }
+                  }
                 } else if (attackLabel == -2) { //attaque avec l'arme en main gauche
                   if (attributeAsBool(perso, 'paradeCroiseeDoublee')) return;
                   if (perso.armesEnMain === undefined) armesEnMain(perso);
@@ -21137,7 +21162,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (distance === 0 || ignoreObstacles) return 0;
     let bonusCouvert = attributeAsInt(cible, 'bonusCouvert', 0, 2);
     if (bonusCouvert > 5) bonusCouvert = 5;
-    if (bonusCouvert) explications.push("Cible à couvert => -" + bonusCouvert + " en attaque");
+      explications.push("Cible à couvert => -" + bonusCouvert + " en attaque");
     let allies = alliesParPerso[attaquant.charId] || new Set();
     let mAlliersContact = 0;
     let tok1 = attaquant.token;
@@ -21221,6 +21246,12 @@ var COFantasy2 = COFantasy2 || function() {
         if (liste_obstacles.length > 0)
           msgObstacles += '<span style="font-size: 0.8em; color: #666;">' + liste_obstacles.join(', ') + '</span>';
         explications.push(msgObstacles);
+      }
+    }
+    if (bonusCouvert) {
+      if (predicateAsBool(attaquant, 'reduitCouvertureCible')) {
+        if (bonusCouvert < 4) bonusCouvert = 0;
+        else bonusCouvert -= 3;
       }
     }
     if (predicateAsBool(attaquant, 'tirIgnoreCibleEngagee')) return bonusCouvert;
@@ -27411,7 +27442,7 @@ var COFantasy2 = COFantasy2 || function() {
       name: 'Mains nues',
       attSkill: 'atkcac',
       attNbDices: 1,
-      attDice: 4,
+      attDice: 3,
       attDMBonusCommun: 0,
       attCarBonus: '@{for}',
       crit: 20,
@@ -27423,6 +27454,7 @@ var COFantasy2 = COFantasy2 || function() {
     };
     if (attackLabel === undefined) {
       if (strict) return;
+      if (predicateAsBool(perso, 'deEvolutifMainsNues')) weaponStats.attDice = deEvolutif(perso);
       return weaponStats;
     }
     let attaques = listAllAttacks(perso);
@@ -27657,14 +27689,14 @@ var COFantasy2 = COFantasy2 || function() {
     // L'arme doit être chargée
     if (armeDechargee(perso, arme)) return 0;
     if (p === true) {
-      if (arme.poudre) return 10;
+      if (arme.poudre) return 5;
       return 0;
     }
-    let bonus = 10;
+    let bonus = 5;
     let type = 'poudre';
     let i = p.search(/\d/);
     if (i > -1) {
-      bonus = toInt(p.substring(i), 10);
+      bonus = toInt(p.substring(i), 5);
       p = p.substring(0, i);
     }
     if (p !== '') type = p;
@@ -29109,6 +29141,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (resistances[dmgType] || predicateOrAttributeAsBool(target, 'resistanceA_' + dmgType) || predicateAsBool(target, 'diviseEffet_' + dmgType)) {
       div++;
     }
+    if (target.tempDmg && predicateAsBool(target, 'resistanceA_tempDmg')) div++;
     if (predicateOrAttributeAsBool(target, 'vulnerableA_' + dmgType)) {
       multiply();
     }
@@ -30472,8 +30505,13 @@ var COFantasy2 = COFantasy2 || function() {
       aConsommable = true;
       let ligne = c.quantite + ' ';
       let action = c.effet;
-      if (action === '') action = '!cof-action utilise ' + c.nom;
-      else if (action.startsWith('parchemin ')) {
+      if (action === '') {
+        if (c.nom.toLowerCase().startsWith('parchemin de ')) {
+          let command = actionDeParchemin(perso, c.nom.substring(13), playerId, pageId, options);
+          if (command) action = command;
+        }
+        if (action === '') action = '!cof-action utilise ' + c.nom;
+      } else if (action.startsWith('parchemin ')) {
         let command = actionDeParchemin(perso, action.substring(10), playerId, pageId, options);
         if (command) action = command;
       }
@@ -35543,6 +35581,11 @@ var COFantasy2 = COFantasy2 || function() {
     'lister-equipes': {
       fn: commandeListerEquipes
     },
+    'lister-ressource': {
+      fn: commandeListerRessource,
+      minArgs: 1,
+      acteur: 1
+    },
     lumiere: {
       fn: commandeLumiere,
       minArgs: 2,
@@ -35721,11 +35764,6 @@ var COFantasy2 = COFantasy2 || function() {
       minArgs: 1,
       acteur: 1
     },
-    'lister-ressource': {
-      fn: commandeListerRessource,
-      minArgs: 1,
-      acteur: 1
-    }
   };
 
   //apiMsg devrait être affecté par la fonction qui appelle treatCommand
