@@ -1,4 +1,4 @@
-//Dernière modification : mer. 05 août 2026,  12:32
+//Dernière modification : lun. 10 août 2026,  02:31
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -238,11 +238,6 @@ var COFantasy2 = COFantasy2 || function() {
       val: {
         MJ_voit_actions: {
           explications: "À chaque nouveau personnage en combat, montre le choix d'actions au MJ, même pour les PJs.",
-          val: false,
-          type: 'bool'
-        },
-        propose_riposte_a_MJ: {
-          explications: "Propose au MJ de mettre les personnages qu'il contrôle en position de riposter",
           val: false,
           type: 'bool'
         },
@@ -774,7 +769,8 @@ var COFantasy2 = COFantasy2 || function() {
     let persos = findObjs({
       _type: 'character',
       name: 'Cible',
-      controlledby: 'all'
+      controlledby: 'all',
+      inplayerjournals: 'all',
     });
     if (persos.length > 0) return persos[0];
     let pages = findObjs({
@@ -906,7 +902,7 @@ var COFantasy2 = COFantasy2 || function() {
   function statusMarkersChanged(perso, prev, pageId) {
     let token = perso.token;
     const evt = {
-      type: "set_state",
+      type: 'set_state',
     };
     let prevAff = affectToken(token, 'statusmarkers', prev.statusmarkers, evt);
     let currentMarkers = [];
@@ -1731,6 +1727,7 @@ var COFantasy2 = COFantasy2 || function() {
     'surprise': surpriseAvecRedo,
     'saveEffet': saveEffetAvecRedo,
     'saveState': saveStateAvecRedo,
+    'soin': soinAvecRedo,
     'premiers soins': premiersSoinsAvecRedo,
     'Recherche de nourriture': natureNourriciereAvecRedo,
     'Tour suivant': tourSuivantAvecRedo,
@@ -2180,7 +2177,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     let evt = {
-      type: "Utilisation de DR"
+      type: 'Utilisation de DR'
     };
     addEvent(evt);
     setFicheAttr(perso, 'dr', dr - 1, evt);
@@ -2316,7 +2313,7 @@ var COFantasy2 = COFantasy2 || function() {
     let duree = 1;
     if (cmd.length > 1) duree = toInt(cmd[1], 1);
     let evt = {
-      type: "Passer le temp"
+      type: 'Passer le temp'
     };
     addEvent(evt);
     augmenterLeTempsEnMinutes(duree, undefined, evt, pageId);
@@ -6857,9 +6854,9 @@ var COFantasy2 = COFantasy2 || function() {
           //On cherche si l'allié est présent sur la même page
           allTokens = allTokens ||
             findObjs({
-              _type: "graphic",
+              _type: 'graphic',
               _pageid: pageId,
-              _subtype: "token",
+              _subtype: 'token',
               layer: "objects"
             });
           let alliePresent = allTokens.find(function(tok) {
@@ -8634,7 +8631,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (options.contact && isActive(target) && attributeAsBool(target, 'limiteParTour_positionDeRiposte')) {
           let combat = stateCOF.combat;
-          let actions = actionsDisponibles(attaquant, combat);
+          let actions = actionsDisponibles(target, combat);
           let b = "!cof2-riposter " + target.token.id + ' ' + attaquant.token.id + ' ' + actions.limitee + ' ' + actions.attaque + ' ' + actions.mouvement;
           let msg = boutonSimple(b, "Riposter", BS_BUTTON) + " ?";
           let init = persoInit(target);
@@ -9172,9 +9169,9 @@ var COFantasy2 = COFantasy2 || function() {
             murs = getWalls(page, pageId, murs);
             let allToksCone =
               findObjs({
-                _type: "graphic",
+                _type: 'graphic',
                 _pageid: pageId,
-                _subtype: "token",
+                _subtype: 'token',
                 layer: "objects"
               });
             allToksCone.forEach(function(obj) {
@@ -9297,8 +9294,8 @@ var COFantasy2 = COFantasy2 || function() {
           sendPerso(attaquant, "est trop proche de " + nomPerso(target) + " pour cette attaque");
           return false;
         }
-        if (portee > 0 && !options.armeDeContact && (weaponStats.arc || weaponStats.fronde || 
-          ((weaponStats.arbalete || weaponStats.poudre) && !predicateAsBool(attaquant, 'plusViteQueSonOmbre')))) {
+        if (portee > 0 && !options.armeDeContact && (weaponStats.arc || weaponStats.fronde ||
+            ((weaponStats.arbalete || weaponStats.poudre) && !predicateAsBool(attaquant, 'plusViteQueSonOmbre')))) {
           options.deMalus = true;
           target.tirAuContact = true;
         }
@@ -10937,7 +10934,7 @@ var COFantasy2 = COFantasy2 || function() {
     let cof2e;
     if (cmd.length > 1) cof2e = cmd[1] == 'cof2e';
     const evt = {
-      type: "Link token",
+      type: 'Link token',
       defaultTokens: []
     };
     addEvent(evt);
@@ -12213,7 +12210,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie du mercenaire
     'pilier de bar': {
-      bonusTestEvolutif_tavernes: true,//TODO: jets pour résister a l'alcool
+      bonusTestEvolutif_tavernes: true, //TODO: jets pour résister a l'alcool
       deEvolutifMainsNues: true,
       resistanceA_tempDmg: true,
     },
@@ -12225,6 +12222,9 @@ var COFantasy2 = COFantasy2 || function() {
     'joli coup': {
       reduitCouvertureCible: true,
     },
+    //Voies de barde //////////////////////////////////////////////
+    //Vioie de l'escrime
+    'precision': {},
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
     'archer emerite': {
@@ -13211,6 +13211,9 @@ var COFantasy2 = COFantasy2 || function() {
     'sans esprit': {
       sansEsprit: true,
     },
+    'monture': {
+      monture: true,
+    },
     //Les voies venant de capacités PJ
     "voie de l'air": {
       actions: [{
@@ -14174,6 +14177,13 @@ var COFantasy2 = COFantasy2 || function() {
     style: 'background-color:#272751;',
   };
 
+  function buttonStyleOfPicto(p) {
+    return ' style="' + p.style + BASIC_BUTTON_STYLE + '"';
+  }
+
+  const BS_ATTENDRE = buttonStyleOfPicto(PICTO_ATTENDRE);
+  const BS_LISTE_ACTIONS = buttonStyleOfPicto(PICTO_LISTE_ACTIONS);
+
   function pictoOfAttack(attackStats, options = {}) {
     let picto;
     let style;
@@ -14988,7 +14998,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     const evt = {
-      type: "Soutenir",
+      type: 'Soutenir',
     };
     addEvent(evt);
     if (limiteRessources(perso, options, 'soutenir', 'soutenir', evt)) return;
@@ -15008,15 +15018,15 @@ var COFantasy2 = COFantasy2 || function() {
     sendPerso(perso, "Soutient la prochaine attaque au contact de " + nomPerso(persoASoutenir) + " contre " + nomPerso(cible));
   }
 
-  function boutonRetarderTour(perso) {
-    let {
-      picto,
-      style
-    } = PICTO_ATTENDRE;
-    let b = picto + " Retarder son tour";
+  function boutonRetarderTour(perso, combat) {
+    let b = PICTO_ATTENDRE.picto + " Retarder son tour";
     let c = "!cof2-retarder-tour " + perso.token.id + " @{target|Agir après|token_id}";
-    let buttonStyleAttendre = ' style="' + style + BASIC_BUTTON_STYLE + '"';
-    return boutonSimple(c, b, buttonStyleAttendre) + " ou " + boutonSimple("!cof2-tour-suivant", "le terminer", buttonStyleAttendre);
+    let ligne = boutonSimple(c, b, BS_ATTENDRE) + " ou ";
+    if (aucuneActionRealiseeCeTour(perso)) {
+      let b = "!cof2-position-de-riposte " + perso.token.id;
+      ligne += boutonSimple(b, "attendre de riposter", BS_ATTENDRE);
+    } else ligne += boutonSimple("!cof2-tour-suivant", "le terminer", BS_ATTENDRE);
+    return ligne;
   }
 
   function commandeOptionsTactiques(cmd, playerId, pageId, options, perso) {
@@ -15053,30 +15063,23 @@ var COFantasy2 = COFantasy2 || function() {
       }
       //Les actions de défense
       let line = "<b>Défense</b> ";
-      let {
-        picto,
-        style
-      } = PICTO_DEFENSE;
-      let buttonStyleDefense = ' style="' + style + BASIC_BUTTON_STYLE + '"';
-      let b = picto + "partielle (A)";
+      let buttonStyleDefense = buttonStyleOfPicto(PICTO_DEFENSE);
+      let b = PICTO_DEFENSE.picto + "partielle (A)";
       let c = "!cof2-effet optionTactiqueDefensePartielle 1 --typeAction A --select " + perso.token.id;
       line += boutonSimple(c, b, buttonStyleDefense + ' title="+3 DEF et jets de résistance"');
       if (typeActionPossible(perso, 'L')) {
         //On continue la ligne de défense
-        b = picto + "totale (L)";
+        b = PICTO_DEFENSE.picto + "totale (L)";
         c = "!cof2-effet optionTactiqueDefenseTotale 1 --typeAction L --select " + perso.token.id;
         line += ' ' + boutonSimple(c, b, buttonStyleDefense + ' title="+5 DEF et jets de résistance"');
         addLineToFramedDisplay(display, line);
-        picto = '<span style="font-family: \'Pictos\'">&</span> ';
+        let picto = '<span style="font-family: \'Pictos\'">&</span> ';
         b = picto + "Soutenir (L)";
         c = "!cof2-soutenir " + perso.token.id + " @{target|Personnage à soutenir|token_id} @{target|Cible|token_id} --typeAction L";
         line = boutonSimple(c, b, BS_BUTTON + ' title="+5 att. au contact à un allié"');
         addLineToFramedDisplay(display, line);
-        let ps = PICTO_MANOEUVRE;
-        style = ps.style;
-        picto = ps.picto;
-        let buttonStyleManoeuvre = ' style="' + style + BASIC_BUTTON_STYLE + '"';
-        b = picto + "<b>Man&oelig;uvre<b> (L)";
+        let buttonStyleManoeuvre = buttonStyleOfPicto(PICTO_MANOEUVRE);
+        b = PICTO_MANOEUVRE.picto + "<b>Man&oelig;uvre<b> (L)";
         c = "!cof2-manoeuvres " + perso.token.id;
         line = boutonSimple(c, b, buttonStyleManoeuvre);
         addLineToFramedDisplay(display, line);
@@ -15541,10 +15544,11 @@ var COFantasy2 = COFantasy2 || function() {
     return vitesse;
   }
 
-  function aucuneAction(perso, combat) {
-    if (!combat || !combat.actions) return false;
+  function aucuneActionRealiseeCeTour(perso) {
+    let combat = stateCOF.combat;
+    if (!combat || !combat.actions) return true;
     let actions = combat.actions[perso.token.id];
-    if (!actions) return false;
+    if (!actions) return true;
     return !(actions.limitee || actions.attaque || actions.mouvement || actions.gratuite);
   }
 
@@ -15582,11 +15586,13 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //Ajoute l'action à ligne, si elle est disponible
-  function ajouterAction(perso, action, ligne, actionsEnCombat = true, supplementaire = false) {
+  // avant signifie que le personnage est avant son tour
+  function ajouterAction(perso, action, ligne, actionsEnCombat = true, avant = false, supplementaire = false) {
     if (action.enAttente && !supplementaire) return ligne;
+    if (avant && !action.enDehorsDeSonTour) return ligne;
     if (actionsEnCombat) {
       if (action.horsCombat) return ligne;
-      if (action.debutDuTour && !aucuneAction(perso, stateCOF.combat)) return ligne;
+      if (action.debutDuTour && !aucuneActionRealiseeCeTour(perso)) return ligne;
     } else {
       if (action.combat) return ligne;
     }
@@ -15668,264 +15674,295 @@ var COFantasy2 = COFantasy2 || function() {
     return ligne;
   }
 
-  function actionsParDefaut(perso, ligne, pageId, options) {
-    let actionsEnCombat = false;
+  function avantSonTour(perso, combat) {
+    if (!combat || combat.activeTokenId == perso.token.id) return false;
+    let {
+      dejaAgi,
+      pasAgi
+    } = getTurnOrder(combat);
+    if (dejaAgi.some(function(tr) {
+        return tr.id == perso.token.id;
+      })) return false; //Le perso est après son tour
+    let tr = pasAgi.find(function(tr) {
+      return tr.id == perso.token.id;
+    });
+    if (!tr) return false;
+    return tr.pr != pasAgi[0].pr;
+  }
+
+  function actionsParDefaut(perso, ligne, playerId, pageId, options) {
     let combat = stateCOF.combat;
-    if (combat || options.actionsDeCombat) {
-      actionsEnCombat = true;
-      //On rajoute les actions du tour par défaut
-      //Actions pour les saves actifs
-      let attrs = findObjs({
-        _type: 'attribute',
-        _characterid: perso.charId,
-      });
-      let suffixe = '';
-      if (estMook(perso)) suffixe = '_MOOK_' + perso.token.get('name');
-      attrs.forEach(function(attr) {
-        let attrName = attr.get('name');
-        if (estMook(perso) && !attrName.endsWith(suffixe)) return;
-        let indexSave = attrName.indexOf('SaveActifParTour');
-        if (indexSave < 0) return;
-        let effetC = attrName.substring(0, indexSave);
-        if (!estEffet(effetC)) return;
-        let met = messageOfEffet(effetC);
-        attrName = effetC + attrName.substring(indexSave + 11);
-        let msgPour;
-        if (met.msgSave) msgPour = met.msgSave;
-        else {
-          msgPour += "save contre ";
-          if (effetC.startsWith('dotGen('))
-            msgPour += effetC.substring(7, effetC.indexOf(')'));
-          else msgPour += effetC;
-        }
-        let carac = attr.get('current').split(' ');
-        if (carac.length < 2)
-          ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '<br/>';
-        else if (typeActionPossible(carac[1]))
-          ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '(' + carac[1] + ')<br/>';
-      });
-      if (typeActionPossible(perso, 'M')) {
-        //Mouvement
-        if (!persoImmobilise(perso)) {
-          if (predicateAsBool(perso, 'aucuneActionCombat') || !estControlleParJoueur(perso.charId, {
-              saufMJ: true,
-              online: true
-            })) {
-            //Personnage contrôlé seulement par le MJ, on peut proposer un mvt contrôlé
-            let vitesse = vitessePerso(perso);
-            let picto = '<span style="font-family: \'Pictos\'">4</span> ';
-            let style = 'style="background-color:#272751"';
-            let commande = "!cof2-mvt " + perso.token.id + " " + vitesse;
-            if (aucuneAction(perso, combat) && attributeAsBool(perso, 'chargeFantastique') && attributeAsInt(perso, 'limiteParTour_mouvementChargeFantastique', 1)) {
-              commande += " --limiteParTour 1 mouvementChargeFantastique";
-            } else {
-              commande += " --typeAction M";
-            }
-            ligne += boutonSimple(commande, picto, style) + " Se déplacer de " + vitesse + " m (M)";
-            if (typeActionPossible(perso, 'L')) {
-              //On proposer de sprinter (page 211)
-              let commande = "!cof2-sprinter " + perso.token.id + " --typeAction L";
-              let picto = '<span style="font-family: \'Pictos\'">7</span> ';
-              let style = 'style="background-color:#272751" title="Sprinter"';
-              ligne += " (" + boutonSimple(commande, picto, style) + " L) ";
-            }
-            ligne += "<br/>";
-          }
-        }
-        //Maintenir une strangulation
-        if (!attributeAsBool(perso, 'intangible')) {
-          let attrStr = tokenAttribute(perso, 'strangulationReconductible');
-          attrStr.forEach(function(attr) {
-            let dureeRestante = toInt(attr.get('current'), 0);
-            if (dureeRestante != 1) return;
-            let cible = persoOfId(getValeurOfEffet(perso, 'strangulationReconductible', attr));
-            if (!cible) return;
-            if (distanceCombat(perso.token, cible.token, pageId) > 20) return;
-            let command = selectedToValue(cmdStrangulation, 'selected', perso);
-            command = selectedToValue(command, 'target|Cible', cible);
-            command += ' --remplaceAttribut ' + attr.id + ' --auto --typeAction M';
-            if (!persoEstPNJ(perso)) command += ' --mana 1';
-            let bopt = {};
-            let b = boutonComplexe(command, 'Maintenir la strangulation', perso, bopt);
-            if (!bopt.actionImpossible) ligne += b + ' sur ' + nomPerso(cible) + '<br />';
-          });
-        }
+    let actionsEnCombat = combat || options.actionsDeCombat;
+    let avant = avantSonTour(perso, combat);
+    if (avant) {
+      if (aucuneActionRealiseeCeTour(perso)) {
+        let b = "!cof2-position-de-riposte " + perso.token.id;
+        ligne += boutonSimple(b, "Se mettre en position de riposter", BS_ATTENDRE) + " à une attaque au contact ? <br/>";
       }
-      if (typeActionPossible(perso, 'A')) {
-        if (getState(perso, 'renverse')) {
-          let command = "!cof2-effet renverse false --typeAction A --select " + perso.token.id;
-          ligne += boutonSimple(command, "Se relever") + '(A)<br/>';
-        }
+      if (!options.actionsAvantLeTour && playerIsGM(playerId)) {
+        let cmd = apiMsg.content + ' --actionsAvantLeTour';
+        ligne += boutonSimple(cmd, PICTO_LISTE_ACTIONS.picto + ' afficher les actions avant son tour', BS_LISTE_ACTIONS) + '<br/>';
+      } else {
+        //Proposer au MJ de faire afficher les actions avec --actionsAvantLeTour ?
       }
-      //L'arme en main et dégainer, si besoin
-      let armePrincipale = armesEnMain(perso);
-      if (typeActionPossible(perso, 'M')) {
-        let {
-          armes,
-          armeVisible,
-          possedeAttaqueNaturelle,
-          attaqueNaturelleNonVisible
-        } = listeDesArmes(perso);
-        let labelArmePrincipale;
-        let labelArmeGauche;
-        let ligneArmePrincipale;
-        let ligneArmeGauche;
-        let armeUtilisable;
-        if (armePrincipale) {
-          labelArmePrincipale = armePrincipale.label;
-          armeUtilisable = true;
-        }
-        if (perso.armeGauche) labelArmeGauche = perso.armeGauche.label;
-        if ((labelArmeGauche === undefined || labelArmeGauche === '') &&
-          predicateAsBool(perso, 'attaqueAuBouclier') && ficheAttributeAsBool(perso, 'bouclier_eqp', false)) {
-          labelArmeGauche = predicateAsBool(perso, 'attaqueAuBouclier');
-        }
-        if (armePrincipale) {
-          let nomCommande = armePrincipale.name;
-          if (armePrincipale.batarde) {
-            if (armePrincipale.deuxMains) nomCommande += ' (2M)';
-            else nomCommande += ' (1M)';
-          }
-          if (armeDechargee(perso, armePrincipale)) nomCommande += ' (vide)';
-          else if (armeChargeeDeGrenaille(perso, armePrincipale)) nomCommande += ' (grenaille)';
-          let bopt = {
-            attackStats: armePrincipale,
-            text: nomCommande,
-            typeAction: 'A',
-            actionImpossible: attributeAsBool(perso, 'intangible'),
-          };
-          if (armePrincipale.portee && predicateAsBool(perso, 'dansLeMille')) {
-            bopt.ligneOptions = "?{Difficulté du tir|Normal,&#32;|-2,--bonusAttaque -2 --plus 1d" + deEvolutif(perso) + "|Dé malus,--deMalus --plus 2d" + deEvolutif(perso) + "}";
-          }
-          //Si l'action est impossible, va simplement afficher le nom de l'arme
-          ligneArmePrincipale = boutonAttaque(perso, labelArmePrincipale, bopt);
-          if (bopt.actionImpossible) armeUtilisable = false;
-        } else if (!possedeAttaqueNaturelle) {
-          if (attaqueNaturelleNonVisible) {
-            let bopt = {
-              attack: attaqueNaturelleNonVisible,
-              typeAction: 'A',
-            };
-            //Si l'action est impossible, va simplement afficher le nom de l'arme
-            ligneArmePrincipale = boutonAttaque(perso, attaqueNaturelleNonVisible['arme-label'], bopt);
-          } else if (!predicateAsBool(perso, 'aucuneActionCombat')) {
-            //Action normalement toujours possible
-            let bopt = {
-              attackStats: attaqueAMainsNues,
-              typeAction: 'A',
-              actionPossible: true
-            };
-            ligneArmePrincipale = boutonAttaque(perso, -1, bopt);
-          }
-        }
-        if (perso.armeGauche && typeActionPossible(perso, 'A')) {
-          let nomCommande = perso.armeGauche.name;
-          if (armeDechargee(perso, perso.armeGauche)) nomCommande += ' (vide)';
-          else if (armeChargeeDeGrenaille(perso, perso.armeGauche)) nomCommande += ' (grenaille)';
-          let bopt = {
-            attackStats: perso.armeGauche,
-            typeAction: 'A',
-            actionImpossible: attributeAsBool(perso, 'intangible'),
-          };
-          ligneArmeGauche = boutonAttaque(perso, perso.armeGauche.label, bopt);
-        }
-        //Maintenant on propose de dégainer
-        if (armeVisible) {
-          if (predicateAsBool(perso, 'combatADeuxArmes')) {
-            ligneArmePrincipale = proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArmePrincipale, ' droite');
-            if (!armePrincipale || !armePrincipale.deuxMains) {
-              ligneArmeGauche = proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArmeGauche, ' gauche');
-            }
-          } else {
-            ligneArmePrincipale = proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArmePrincipale, '');
-          }
-        }
-        if (ligneArmePrincipale) {
-          ligne += ligneArmePrincipale + '<br />';
-        }
-        if (ligneArmeGauche) {
-          ligne += ligneArmeGauche + '<br />';
-        }
-        //Action de tir visé, si l'arme en main est à distance et PER > 0
-        if (armeUtilisable && armePrincipale.portee && typeActionPossible(perso, 'L') &&
-          modCarac(perso, 'PER') > 0 &&
-          //On ne propose pas si la PER est déjà ajoutée aux DM
-          !(armePrincipale.attCarBonus == '@{per}' ||
-            (armePrincipale.arc && predicateAsBool(perso, 'ajoutePERauxDMdArc')))) {
-          let bopt = {
-            attackStats: armePrincipale,
-            text: "Tir visé",
-            typeAction: 'L',
-            ligneOptions: "--plus " + modCarac(perso, 'PER'),
-          };
-          ligne += boutonAttaque(perso, labelArmePrincipale, bopt) + " avec " + armePrincipale.name + " (L)<br />";
-        }
-      }
-      //Proposer d'équiper un bouclier, si on a une main de libre
-      if (typeActionPossible(perso, 'L') && ficheAttributeAsInt(perso, 'bouclier', 0) && !ficheAttributeAsBool(perso, 'bouclier_eqp', false, optTransforme)) {
-        let armePrincipale = armesEnMain(perso);
-        if (!(armePrincipale && armePrincipale.deuxMains) && !perso.armeGauche) {
-          ligne += boutonSimple('!cof2-equiper-bouclier --select ' + perso.token.id + " --typeAction L", '<span style="font-family:\'Pictos Custom\'">e</span> Équiper le bouclier (L)', BS_BUTTON) + '<br />';
-        }
-      }
-      //Les attaques de la fiche qui ne sont pas des armes
-      let attackOptions = {
-        nePasAfficherArmes: true
-      };
-      ligne += listeAttaquesVisibles(perso, pageId, attackOptions);
-      //Proposer de recharger les armes déchargées
-      if (ennemisAuContact(perso, pageId).length === 0) {
-        let attributs_perso = findObjs({
+    }
+    if (options.actionsAvantLeTour || !avant) {
+      //Les actions proposées seulement au tour du personnage
+      if (actionsEnCombat) {
+        //On rajoute les actions du tour par défaut
+        //Actions pour les saves actifs
+        let attrs = findObjs({
           _type: 'attribute',
           _characterid: perso.charId,
         });
-        //On va distinguer les arbalètes, les armes à poudre et les autres, car ils n'utilisent pas les mêmes types de munitions
-        let recharges = {
-          arbalete: [],
-          poudre: [],
-          autre: []
-        };
-        attributs_perso.forEach(function(attr) {
-          let name = attr.get('name');
-          if (!name.startsWith('attributDeCombat_charge_')) return;
-          if (isAttrNameOfPerso(perso, name)) {
-            let label = name.substring(24);
-            if (estMook(perso)) {
-              let i = label.indexOf('_MOOK_');
-              label = label.substring(0, i);
+        let suffixe = '';
+        if (estMook(perso)) suffixe = '_MOOK_' + perso.token.get('name');
+        attrs.forEach(function(attr) {
+          let attrName = attr.get('name');
+          if (estMook(perso) && !attrName.endsWith(suffixe)) return;
+          let indexSave = attrName.indexOf('SaveActifParTour');
+          if (indexSave < 0) return;
+          let effetC = attrName.substring(0, indexSave);
+          if (!estEffet(effetC)) return;
+          let met = messageOfEffet(effetC);
+          attrName = effetC + attrName.substring(indexSave + 11);
+          let msgPour;
+          if (met.msgSave) msgPour = met.msgSave;
+          else {
+            msgPour += "save contre ";
+            if (effetC.startsWith('dotGen('))
+              msgPour += effetC.substring(7, effetC.indexOf(')'));
+            else msgPour += effetC;
+          }
+          let carac = attr.get('current').split(' ');
+          if (carac.length < 2)
+            ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '<br/>';
+          else if (typeActionPossible(carac[1]))
+            ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '(' + carac[1] + ')<br/>';
+        });
+        if (typeActionPossible(perso, 'M')) {
+          //Mouvement
+          if (!persoImmobilise(perso)) {
+            if (predicateAsBool(perso, 'aucuneActionCombat') || !estControlleParJoueur(perso.charId, {
+                saufMJ: true,
+                online: true
+              })) {
+              //Personnage contrôlé seulement par le MJ, on peut proposer un mvt contrôlé
+              let vitesse = vitessePerso(perso);
+              let picto = '<span style="font-family: \'Pictos\'">4</span> ';
+              let style = 'style="background-color:#272751"';
+              let commande = "!cof2-mvt " + perso.token.id + " " + vitesse;
+              if (aucuneActionRealiseeCeTour(perso) && attributeAsBool(perso, 'chargeFantastique') && attributeAsInt(perso, 'limiteParTour_mouvementChargeFantastique', 1)) {
+                commande += " --limiteParTour 1 mouvementChargeFantastique";
+              } else {
+                commande += " --typeAction M";
+              }
+              ligne += boutonSimple(commande, picto, style) + " Se déplacer de " + vitesse + " m (M)";
+              if (typeActionPossible(perso, 'L')) {
+                //On proposer de sprinter (page 211)
+                let commande = "!cof2-sprinter " + perso.token.id + " --typeAction L";
+                let picto = '<span style="font-family: \'Pictos\'">7</span> ';
+                let style = 'style="background-color:#272751" title="Sprinter"';
+                ligne += " (" + boutonSimple(commande, picto, style) + " L) ";
+              }
+              ligne += "<br/>";
             }
-            const armes = listAllAttacks(perso);
-            let arme = armes[label];
-            if (!arme) {
-              log("Impossible de trouver l'arme de label " + label + " auquel on référence dans l'attribut " + name);
-              attr.remove();
-              return;
-            }
-            if (!arme['arme-options']) {
-              log("Pas d'option pour l'arme de label " + label + " auquel on référence dans l'attribut " + name);
-              attr.remove();
-              return;
-            }
-            const opt = {
-              noError: true
-            };
-            let optionsArme = parseOptions(arme['arme-options'], pageId, opt);
-            if (!typeActionPossible(perso, optionsArme.recharger)) return;
-            let weaponStats = weaponStatsOfAttack(perso, label, arme);
-            let field = 'autre';
-            if (weaponStats.arbalete) field = 'arbalete';
-            else if (weaponStats.poudre) field = 'poudre';
-            recharges[field].push({
-              nom: arme['arme-nom'],
-              label,
-              typeAction: optionsArme.recharger,
-              weaponStats,
+          }
+          //Maintenir une strangulation
+          if (!attributeAsBool(perso, 'intangible')) {
+            let attrStr = tokenAttribute(perso, 'strangulationReconductible');
+            attrStr.forEach(function(attr) {
+              let dureeRestante = toInt(attr.get('current'), 0);
+              if (dureeRestante != 1) return;
+              let cible = persoOfId(getValeurOfEffet(perso, 'strangulationReconductible', attr));
+              if (!cible) return;
+              if (distanceCombat(perso.token, cible.token, pageId) > 20) return;
+              let command = selectedToValue(cmdStrangulation, 'selected', perso);
+              command = selectedToValue(command, 'target|Cible', cible);
+              command += ' --remplaceAttribut ' + attr.id + ' --auto --typeAction M';
+              if (!persoEstPNJ(perso)) command += ' --mana 1';
+              let bopt = {};
+              let b = boutonComplexe(command, 'Maintenir la strangulation', perso, bopt);
+              if (!bopt.actionImpossible) ligne += b + ' sur ' + nomPerso(cible) + '<br />';
             });
           }
-        });
-        ligne = proposerDeRecharger(perso, recharges.arbalete, ligne);
-        ligne = proposerDeRecharger(perso, recharges.poudre, ligne);
-        ligne = proposerDeRecharger(perso, recharges.autre, ligne);
+        }
+        if (typeActionPossible(perso, 'A')) {
+          if (getState(perso, 'renverse')) {
+            let command = "!cof2-effet renverse false --typeAction A --select " + perso.token.id;
+            ligne += boutonSimple(command, "Se relever") + '(A)<br/>';
+          }
+        }
+        //L'arme en main et dégainer, si besoin
+        let armePrincipale = armesEnMain(perso);
+        if (typeActionPossible(perso, 'M')) {
+          let {
+            armes,
+            armeVisible,
+            possedeAttaqueNaturelle,
+            attaqueNaturelleNonVisible
+          } = listeDesArmes(perso);
+          let labelArmePrincipale;
+          let labelArmeGauche;
+          let ligneArmePrincipale;
+          let ligneArmeGauche;
+          let armeUtilisable;
+          if (armePrincipale) {
+            labelArmePrincipale = armePrincipale.label;
+            armeUtilisable = true;
+          }
+          if (perso.armeGauche) labelArmeGauche = perso.armeGauche.label;
+          if ((labelArmeGauche === undefined || labelArmeGauche === '') &&
+            predicateAsBool(perso, 'attaqueAuBouclier') && ficheAttributeAsBool(perso, 'bouclier_eqp', false)) {
+            labelArmeGauche = predicateAsBool(perso, 'attaqueAuBouclier');
+          }
+          if (armePrincipale) {
+            let nomCommande = armePrincipale.name;
+            if (armePrincipale.batarde) {
+              if (armePrincipale.deuxMains) nomCommande += ' (2M)';
+              else nomCommande += ' (1M)';
+            }
+            if (armeDechargee(perso, armePrincipale)) nomCommande += ' (vide)';
+            else if (armeChargeeDeGrenaille(perso, armePrincipale)) nomCommande += ' (grenaille)';
+            let bopt = {
+              attackStats: armePrincipale,
+              text: nomCommande,
+              typeAction: 'A',
+              actionImpossible: attributeAsBool(perso, 'intangible'),
+            };
+            if (armePrincipale.portee && predicateAsBool(perso, 'dansLeMille')) {
+              bopt.ligneOptions = "?{Difficulté du tir|Normal,&#32;|-2,--bonusAttaque -2 --plus 1d" + deEvolutif(perso) + "|Dé malus,--deMalus --plus 2d" + deEvolutif(perso) + "}";
+            }
+            //Si l'action est impossible, va simplement afficher le nom de l'arme
+            ligneArmePrincipale = boutonAttaque(perso, labelArmePrincipale, bopt);
+            if (bopt.actionImpossible) armeUtilisable = false;
+          } else if (!possedeAttaqueNaturelle) {
+            if (attaqueNaturelleNonVisible) {
+              let bopt = {
+                attack: attaqueNaturelleNonVisible,
+                typeAction: 'A',
+              };
+              //Si l'action est impossible, va simplement afficher le nom de l'arme
+              ligneArmePrincipale = boutonAttaque(perso, attaqueNaturelleNonVisible['arme-label'], bopt);
+            } else if (!predicateAsBool(perso, 'aucuneActionCombat')) {
+              //Action normalement toujours possible
+              let bopt = {
+                attackStats: attaqueAMainsNues,
+                typeAction: 'A',
+                actionPossible: true
+              };
+              ligneArmePrincipale = boutonAttaque(perso, -1, bopt);
+            }
+          }
+          if (perso.armeGauche && typeActionPossible(perso, 'A')) {
+            let nomCommande = perso.armeGauche.name;
+            if (armeDechargee(perso, perso.armeGauche)) nomCommande += ' (vide)';
+            else if (armeChargeeDeGrenaille(perso, perso.armeGauche)) nomCommande += ' (grenaille)';
+            let bopt = {
+              attackStats: perso.armeGauche,
+              typeAction: 'A',
+              actionImpossible: attributeAsBool(perso, 'intangible'),
+            };
+            ligneArmeGauche = boutonAttaque(perso, perso.armeGauche.label, bopt);
+          }
+          //Maintenant on propose de dégainer
+          if (armeVisible) {
+            if (predicateAsBool(perso, 'combatADeuxArmes')) {
+              ligneArmePrincipale = proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArmePrincipale, ' droite');
+              if (!armePrincipale || !armePrincipale.deuxMains) {
+                ligneArmeGauche = proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArmeGauche, ' gauche');
+              }
+            } else {
+              ligneArmePrincipale = proposerDeDegainer(perso, armes, labelArmePrincipale, armePrincipale, labelArmeGauche, ligneArmePrincipale, '');
+            }
+          }
+          if (ligneArmePrincipale) {
+            ligne += ligneArmePrincipale + '<br />';
+          }
+          if (ligneArmeGauche) {
+            ligne += ligneArmeGauche + '<br />';
+          }
+          //Action de tir visé, si l'arme en main est à distance et PER > 0
+          if (armeUtilisable && armePrincipale.portee && typeActionPossible(perso, 'L') &&
+            modCarac(perso, 'PER') > 0 &&
+            //On ne propose pas si la PER est déjà ajoutée aux DM
+            !(armePrincipale.attCarBonus == '@{per}' ||
+              (armePrincipale.arc && predicateAsBool(perso, 'ajoutePERauxDMdArc')))) {
+            let bopt = {
+              attackStats: armePrincipale,
+              text: "Tir visé",
+              typeAction: 'L',
+              ligneOptions: "--plus " + modCarac(perso, 'PER'),
+            };
+            ligne += boutonAttaque(perso, labelArmePrincipale, bopt) + " avec " + armePrincipale.name + " (L)<br />";
+          }
+        }
+        //Proposer d'équiper un bouclier, si on a une main de libre
+        if (typeActionPossible(perso, 'L') && ficheAttributeAsInt(perso, 'bouclier', 0) && !ficheAttributeAsBool(perso, 'bouclier_eqp', false, optTransforme)) {
+          let armePrincipale = armesEnMain(perso);
+          if (!(armePrincipale && armePrincipale.deuxMains) && !perso.armeGauche) {
+            ligne += boutonSimple('!cof2-equiper-bouclier --select ' + perso.token.id + " --typeAction L", '<span style="font-family:\'Pictos Custom\'">e</span> Équiper le bouclier (L)', BS_BUTTON) + '<br />';
+          }
+        }
+        //Les attaques de la fiche qui ne sont pas des armes
+        let attackOptions = {
+          nePasAfficherArmes: true
+        };
+        ligne += listeAttaquesVisibles(perso, pageId, attackOptions);
+        //Proposer de recharger les armes déchargées
+        if (ennemisAuContact(perso, pageId).length === 0) {
+          let attributs_perso = findObjs({
+            _type: 'attribute',
+            _characterid: perso.charId,
+          });
+          //On va distinguer les arbalètes, les armes à poudre et les autres, car ils n'utilisent pas les mêmes types de munitions
+          let recharges = {
+            arbalete: [],
+            poudre: [],
+            autre: []
+          };
+          attributs_perso.forEach(function(attr) {
+            let name = attr.get('name');
+            if (!name.startsWith('attributDeCombat_charge_')) return;
+            if (isAttrNameOfPerso(perso, name)) {
+              let label = name.substring(24);
+              if (estMook(perso)) {
+                let i = label.indexOf('_MOOK_');
+                label = label.substring(0, i);
+              }
+              const armes = listAllAttacks(perso);
+              let arme = armes[label];
+              if (!arme) {
+                log("Impossible de trouver l'arme de label " + label + " auquel on référence dans l'attribut " + name);
+                attr.remove();
+                return;
+              }
+              if (!arme['arme-options']) {
+                log("Pas d'option pour l'arme de label " + label + " auquel on référence dans l'attribut " + name);
+                attr.remove();
+                return;
+              }
+              const opt = {
+                noError: true
+              };
+              let optionsArme = parseOptions(arme['arme-options'], pageId, opt);
+              if (!typeActionPossible(perso, optionsArme.recharger)) return;
+              let weaponStats = weaponStatsOfAttack(perso, label, arme);
+              let field = 'autre';
+              if (weaponStats.arbalete) field = 'arbalete';
+              else if (weaponStats.poudre) field = 'poudre';
+              recharges[field].push({
+                nom: arme['arme-nom'],
+                label,
+                typeAction: optionsArme.recharger,
+                weaponStats,
+              });
+            }
+          });
+          ligne = proposerDeRecharger(perso, recharges.arbalete, ligne);
+          ligne = proposerDeRecharger(perso, recharges.poudre, ligne);
+          ligne = proposerDeRecharger(perso, recharges.autre, ligne);
+        }
       }
     }
     //Les actions venant des capacités
@@ -15933,27 +15970,29 @@ var COFantasy2 = COFantasy2 || function() {
     let infos = getInfos(perso);
     if (infos.actions) {
       infos.actions.forEach(function(action) {
-        ligne = ajouterAction(perso, action, ligne, actionsEnCombat);
+        ligne = ajouterAction(perso, action, ligne, actionsEnCombat, avant);
       });
     }
     if (combat && actionsEnCombat) {
       let actions = actionsDisponibles(perso, combat);
       if (actions.supplementaires) {
         actions.supplementaires.forEach(function(action) {
-          ligne = ajouterAction(perso, action, ligne, actionsEnCombat, true);
+          ligne = ajouterAction(perso, action, ligne, actionsEnCombat, avant, true);
         });
       }
     }
-    persoTransforme(perso);
-    if (perso.transforme.charId) {
-      let command = "!cof-fin-changement-de-forme --select " + perso.token.id;
-      ligne += boutonSimple(command, "Retrouver sa forme normale") + '<br/>';
-      if (predicateAsBool(perso, 'transformationRegeneratrice')) {
-        let pv = parseInt(perso.token.get('bar1_value'));
-        let anciensPVs = attributeAsInt(perso, 'PVAvantTransformation', pv);
-        if (!isNaN(pv) && anciensPVs > pv) {
-          command = "!cof-fin-changement-de-forme --transformationRegeneratrice --select " + perso.token.id;
-          ligne += boutonSimple(command, "Transformation régénératrice") + '(L)<br/>';
+    if (!avant) {
+      persoTransforme(perso);
+      if (perso.transforme.charId) {
+        let command = "!cof-fin-changement-de-forme --select " + perso.token.id;
+        ligne += boutonSimple(command, "Retrouver sa forme normale") + '<br/>';
+        if (predicateAsBool(perso, 'transformationRegeneratrice')) {
+          let pv = parseInt(perso.token.get('bar1_value'));
+          let anciensPVs = attributeAsInt(perso, 'PVAvantTransformation', pv);
+          if (!isNaN(pv) && anciensPVs > pv) {
+            command = "!cof-fin-changement-de-forme --transformationRegeneratrice --select " + perso.token.id;
+            ligne += boutonSimple(command, "Transformation régénératrice") + '(L)<br/>';
+          }
         }
       }
     }
@@ -15961,21 +16000,21 @@ var COFantasy2 = COFantasy2 || function() {
     ligne = actionsDeListe(perso, 1, pageId, ligne);
     //Les actions à afficher à la fin
     if (actionsEnCombat) {
-      if (typeActionPossible(perso, 'A')) {
-        let command = "!cof2-options-tactiques " + perso.token.id;
-        ligne += boutonSimple(command, "Options tactiques", BS_BUTTON) + '<br/>';
-      } else if (typeActionPossible(perso, 'M')) {
-        //la seule action tactique possible est de retarder son tour
-        ligne += boutonRetarderTour(perso) + '<br/>';
+      if (!avant) {
+        if (typeActionPossible(perso, 'A')) {
+          let command = "!cof2-options-tactiques " + perso.token.id;
+          ligne += boutonSimple(command, "Options tactiques", BS_BUTTON) + '<br/>';
+        } else if (typeActionPossible(perso, 'M')) {
+          //la seule action tactique possible est de retarder son tour
+          ligne += boutonRetarderTour(perso) + '<br/>';
+        } else if (ligne !== '' && combat.activeTokenId == perso.token.id) {
+          let suivant = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_ATTENDRE);
+          ligne += suivant + ' ? <br/>';
+        }
       }
     } else {
       let command = "!cof2-liste-actions --select " + perso.token.id + " --actionsDeCombat";
-      let {
-        picto,
-        style
-      } = PICTO_LISTE_ACTIONS;
-      let buttonStyleListe = ' style="' + style + BASIC_BUTTON_STYLE + '"';
-      let b = boutonSimple(command, picto + "Actions de combat", buttonStyleListe);
+      let b = boutonSimple(command, PICTO_LISTE_ACTIONS.picto + "Actions de combat", BS_LISTE_ACTIONS);
       ligne += b + '<br/>';
     }
     return ligne;
@@ -16001,7 +16040,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let ligne = '';
     if (actionsDuTour == 1) {
-      ligne = actionsParDefaut(perso, ligne, pageId, options);
+      ligne = actionsParDefaut(perso, ligne, playerId, pageId, options);
     } else {
       //Pour les autre listes, on n'affiche que la liste sur la fiche
       ligne = actionsDeListe(perso, actionsDuTour, pageId, ligne);
@@ -16009,8 +16048,8 @@ var COFantasy2 = COFantasy2 || function() {
     let onlyTitle = false;
     if (stateCOF.combat) {
       if (ligne === '' && isActiveTurnPerso(perso)) {
-        let suivant = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_BUTTON);
-        if (!aucuneAction(perso, stateCOF.combat)) {
+        let suivant = boutonSimple("!cof2-tour-suivant", "Au suivant", BS_ATTENDRE);
+        if (!aucuneActionRealiseeCeTour(perso)) {
           title = "Aucune autre action possible. " + suivant + " ?";
           onlyTitle = true;
         } else {
@@ -16359,7 +16398,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     const evt = {
-      type: "Décoincer",
+      type: 'Décoincer',
       tokens: []
     };
     let unTokenDecoince;
@@ -16719,7 +16758,7 @@ var COFantasy2 = COFantasy2 || function() {
     let token = perso.token;
     if (token.get('lockMovement')) return; //Rien de spécial à faire
     const evt = {
-      type: "unlock",
+      type: 'unlock',
     };
     addEvent(evt);
     affectToken(token, 'lockMovement', prev.lockMovement, evt);
@@ -16912,6 +16951,8 @@ var COFantasy2 = COFantasy2 || function() {
     return perso;
   }
 
+
+  //charId est optionnel
   function sendChar(charId, msg) {
     let dest = '';
     if (charId) {
@@ -21162,6 +21203,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (distance === 0 || ignoreObstacles) return 0;
     let bonusCouvert = attributeAsInt(cible, 'bonusCouvert', 0, 2);
     if (bonusCouvert > 5) bonusCouvert = 5;
+    if (bonusCouvert > 0)
       explications.push("Cible à couvert => -" + bonusCouvert + " en attaque");
     let allies = alliesParPerso[attaquant.charId] || new Set();
     let mAlliersContact = 0;
@@ -25397,7 +25439,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function getTurnOrder(combat, evt) {
     let turnOrder = Campaign().get('turnorder');
-    evt.turnorder = evt.turnorder || turnOrder;
+    if (evt) evt.turnorder = evt.turnorder || turnOrder;
     if (turnOrder === '') {
       turnOrder = [{
         id: "-1",
@@ -25405,8 +25447,10 @@ var COFantasy2 = COFantasy2 || function() {
         custom: "Tour",
         formula: "+1"
       }];
-      if (!evt.combat) evt.combat = deepCopy(combat);
-      combat.tour = 1;
+      if (evt) {
+        if (!evt.combat) evt.combat = deepCopy(combat);
+        combat.tour = 1;
+      }
     } else {
       turnOrder = JSON.parse(turnOrder);
     }
@@ -25421,8 +25465,10 @@ var COFantasy2 = COFantasy2 || function() {
         custom: "Tour",
         formula: "+1"
       });
-      if (!evt.combat) evt.combat = deepCopy(combat);
-      combat.tour = 1;
+      if (evt) {
+        if (!evt.combat) evt.combat = deepCopy(combat);
+        combat.tour = 1;
+      }
     }
     let res = {
       tour: turnOrder[indexTour],
@@ -25598,27 +25644,12 @@ var COFantasy2 = COFantasy2 || function() {
       Campaign().set('initiativepage', true);
     }
     let to = getTurnOrder(combat, evt);
-    let proposeRiposte;
     if (to.pasAgi.length === 0) { // Fin de tour, on met le tour à la fin et on retrie
       to.pasAgi = to.dejaAgi;
       to.dejaAgi = [];
-      proposeRiposte = true;
-      to.pasAgi.forEach(function(elt) {
-        let perso = persoOfId(elt.id);
-        if (!perso) return;
-        if (stateCOF.options.affichage.val.propose_riposte_a_MJ.val || estControlleParJoueur(perso.charId)) {
-          let b = "!cof2-position-de-riposte " + perso.token.id;
-          let msg = boutonSimple(b, "Se mettre en position de riposter", BS_BUTTON) + " à une attaque au contact ?";
-          sendPerso(perso, msg, true, false);
-        }
-      });
     }
     let tokens;
     let aAjouter = [];
-    if (!proposeRiposte && to.dejaAgi.length === 0) {
-      let currentActive = persoOfId(combat.activeTokenId);
-      proposeRiposte = !currentActive || aucuneAction(currentActive, combat);
-    }
     if (!Array.isArray(selected)) selected = [selected];
     selected.forEach(function(perso) {
       if (!isActive(perso)) return;
@@ -25711,13 +25742,6 @@ var COFantasy2 = COFantasy2 || function() {
             online: true
           })) {
           lockToken(perso, evt);
-        }
-        if (proposeRiposte &&
-          (stateCOF.options.affichage.val.propose_riposte_a_MJ.val || estControlleParJoueur(perso.charId))) {
-          //Personne n'a agi, on propose la position de riposte
-          let b = "!cof2-position-de-riposte " + perso.token.id;
-          let msg = boutonSimple(b, "Se mettre en position de riposter", BS_BUTTON) + " à une attaque au contact ?";
-          sendPerso(perso, msg, true, false);
         }
       }
     });
@@ -25818,7 +25842,7 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("On n'est pas en combat", playerId);
       return;
     }
-    if (!aucuneAction(perso, combat)) {
+    if (!aucuneActionRealiseeCeTour(perso)) {
       sendPlayer("Trop tard pour se mettre en position de riposte", playerId);
       return;
     }
@@ -25827,10 +25851,6 @@ var COFantasy2 = COFantasy2 || function() {
     };
     addEvent(evt);
     let to = getTurnOrder(combat, evt);
-    if (to.dejaAgi.lenth > 0) {
-      sendPlayer("Trop tard pour se mettre en position de riposte", playerId);
-      return;
-    }
     let i = to.pasAgi.findIndex(function(elt) {
       return elt.id == perso.token.id;
     });
@@ -26102,11 +26122,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function proposerDeRecharger(perso, recharges, ligne) {
     if (recharges.length === 0) return ligne;
-    let {
-      picto,
-      style
-    } = PICTO_RECHARGER;
-    let buttonStyleRecharger = ' style="' + style + BASIC_BUTTON_STYLE + '"';
+    let buttonStyleRecharger = buttonStyleOfPicto(PICTO_RECHARGER);
     let command = "!cof2-recharger " + perso.token.id + ' ';
     let additional = '';
     if (recharges.length == 1) {
@@ -26121,7 +26137,7 @@ var COFantasy2 = COFantasy2 || function() {
       command += '}';
     }
     command = demandeMunition(perso, recharges[0].weaponStats, {}, command);
-    let b = boutonSimple(command, picto + 'Recharger', buttonStyleRecharger);
+    let b = boutonSimple(command, PICTO_RECHARGER.picto + 'Recharger', buttonStyleRecharger);
     ligne += b + additional + '<br />';
     return ligne;
   }
@@ -27012,9 +27028,7 @@ var COFantasy2 = COFantasy2 || function() {
   function commandeAction(cmd, playerId, pageId, options) {
     let message = '';
     if (cmd.length > 1) message = cmd.slice(1).join(' ');
-    if (options.message.length < 1) {
-      options.message.push("agit");
-    }
+    if (options.acteur && message === '') message = "agit";
     let {
       selected
     } = getSelected(pageId, options);
@@ -27382,7 +27396,7 @@ var COFantasy2 = COFantasy2 || function() {
       champDivers += '\n' + weaponStats.predicats;
     let pred = predicateOfRaw(champDivers);
     //On transfert les prédicats connus dans weaponStats
-    if (pred.legere || (weaponStats.attNbDices <= 1 && weaponStats.attDice <= 6))
+    if (pred.legere || (weaponStats.portee === 0 && weaponStats.attNbDices <= 1 && weaponStats.attDice <= 6))
       weaponStats.armeLegere = true;
     weaponStats.recharger = weaponStats.options.search(/--recharger\b/) > -1;
     weaponStats.eclaire = toInt(pred.eclaire);
@@ -27420,6 +27434,7 @@ var COFantasy2 = COFantasy2 || function() {
         weaponStats.epee = true;
       }
     }
+    if (weaponStats.dague || weaponStats.epeeCourte || weaponStats.rapiere) weaponStats.armeLegere = true;
     if (weaponStats.arc && predicateAsBool(perso, 'arcDeMaitre')) {
       weaponStats.portee += 20;
     }
@@ -27662,7 +27677,7 @@ var COFantasy2 = COFantasy2 || function() {
       setTokenAttr(perso, a, val, evt);
     } else {
       let optDef = {
-        default: 0
+        default: '0'
       };
       setFicheAttr(perso, a, val, evt, optDef);
     }
@@ -27743,8 +27758,8 @@ var COFantasy2 = COFantasy2 || function() {
         let attaqueBouclier = predicateAsBool(perso, 'attaqueAuBouclier');
         if (attaqueBouclier)
           perso.armeGauche = getWeaponStats(perso, attaqueBouclier);
-      } else if (mainGauche.deuxiemeMain) {
-        if (perso.arme) perso.arme.deuxMains = true;
+        //} else if (mainGauche.deuxiemeMain) {
+        //  if (perso.arme) perso.arme.deuxMains = true;
       } else if (mainGauche.arme) {
         perso.armeGauche = getWeaponStats(perso, mainGauche.label);
       }
@@ -30095,10 +30110,35 @@ var COFantasy2 = COFantasy2 || function() {
         options.limiteSoins = soinsRestantsDuJour;
       }
     }
-    const evt = {
-      type: effet
+    let args = {
+      soigneur,
+      charId,
+      selected,
+      effet,
+      ressourceLimiteSoinsParJour,
+      exprSoins,
+      playerId,
+      pageId,
+      options,
     };
+    soinAvecRedo(args);
+  }
+
+  function soinAvecRedo(args) {
+    let {
+      soigneur,
+      charId,
+      selected,
+      effet,
+      ressourceLimiteSoinsParJour,
+      exprSoins,
+      playerId,
+      pageId,
+      options,
+    } = args;
+    const evt = evtAvecRedo('soin', args);
     addEvent(evt);
+    options = deepCopy(options);
     let nbCibles = selected.length;
     let ressourceLimiteCibleParJour;
     if (options.limiteCibleParJour) {
@@ -30194,7 +30234,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (options.sacrifierPV) { //paie autant de PV que soins
           if (soigneur === undefined) {
-            error("Il faut préciser qui est le soigneur pour utiliser l'option --sacrifierPV", cmd);
+            error("Il faut préciser qui est le soigneur pour utiliser l'option --sacrifierPV", options);
             soinImpossible = true;
             display = undefined;
             finSoin();
@@ -30268,7 +30308,7 @@ var COFantasy2 = COFantasy2 || function() {
       let callTrueFinal = printTrue;
       if (options.transfer) { //paie avec ses PV
         if (soigneur === undefined) {
-          error("Il faut préciser qui est le soigneur pour utiliser l'option --transfer", cmd);
+          error("Il faut préciser qui est le soigneur pour utiliser l'option --transfer", options);
           soinImpossible = true;
           finSoin();
           return;
@@ -33294,6 +33334,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: persoOption,
     },
     actionsDeCombat: boolDefaultOption,
+    actionsAvantLeTour: boolDefaultOption,
     affute: boolDefaultOption,
     allies: {
       fn: selectionOption
@@ -33532,6 +33573,7 @@ var COFantasy2 = COFantasy2 || function() {
       additif: true
     },
     manoeuvre: wordDefaultOption,
+    marteau: boolDefaultOption,
     message: {
       fn: stringOption,
       array: true,
@@ -33588,6 +33630,7 @@ var COFantasy2 = COFantasy2 || function() {
       min: 0,
     },
     potion: boolDefaultOption,
+    poudre: boolDefaultOption,
     predicat: {
       fn: wordOption,
       optName: 'bonusPreds',
@@ -33762,8 +33805,6 @@ var COFantasy2 = COFantasy2 || function() {
       local: true,
     },
     hache: boolDefaultOption,
-    marteau: boolDefaultOption,
-    poudre: boolDefaultOption,
   };
 
   //Renseigne toujours options.playerId
@@ -34725,7 +34766,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         //Vrai mouvement et action de mouvement possible
         delete mvt.pasDePlacement;
-        if (aucuneAction(perso, combat) && attributeAsBool(perso, 'chargeFantastique') && attributeAsInt(perso, 'limiteParTour_mouvementChargeFantastique', 1)) {
+        if (aucuneActionRealiseeCeTour(perso) && attributeAsBool(perso, 'chargeFantastique') && attributeAsInt(perso, 'limiteParTour_mouvementChargeFantastique', 1)) {
           setTokenAttr(perso, 'limiteParTour_mouvementChargeFantastique', 0, evt);
         } else {
           depenseAction(perso, 'M', combat, evt);
@@ -34895,7 +34936,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (rest < 1) {
       msg = "Mouvement terminé " + boutonSimple(finir, 'Confirmer', BS_BUTTON);
       if (!typeActionPossible(perso, 'M')) {
-        msg += ' ' + boutonSimple("!cof2-tour-suivant", "Au suivant", BS_BUTTON);
+        msg += ' ' + boutonSimple("!cof2-tour-suivant", "Au suivant", BS_ATTENDRE);
       } else if (plusLoin && sprintPossible(perso, mvt)) {
         let commande = "!cof2-sprinter " + perso.token.id + " mvt"; //Pas de typeAction pour ne pas interrompre le mouvement
         let picto = '<span style="font-family: \'Pictos\'">7</span> ';
