@@ -1,4 +1,4 @@
-//Dernière modification : mer. 12 août 2026,  03:05
+//Dernière modification : mer. 12 août 2026,  05:32
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -51,7 +51,103 @@ var COFantasy2 = COFantasy2 || function() {
       "sizeRandom": 15,
       "speed": 0,
       "speedRandom": 0
-    }
+    },
+    Fleche_de_froid: {
+      "startColour": [50, 50, 200, 1],
+      "startColourRandom": [0, 0, 30, 0.05],
+      "endColour": [50, 50, 50, 10],
+      "endColourRandom": [0, 0, 15, 0.1],
+      "additionalEmissionRatePerPixel": 0.35,
+      "additionalSpeedPerPixel": 0.085,
+      "alignParticles": true,
+      "angle": -1,
+      "angleRandom": 0,
+      "duration": 8,
+      "emissionRate": 12,
+      "emitRateGradients": [{
+        "factor": 1,
+        "gradient": 0
+      }, {
+        "factor": 0.2,
+        "gradient": 0.25
+      }, {
+        "factor": 0,
+        "gradient": 1
+      }],
+      "emitterSize": 4,
+      "lifeSpan": 13,
+      "lifeSpanRandom": 0,
+      "maxParticles": 500,
+      "rulerType": "line",
+      "size": 30,
+      "sizeRandom": 15,
+      "speed": 0,
+      "speedRandom": 0
+    },
+    Fleche_de_electrique: {
+      "startColour": [130, 120, 50, 0],
+      "startColourRandom": [20, 20, 0, 0.05],
+      "endColour": [100, 100, 0, 1],
+      "endColourRandom": [0, 0, 0, 0.1],
+      "additionalEmissionRatePerPixel": 0.35,
+      "additionalSpeedPerPixel": 0.085,
+      "alignParticles": true,
+      "angle": -1,
+      "angleRandom": 0,
+      "duration": 8,
+      "emissionRate": 12,
+      "emitRateGradients": [{
+        "factor": 1,
+        "gradient": 0
+      }, {
+        "factor": 0.2,
+        "gradient": 0.25
+      }, {
+        "factor": 0,
+        "gradient": 1
+      }],
+      "emitterSize": 4,
+      "lifeSpan": 13,
+      "lifeSpanRandom": 0,
+      "maxParticles": 500,
+      "rulerType": "line",
+      "size": 30,
+      "sizeRandom": 15,
+      "speed": 0,
+      "speedRandom": 0
+    },
+    Fleche_de_acide: {
+      "startColour": [40, 120, 40, 0],
+      "startColourRandom": [0, 30, 0, 0.1],
+      "endColour": [0, 5, 0, 1],
+      "endColourRandom": [0, 5, 0, 0],
+      "additionalEmissionRatePerPixel": 0.35,
+      "additionalSpeedPerPixel": 0.085,
+      "alignParticles": true,
+      "angle": -1,
+      "angleRandom": 0,
+      "duration": 8,
+      "emissionRate": 12,
+      "emitRateGradients": [{
+        "factor": 1,
+        "gradient": 0
+      }, {
+        "factor": 0.2,
+        "gradient": 0.25
+      }, {
+        "factor": 0,
+        "gradient": 1
+      }],
+      "emitterSize": 4,
+      "lifeSpan": 13,
+      "lifeSpanRandom": 0,
+      "maxParticles": 500,
+      "rulerType": "line",
+      "size": 30,
+      "sizeRandom": 15,
+      "speed": 0,
+      "speedRandom": 0
+    },
   };
 
 
@@ -12248,10 +12344,10 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie du musicien
     'chant des heros': {
       bonusTestEvolutif_musique: true,
+      profil: 'barde',
       action: {
         nom: 'Chant des héros',
         limiteArmure: 'barde',
-        profil: 'barde',
         type: 'L',
         mana: 1,
         bufPersonnelNonCumulable: 'chantDesHeros',
@@ -12707,8 +12803,9 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         type: 'A',
         mana: 1,
+        element: 'feu',
         limiteArmure: 'magicien',
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible1|token_id} Arc de feu --auto --dm SELONRANG(1,1,1,2,2)d4E+@{selected|INT} --portee 0 --feu --sortilege --psave AGI [[10+@{selected|INT}]] --cible @{target|Cible2|token_id} --cible @{target|Cible3|token_id}"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible1|token_id} Arc de feu --auto --dm SELONRANG(1,1,1,2,2)d4E+@{selected|INT} --portee 0 --ELEMENT --sortilege --psave AGI [[10+@{selected|INT}]] --cible @{target|Cible2|token_id} --cible @{target|Cible3|token_id}"
       },
     },
     'saper les forces': {
@@ -12731,8 +12828,9 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         type: 'A',
         mana: 3,
+        element: 'feu',
         limiteArmure: 'magicien',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Flèche de feu --sortilege --toucher @{selected|atkmag} --dm 3d4E+@{selected|int} --feu --portee 30 --fx custom Fleche_de_feu --effet enflamme",
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Flèche de feu --sortilege --toucher @{selected|atkmag} --dm 3d4E+@{selected|int} --ELEMENT --portee 30 --fx custom Fleche_de_ELEMENT --effet enELEMENT",
       },
     },
     //Voie de la magie élémentaire
@@ -12747,6 +12845,17 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'magicien',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Asphyxie --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 20 --effet asphyxie @{selected|INT} --valeur 1d4E",
       },
+    },
+    'maitrise des elements': {
+      profil: 'magicien',
+      action: {
+        nom: 'Maitrise des éléments',
+        type: 'M',
+        mana: 2,
+        limiteArmure: 'magicien',
+        bufPersonnelNonCumulable: 'maitriseDesElements',
+        cmd: "!cof2-effet maitriseDesElements SELONRANG(3,4,5,6,7) --dureeEnMinutes @{selected|INT} --select @{selected|token_id}",
+      }
     },
     //Voie de la magie protectrice
     'armure de mana': {
@@ -15667,6 +15776,13 @@ var COFantasy2 = COFantasy2 || function() {
     if ((action.mana || action.sortilege || action.dm) && attributeAsBool(perso, 'intangible')) return ligne;
     let command = selectedToValue(action.cmd, 'selected', perso);
     command = TARGETSToSelection(command, perso);
+    if (action.element) {
+      if (attributeAsBool(perso, 'maitriseDesElements')) {
+        command = command.replace(/ELEMENT/g, '?{élément ?|froid|feu|acide|electrique}');
+      } else {
+        command = command.replace(/ELEMENT/g, action.element);
+      }
+    }
     let request;
     if (action.mana > 0 && !persoEstPNJ(perso)) {
       if (action.type == 'A' && typeActionPossible(perso, 'L')) {
@@ -17811,7 +17927,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function estElementaire(t) {
     if (t === undefined) return false;
-    return (t == "feu" || t == "froid" || t == "acide" || t == "electrique");
+    return (t == 'feu' || t == 'froid' || t == 'acide' || t == 'electrique');
   }
 
   function estMortVivant(perso) {
@@ -19536,7 +19652,7 @@ var COFantasy2 = COFantasy2 || function() {
       dureeCombat: true,
       visible: true,
     },
-    enflamme: {
+    enfeu: {
       activation: "prend feu !",
       actif: "est en feu",
       fin: "les flammes s'éteignent",
@@ -19544,6 +19660,34 @@ var COFantasy2 = COFantasy2 || function() {
       dm: true,
       statusMarker: 'red',
       customStatusMarker: 'cof-flamme',
+      visible: true,
+    },
+    enfroid: {
+      activation: "commence à geler !",
+      actif: "est en train de geler",
+      fin: "retrouve un peu de chaleur",
+      dureeCombat: true,
+      dm: true,
+      visible: true,
+    },
+    enacide: {
+      activation: "est couvert d'acide !",
+      activationF: "est couverte d'acide !",
+      actif: "est rongé par l'acide",
+      actifF: "est rongée par l'acide",
+      fin: "l'acide a fini son action",
+      dureeCombat: true,
+      dm: true,
+      visible: true,
+    },
+    enelectrique: {
+      activation: "est parcouru d'éclairs",
+      activationF: "est parcourue d'éclairs",
+      actif: "est parcouru d'éclairs",
+      actifF: "est parcourue d'éclairs",
+      fin: "les éclairs se dissipent",
+      dureeCombat: true,
+      dm: true,
       visible: true,
     },
     genouBrise: {
@@ -19680,6 +19824,12 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "lévite",
       fin: "retombe au sol",
       visible: true,
+    },
+    maitriseDesElements: {
+      //courant: la RD aux éléments
+      activation: "gagne la maîtrise des éléments",
+      actif: "maîtrise les éléments",
+      fin: "ne maîtrise plus aussi bien les éléments",
     },
     manteauDOmbre: {
       activation: "s'enveloppe d'ombre",
@@ -26590,12 +26740,12 @@ var COFantasy2 = COFantasy2 || function() {
         setState(perso, 'surpris', false, {});
         selected.push(perso);
       }
-      if (attributeAsBool(perso, 'enflamme')) {
+      if (attributeAsBool(perso, 'enfeu')) {
         let deFlammes = {
           dice: 6,
           type: 'feu',
         };
-        let dmgEnflamme = rollDePlus(deFlammes, "flammes" + perso.token.id, evt);
+        let dmgEnflamme = rollDePlus(deFlammes, "enfeu" + perso.token.id, evt);
         let d6Enflamme = dmgEnflamme.deVal;
         if (getState(perso, 'mort')) {
           if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " continue de brûler");
@@ -26607,10 +26757,67 @@ var COFantasy2 = COFantasy2 || function() {
             });
         }
         if (d6Enflamme < 3) {
-          sendPerso(perso, ": les flammes s'éteignent");
-          removeTokenAttr(perso, 'enflamme', evt);
-          let ms = messageEffetCombat.enflamme.statusMarker;
-          if (ms) setPersoStatus(perso, ms, false, evt);
+          finDEffetPerso(perso, 'enfeu', undefined, pageId, evt);
+        }
+      }
+      if (attributeAsBool(perso, 'enfroid')) {
+        let deFlammes = {
+          dice: 6,
+          type: 'froid',
+        };
+        let dmgEnflamme = rollDePlus(deFlammes, "enfroid" + perso.token.id, evt);
+        let d6Enflamme = dmgEnflamme.deVal;
+        if (getState(perso, 'mort')) {
+          if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " continue de geler");
+        } else {
+          dealDamage(perso, dmgEnflamme, [], evt, false, {}, undefined,
+            function(dmgDisplay, dmgFinal) {
+              sendPerso(perso, " gèle ! " +
+                onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
+            });
+        }
+        if (d6Enflamme < 3) {
+          finDEffetPerso(perso, 'enfroid', undefined, pageId, evt);
+        }
+      }
+      if (attributeAsBool(perso, 'enacide')) {
+        let deFlammes = {
+          dice: 6,
+          type: 'acide',
+        };
+        let dmgEnflamme = rollDePlus(deFlammes, "enacide" + perso.token.id, evt);
+        let d6Enflamme = dmgEnflamme.deVal;
+        if (getState(perso, 'mort')) {
+          if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " est consumé par l'acide");
+        } else {
+          dealDamage(perso, dmgEnflamme, [], evt, false, {}, undefined,
+            function(dmgDisplay, dmgFinal) {
+              sendPerso(perso, " est rongé par l'acide ! " +
+                onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
+            });
+        }
+        if (d6Enflamme < 3) {
+          finDEffetPerso(perso, 'enacide', undefined, pageId, evt);
+        }
+      }
+      if (attributeAsBool(perso, 'enelectrique')) {
+        let deFlammes = {
+          dice: 6,
+          type: 'electrique',
+        };
+        let dmgEnflamme = rollDePlus(deFlammes, "enelectrique" + perso.token.id, evt);
+        let d6Enflamme = dmgEnflamme.deVal;
+        if (getState(perso, 'mort')) {
+          if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " est toujours parcouru d'éclairs");
+        } else {
+          dealDamage(perso, dmgEnflamme, [], evt, false, {}, undefined,
+            function(dmgDisplay, dmgFinal) {
+              sendPerso(perso, " prend des coups de jus ! " +
+                onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
+            });
+        }
+        if (d6Enflamme < 3) {
+          finDEffetPerso(perso, 'enelectrique', undefined, pageId, evt);
         }
       }
       if (attributeAsBool(perso, 'estGobePar') && !getState(perso, 'mort')) {
@@ -29057,8 +29264,7 @@ var COFantasy2 = COFantasy2 || function() {
       sauf: {}
     };
     if (attributeAsBool(perso, 'formeDArbre')) {
-      res.sauf.feu_hache = res.sauf.feu_hache || 0;
-      res.sauf.feu_hache += 10;
+      res.sauf.feu_hache = (res.sauf.feu_hache || 0) + 10;
     }
     if (attributeAsBool(perso, 'armureDEau')) {
       res.acide = (res.acide || 0) + 5;
@@ -29068,6 +29274,13 @@ var COFantasy2 = COFantasy2 || function() {
       let protection =
         getIntValeurOfEffet(perso, 'protectionContreLesProjectiles', 5, 'protectionContreLesProjectiles');
       res.projectiles = (res.projectiles || 0) + protection;
+    }
+    let maitriseDesElements = attributeAsInt(perso, 'maitriseDesElements', 0, 4);
+    if (maitriseDesElements) {
+      res.acide = (res.acide || 0) + maitriseDesElements;
+      res.feu = (res.feu || 0) + maitriseDesElements;
+      res.froid = (res.froid || 0) + maitriseDesElements;
+      res.electrique = (res.electrique || 0) + maitriseDesElements;
     }
     let rd = ficheAttribute(perso, 'rd', ''); //TODO: que faire en cas de tranformation ?
     predicatesNamed(perso, 'bonus_RD').forEach(function(r) {
@@ -32212,11 +32425,13 @@ var COFantasy2 = COFantasy2 || function() {
     closeIte(ps);
   }
 
-  function getFx(cmd, argName, obj, funName) {
+  function getFx(cmd, argName, obj, options, funName) {
     if (cmd.length < 2) {
+      if (!options.noError) {
       let errMsg = "Il manque un argument à l'option --" + argName;
       if (funName) errMsg += " de " + funName;
       sendChat("COF", errMsg);
+      }
       return;
     }
     if (cmd[1] == 'custom' && cmd.length > 2) {
@@ -32231,7 +32446,7 @@ var COFantasy2 = COFantasy2 || function() {
           definition
         });
         if (!definition || !effet) {
-          sendChat("COF", "L'effet custom " + cmd[2] + " est inconnu.");
+          if (!options.noError) sendChat("COF", "L'effet custom " + cmd[2] + " est inconnu.");
           return;
         }
       } else effet = effet[0];
@@ -33051,7 +33266,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function fxOption(ctx, cmd, options, state, optionString, pageId) {
-    getFx(cmd, cmd[0], state.scope);
+    getFx(cmd, cmd[0], state.scope, options);
   }
 
   function saveEffetOption(ctx, cmd, options, state, optionString, pageId) {
