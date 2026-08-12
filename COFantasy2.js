@@ -1,4 +1,4 @@
-//Dernière modification : mar. 11 août 2026,  07:51
+//Dernière modification : mer. 12 août 2026,  11:57
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12050,6 +12050,10 @@ var COFantasy2 = COFantasy2 || function() {
     bouclierDeLaFoi: "SELONRANG(1,1,1,1,2)",
   };
 
+  const capaciteColossal = {
+      colossal: true, //TODO: à utiliser pour estimer la partie de la RD due à cette voie
+    };
+
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
   // action est un objet, est actions est une liste d'actions, avec les champs:
@@ -12093,6 +12097,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  - limiteArmure
   // compagnon objet indiquant un compagnon
   // predSelonParam: map de valeur de param vers des prédicats de capacités. doit toujours ocntenir un champ 'defaut' et un champ 'fieldParam'
+  // capaciteAmbigue: indique qu'il y a plusieurs voies avec cette capacité
   // le reste, ce sont des prédicats, et le script va reconnaître et remplacer:
   //  - PARAM : la valeur du champ paramètre de la capacité
   //  - NUMEROVOIE
@@ -13172,9 +13177,8 @@ var COFantasy2 = COFantasy2 || function() {
       peutEnrage: true,
     },
     //Voie des créatures colossales
-    'colossal': {
-      colossal: true, //TODO: à utiliser pour estimer la partie de la RD due à cette voie
-    },
+    'colossal': capaciteColossal,
+    'colosse PNJ': capaciteColossal,
     'fauchage': {
       fauchage: true,
     },
@@ -14257,6 +14261,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'mot-de-pouvoir-immobilise':
       case 'immunite-guerisseur':
       case 'enkystement-lointain':
+      case 'prison-vegetale':
         picto = '<span style="font-family: \'Pictos Three\'">g</span> ';
         style = 'background-color:#9900ff';
         break;
@@ -15598,7 +15603,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Ajoute l'action à ligne, si elle est disponible
   // avant signifie que le personnage est avant son tour
-  function ajouterAction(perso, action, ligne, actionsEnCombat = true, avant = false, supplementaire = false) {
+  function ajouterAction(perso, action, ligne, actionsEnCombat, avant = false, supplementaire = false) {
     if (action.enAttente && !supplementaire) return ligne;
     if (avant && !action.enDehorsDeSonTour) return ligne;
     if (actionsEnCombat) {
@@ -26296,29 +26301,29 @@ var COFantasy2 = COFantasy2 || function() {
     let couleurs = couleurType[args.type];
     if (couleurs === undefined) {
       if (nbDe > 0 && de == 20 && !args.maxResult) {
-      //On a un d20, on peut faire une réussite ou un échec critique
-      if (echecCrit && reussiteCrit) {
-        couleurs = {
-          background: '#8FA4D4',
-          color: '#061539'
-        };
-      } else if (reussiteCrit && !echecCrit) {
-        couleurs = {
-          background: '#88CC88',
-          color: '#004400'
-        };
-      } else if (!reussiteCrit && echecCrit) {
-        couleurs = {
-          background: '#FFAAAA',
-          color: '#660000'
-        };
-      } else {
-        couleurs = {
-          background: '#FFFEA2',
-          color: '#000'
-        };
-      }
-    } else couleurs = couleurType.normal;
+        //On a un d20, on peut faire une réussite ou un échec critique
+        if (echecCrit && reussiteCrit) {
+          couleurs = {
+            background: '#8FA4D4',
+            color: '#061539'
+          };
+        } else if (reussiteCrit && !echecCrit) {
+          couleurs = {
+            background: '#88CC88',
+            color: '#004400'
+          };
+        } else if (!reussiteCrit && echecCrit) {
+          couleurs = {
+            background: '#FFAAAA',
+            color: '#660000'
+          };
+        } else {
+          couleurs = {
+            background: '#FFFEA2',
+            color: '#000'
+          };
+        }
+      } else couleurs = couleurType.normal;
     }
     style += ' background-color: ' + couleurs.background + ';';
     style += ' color: ' + couleurs.color + ';';
@@ -27618,7 +27623,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function parseArmeEnMain(s) {
-    let i = (s+'').indexOf('~');
+    let i = (s + '').indexOf('~');
     if (i < 1) return {};
     let label = toInt(s.substring(0, i), 0);
     s = s.substring(i + 1);
@@ -32554,12 +32559,12 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function caracOption(ctx, cmd, options, state, optionString, pageId) {
-    if (cmd.length <2) {
+    if (cmd.length < 2) {
       error("Il manque la valeur de l'option " + cmd[0], optionString);
       return;
     }
     if (!isCarac(cmd[1])) {
-      error("L'option "+cmd[0]+" attend une caractéristique", optionString);
+      error("L'option " + cmd[0] + " attend une caractéristique", optionString);
       return;
     }
     let f = options[cmd[0]];
@@ -32810,7 +32815,7 @@ var COFantasy2 = COFantasy2 || function() {
       type: scope.type,
     };
     if (isCarac(value)) {
-      let champCarac = champ+'Carac';
+      let champCarac = champ + 'Carac';
       scope[champCarac] = scope[champCarac] || {};
       if (scope[champCarac][value]) return;
       scope[champCarac][value] = dm;
