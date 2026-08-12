@@ -1,4 +1,4 @@
-//Dernière modification : mer. 12 août 2026,  11:57
+//Dernière modification : mer. 12 août 2026,  03:05
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3494,13 +3494,13 @@ var COFantasy2 = COFantasy2 || function() {
         setTokenAttr(personnage, 'fortifie', fortifie, evt);
       }
     }
-    if (attributeAsBool(personnage, 'chantDesHeros')) {
-      let bonusChantDesHeros = getIntValeurOfEffet(personnage, 'chantDesHeros', 1);
+      let bonusChantDesHeros = attributeAsInt(personnage, 'chantDesHeros', 0, 1);
+    if (bonusChantDesHeros) {
       attBonus += bonusChantDesHeros;
       explications.push("Chant des héros => +" + bonusChantDesHeros + " en Attaque");
     }
-    if (attributeAsBool(personnage, 'benediction')) {
       let bonusBenediction = attributeAsInt(personnage, 'benediction', 0, 1);
+    if (bonusBenediction) {
       attBonus += bonusBenediction;
       explications.push("Bénédiction => +" + bonusBenediction + " en Attaque");
     }
@@ -11010,7 +11010,7 @@ var COFantasy2 = COFantasy2 || function() {
       let perso = {
         charId
       };
-      let mook = ficheAttributeAsInt(perso, 'mook', 0);
+      let mook = ficheAttributeAsInt(perso, 'mook', 1);
       perso.token = token;
       if (!mook) charsTreated.add(charId);
       character.get('_defaulttoken', function(defaultToken) {
@@ -11928,6 +11928,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Mécanismes',
         description: "réparer ou comprendre des mécanismes &#013;(y compris désamorcer des pièges mécaniques et manipuler des armes de siège)",
       },
+      musique: {
+        nom: 'Musique',
+        description: "jouer d'un instrument de musique ou chanter",
+      },
       pistageNaturel: {
         nom: 'Pistage',
         description: "Pistage en milieu naturel",
@@ -12240,6 +12244,19 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie de l'escrime
     'precision': {
       armesLegeresAvecAGI: true,
+    },
+    //Voie du musicien
+    'chant des heros': {
+      bonusTestEvolutif_musique: true,
+      action: {
+        nom: 'Chant des héros',
+        limiteArmure: 'barde',
+        profil: 'barde',
+        type: 'L',
+        mana: 1,
+        bufPersonnelNonCumulable: 'chantDesHeros',
+        cmd: '!cof2-effet chantDesHeros SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --allies',
+      },
     },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
@@ -19603,6 +19620,14 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "n'est plus à couvert",
       visible: "true"
     },
+    chantDesHeros: {
+      //courant: bonus de chant des héros
+      activation: "écoute le chant du barde",
+      actif: "est inspiré par le Chant des Héros",
+      actifF: "est inspirée par le Chant des Héros",
+      fin: "n'est plus inspiré par le Chant des Héros",
+      finF: "n'est plus inspirée par le Chant des Héros"
+    },
     charme: {
       activation: "devient un ami de longue date",
       activationF: "devient une amie de longue date",
@@ -20474,6 +20499,9 @@ var COFantasy2 = COFantasy2 || function() {
               maxVal: 1
             });
           }
+          break;
+        case 'intangible'://On libère des effets physiques
+          finDEffetPerso(target, 'prisonVegetale', undefined, pageId, evt);
           break;
       }
       if (mEffet && mEffet.statusMarker) {
@@ -23591,13 +23619,13 @@ var COFantasy2 = COFantasy2 || function() {
     let bonus = predicateAsInt(perso, 'bonusTousTests', 0);
     if (bonus)
       expliquer("Bonus aux tests : " + ((bonus < 0) ? "-" : "+") + bonus);
-    if (attributeAsBool(perso, 'chantDesHeros')) {
-      let bonusChantDesHeros = getIntValeurOfEffet(perso, 'chantDesHeros', 1);
+      let bonusChantDesHeros = attributeAsInt(perso, 'chantDesHeros', 0, 1);
+    if (bonusChantDesHeros) {
       expliquer("Chant des héros : +" + bonusChantDesHeros + " au jet");
       bonus += bonusChantDesHeros;
     }
-    if (attributeAsBool(perso, 'benediction')) {
       let bonusBenediction = attributeAsInt(perso, 'benediction', 0, 1);
+    if (bonusBenediction) {
       expliquer("Bénédiction : +" + bonusBenediction + " au jet");
       bonus += bonusBenediction;
     }
@@ -28406,7 +28434,7 @@ var COFantasy2 = COFantasy2 || function() {
       for (const tid in mouvementEnCours) {
         eraseMouvementEnCours(mouvementEnCours[tid]);
         let token = getObj('graphic', tid);
-        setToken(token, 'aura1_radius', '', evt);
+        if (token) setToken(token, 'aura1_radius', '', evt);
       }
     }
     // Fin des effets qui durent pour le combat
@@ -30985,6 +31013,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (!perso) return;
       if (distanceCombat(cible.token, token, pageId, optDist) > diametre / 2) return;
       if (allies.has(perso.charId)) return;
+      if (attributeAsBool(perso, 'intangible')) return;
       activerEffetNom(options.acteur, perso, 'prisonVegetale', per, pageId, evt, optEffet);
     });
     //On crée l'image sur la carte.
