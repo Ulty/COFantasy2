@@ -1,4 +1,4 @@
-//Dernière modification : lun. 10 août 2026,  02:31
+//Dernière modification : mar. 11 août 2026,  07:51
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3963,6 +3963,11 @@ var COFantasy2 = COFantasy2 || function() {
   function bonusAttaqueA(attaquant, weaponStats, evt, explications, options) {
     let attBonus = 0;
     if (options.bonusAttaque) attBonus += options.bonusAttaque;
+    if (options.bonusAttaqueCarac) {
+      for (const carac in options.bonusAttaqueCarac) {
+        attBonus += modCarac(attaquant, carac);
+      }
+    }
     if (options.armeMagiquePlus) attBonus += options.armeMagiquePlus;
     if (!options.pasDeDmg && !options.feinte) options.bonusDM = 0;
     attBonus += bonusDAttaque(attaquant, explications, evt, options);
@@ -4183,10 +4188,10 @@ var COFantasy2 = COFantasy2 || function() {
     return "[[" + de + "cs>" + crit + "cf1]]";
   }
 
-  function attackSkillBonus(attaquant, weaponStats) {
+  function attackSkillBonus(attaquant, weaponStats, options) {
     let attSkillDiv = weaponStats.attSkillDiv;
     if (isNaN(attSkillDiv)) attSkillDiv = 0;
-    return attaquePerso(attaquant, weaponStats.attSkill) + attSkillDiv;
+    return attaquePerso(attaquant, weaponStats.attSkill, options, weaponStats) + attSkillDiv;
   }
 
   function attackCallback(playerId, pageId, options, evt) {
@@ -5961,7 +5966,7 @@ var COFantasy2 = COFantasy2 || function() {
       sendChat('', toEvaluateAttack, function(resAttack) {
         let rollAttack = addRollResForRedo(resAttack, 'attaque', evt);
         let d20roll = rollAttack.results.total;
-        let attSkill = attackSkillBonus(attaquant, weaponStats);
+        let attSkill = attackSkillBonus(attaquant, weaponStats, options);
         // debut de la partie affichage
         let action = "<b>Arme</b> : ";
         if (options.sortilege) action = "<b>Sort</b> : ";
@@ -7547,6 +7552,7 @@ var COFantasy2 = COFantasy2 || function() {
         //On enlève les DM qui ne passent pas les conditions
         additionalDmg = additionalDmg.filter(function(dmSpec) {
           if (dmSpec.conditions === undefined) return true;
+          if (dmSpec.caracEnDouble) return false;
           return dmSpec.conditions.every(function(cond) {
             return testCondition(cond, attaquant, [target], attackd20roll, options);
           });
@@ -7565,6 +7571,9 @@ var COFantasy2 = COFantasy2 || function() {
             }
           });
         }
+        additionalDmg.forEach(function(dmSpec) {
+          if (dmSpec.carac) dmSpec.value = modCarac(attaquant, dmSpec.value);
+        });
         if (options.tirDeBarrage || options.dmFoisDeux) {
           mainDmgRollExpr += " +" + mainDmgRollExpr;
           additionalDmg.forEach(function(dmSpec) {
@@ -12223,8 +12232,10 @@ var COFantasy2 = COFantasy2 || function() {
       reduitCouvertureCible: true,
     },
     //Voies de barde //////////////////////////////////////////////
-    //Vioie de l'escrime
-    'precision': {},
+    //Voie de l'escrime
+    'precision': {
+      armesLegeresAvecAGI: true,
+    },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
     'archer emerite': {
@@ -12347,7 +12358,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'rodeur',
         armeDeContact: true,
         type: 'SELONRANG(L,L,L,L,A)',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaque @{selected|AGI} --plus @{selected|AGI}"
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaqueCarac AGI --plus AGI"
       },
     },
     //Voie du combat à deux armes
@@ -15140,7 +15151,7 @@ var COFantasy2 = COFantasy2 || function() {
       choix_magie = "|par magie, manoeuvre --portee 20 --toucher " + attaquePerso(perso, 'atkmag');
     //Distraire
     let choix = "?{Distraction" + choix_contact_finesse + choix_arme + choix_distance + choix_magie + "}";
-    let effet = " --effet distrait 1 --bonusAttaque " + modCarac(perso, 'CHA');
+    let effet = " --effet distrait 1 --bonusAttaqueCarac AGI";
     let command = base_command + choix + optionsManoeuvre('distraire') + effet;
     let bt = boutonSimple(command, picto + " Distraire", " title=\"-10 aux tests de PER et -5 en DEF\";" + style);
     line += bt + " (+CHA) <br/>";
@@ -26283,7 +26294,8 @@ var COFantasy2 = COFantasy2 || function() {
     };
     let style = 'display: inline-block; border-radius: 5px; padding: 0 4px;';
     let couleurs = couleurType[args.type];
-    if (couleurs === undefined && nbDe > 0 && de == 20 && !args.maxResult) {
+    if (couleurs === undefined) {
+      if (nbDe > 0 && de == 20 && !args.maxResult) {
       //On a un d20, on peut faire une réussite ou un échec critique
       if (echecCrit && reussiteCrit) {
         couleurs = {
@@ -26307,6 +26319,7 @@ var COFantasy2 = COFantasy2 || function() {
         };
       }
     } else couleurs = couleurType.normal;
+    }
     style += ' background-color: ' + couleurs.background + ';';
     style += ' color: ' + couleurs.color + ';';
     let msg = '<span style="' + style + '"';
@@ -27253,8 +27266,8 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //attaquant peut ne pas avoir de token
-  //options peut contenir transforme, et avecCarac
-  function attaquePerso(attaquant, x, options = {}) {
+  //options peut contenir transforme, et avecCarac. S'il contient bonusAttaqueCarac, peut le modifier
+  function attaquePerso(attaquant, x, options = {}, weaponStats = {}) {
     if (x === undefined) return 0;
     if (persoEstPNJ(attaquant, options)) return attaquePersoPNJ(attaquant, x, options.recursive);
     let attDiv;
@@ -27264,8 +27277,30 @@ var COFantasy2 = COFantasy2 || function() {
       case 'atkcac':
         {
           attDiv = ficheAttributeAsInt(attaquant, 'atkcac_buff', 0, options);
-          let carac = options.avecCarac || 'for';
+          let carac = options.avecCarac || 'FOR';
           attCar = modCarac(attaquant, carac, options);
+          let bonusAttCarac = options.bonusAttaqueCarac;
+          if (weaponStats.armeLegere && carac == 'FOR' && predicateAsBool(attaquant, 'armesLegeresAvecAGI')) {
+            let bonusAgi = modCarac(attaquant, 'AGI', options);
+            let swap;
+            if (bonusAttCarac) {
+              if (bonusAttCarac.FOR) {
+                //On va de toutes facons appliquer le bonus de FOR
+                swap = !bonusAttCarac.AGI && bonusAgi > 0;
+              } else if (bonusAttCarac.AGI) {
+                swap = attCar < 0 && bonusAgi > attCar;
+              } else {
+                swap = bonusAgi > attCar;
+              }
+            } else {
+              swap = bonusAgi > attCar;
+            }
+            if (swap) {
+              attCar = bonusAgi;
+              carac = 'AGI';
+            }
+          }
+          if (bonusAttCarac) delete bonusAttCarac[carac];
           attBase = ficheAttributeAsInt(attaquant, 'atkcac_base', 1, options);
           break;
         }
@@ -27583,7 +27618,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function parseArmeEnMain(s) {
-    let i = s.indexOf('~');
+    let i = (s+'').indexOf('~');
     if (i < 1) return {};
     let label = toInt(s.substring(0, i), 0);
     s = s.substring(i + 1);
@@ -32518,6 +32553,29 @@ var COFantasy2 = COFantasy2 || function() {
     options.plusPred.push(p);
   }
 
+  function caracOption(ctx, cmd, options, state, optionString, pageId) {
+    if (cmd.length <2) {
+      error("Il manque la valeur de l'option " + cmd[0], optionString);
+      return;
+    }
+    if (!isCarac(cmd[1])) {
+      error("L'option "+cmd[0]+" attend une caractéristique", optionString);
+      return;
+    }
+    let f = options[cmd[0]];
+    if (ctx.local) {
+      f = state.scope[cmd[0]];
+      if (!f) {
+        f = {};
+        state.scope[cmd[0]] = f;
+      }
+    } else if (!f) {
+      f = {};
+      options[cmd[0]] = f;
+    }
+    f[cmd[1]] = true;
+  }
+
   function selectionOption(ctx, cmd, options, state, optionString, pageId) {
     options.selection.push(cmd);
   }
@@ -32747,10 +32805,18 @@ var COFantasy2 = COFantasy2 || function() {
     scope[champ] = scope[champ] || [];
     //TODO: utiliser parseDice
     if (options.acteur) value = (value + '').replace(/(\d+)d4[°eE]/g, '$1d' + deEvolutif(options.acteur));
-    scope[champ].push({
+    let dm = {
       value,
       type: scope.type,
-    });
+    };
+    if (isCarac(value)) {
+      let champCarac = champ+'Carac';
+      scope[champCarac] = scope[champCarac] || {};
+      if (scope[champCarac][value]) return;
+      scope[champCarac][value] = dm;
+      dm.carac = true;
+    }
+    scope[champ].push(dm);
   }
 
   function effetOption(ctx, cmd, options, state, optionString, pageId) {
@@ -33381,6 +33447,9 @@ var COFantasy2 = COFantasy2 || function() {
       additif: true,
       local: true,
     },
+    bonusAttaqueCarac: {
+      fn: caracOption,
+    },
     bonusCategorieDeTaille: boolDefaultOption,
     bonusContreArmure: {
       fn: integerOption,
@@ -33524,6 +33593,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: ifSaveFailOption
     },
     grenaille: boolDefaultOption,
+    hache: boolDefaultOption,
     imgAttack: wordDefaultOption,
     imgAttackEchec: wordDefaultOption,
     imgAttackEchecCritique: wordDefaultOption,
@@ -33804,7 +33874,6 @@ var COFantasy2 = COFantasy2 || function() {
       fn: booleanOption,
       local: true,
     },
-    hache: boolDefaultOption,
   };
 
   //Renseigne toujours options.playerId
