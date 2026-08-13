@@ -1,4 +1,4 @@
-//Dernière modification : mer. 12 août 2026,  05:32
+//Dernière modification : jeu. 13 août 2026,  12:30
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1447,6 +1447,13 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     sendChat('COF', "/w GM undo " + evt.type);
+    if (evt.deletedTokens) {
+      evt.deletedTokens.forEach(function(token) {
+        log("On recrée le token " + token.name);
+        let t = createObj('graphic', token);
+        if (token.layer == 'map') toFront(t);
+      });
+    }
     undoTokenEffect(evt);
     if (evt.attributes) {
       for (const tid in evt.attributes) {
@@ -1486,13 +1493,6 @@ var COFantasy2 = COFantasy2 || function() {
         if (tokens.length === 0) return;
         let character = getObj('character', dt.charId);
         setDefaultTokenFromSpec(character, dt.defaultToken, tokens[0]);
-      });
-    }
-    if (evt.deletedTokens) {
-      evt.deletedTokens.forEach(function(token) {
-        log("On recrée le token " + token.name);
-        let t = createObj('graphic', token);
-        if (token.layer == 'map') toFront(t);
       });
     }
     if (evt.deletedCharacters) {
@@ -1754,6 +1754,17 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function undoOneTokenEffet(token, prev, evt, HTdeclared) {
+    if (prev === undefined || token === undefined) {
+      error("Pas d'état précédant", evt.affectes);
+      return true;
+    }
+    let prevTok;
+    if (HTdeclared) prevTok = deepCopy(token);
+    token.set(prev);
+    if (HTdeclared) HealthColors.Update(token, prevTok);
+  }
+
   function undoTokenEffect(evt) {
     if (!evt.affectes) return;
     let HTdeclared;
@@ -1765,14 +1776,7 @@ var COFantasy2 = COFantasy2 || function() {
     for (const tid in evt.affectes) {
       let prev = evt.affectes[tid];
       let tok = getObj('graphic', tid);
-      if (prev === undefined || tok === undefined) {
-        error("Pas d'état précédant", evt.affectes);
-        continue;
-      }
-      let prevTok;
-      if (HTdeclared) prevTok = deepCopy(tok);
-      tok.set(prev);
-      if (HTdeclared) HealthColors.Update(tok, prevTok);
+      if (undoOneTokenEffet(tok, prev, evt, HTdeclared)) continue;
       sendChat("COF", "État de " + tok.get("name") + " restauré.");
     }
   }
@@ -1981,6 +1985,7 @@ var COFantasy2 = COFantasy2 || function() {
       log(spec);
       return;
     }
+    scriptVersionToCharacter(character); //Apparement, ce n'est pas appelé quand la fiche est créé par le script
     let charId = character.id;
     if (token) token.set('represents', charId);
     let perso = {
@@ -3590,12 +3595,12 @@ var COFantasy2 = COFantasy2 || function() {
         setTokenAttr(personnage, 'fortifie', fortifie, evt);
       }
     }
-      let bonusChantDesHeros = attributeAsInt(personnage, 'chantDesHeros', 0, 1);
+    let bonusChantDesHeros = attributeAsInt(personnage, 'chantDesHeros', 0, 1);
     if (bonusChantDesHeros) {
       attBonus += bonusChantDesHeros;
       explications.push("Chant des héros => +" + bonusChantDesHeros + " en Attaque");
     }
-      let bonusBenediction = attributeAsInt(personnage, 'benediction', 0, 1);
+    let bonusBenediction = attributeAsInt(personnage, 'benediction', 0, 1);
     if (bonusBenediction) {
       attBonus += bonusBenediction;
       explications.push("Bénédiction => +" + bonusBenediction + " en Attaque");
@@ -11987,6 +11992,11 @@ var COFantasy2 = COFantasy2 || function() {
 
   const descriptionBonus = {
     Evolutif: {
+      acrobaties: {
+        nom: 'Acrobaties',
+        description: "réaliser des acrobaties, tenir en équilibre, faire des sauts, escalader",
+        competences: ['escalade', 'sauter'],
+      },
       animaux: {
         nom: 'Influencer les animaux',
         description: "influencer un animal avec lequel on peut parler",
@@ -11998,6 +12008,11 @@ var COFantasy2 = COFantasy2 || function() {
       artificier: {
         nom: 'artificier',
         description: "fabriquer et tirer des feux d'artifices",
+      },
+      charmer: {
+        nom: 'Charmer',
+        description: "séduire, convaincre, mentir, baratiner",
+        competences: ['mentir'],
       },
       convertir: {
         nom: "Prédicateur",
@@ -12151,8 +12166,8 @@ var COFantasy2 = COFantasy2 || function() {
   };
 
   const capaciteColossal = {
-      colossal: true, //TODO: à utiliser pour estimer la partie de la RD due à cette voie
-    };
+    colossal: true, //TODO: à utiliser pour estimer la partie de la RD due à cette voie
+  };
 
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
@@ -12353,6 +12368,16 @@ var COFantasy2 = COFantasy2 || function() {
         bufPersonnelNonCumulable: 'chantDesHeros',
         cmd: '!cof2-effet chantDesHeros SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --allies',
       },
+    },
+    //Voie du saltimbanque
+    'acrobate': {
+      bonusTestEvolutif_acrobaties: true,
+      bonusTestEvolutif_escalade: true,
+    },
+    //Voie de la séduction
+    'charmant': {
+      bonusTestEvolutif_charmer: true,
+      //TODO: ajouter un bouton de PC du barde sur toutes les actions des alliés ?
     },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
@@ -12906,7 +12931,8 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
       }],
     },
-    'familier': {
+    'familier': { //TODO: faire perdre 1d4E PV si le familier meurt (et enlever le token quand il meurt)
+      //TODO: faire récupérer tous les PV après une récupération rapide.
       familierMage: 'PARAM.nom', //Le nom du familier.
       compagnon: {
         id: 'familierMageId',
@@ -12927,7 +12953,7 @@ var COFantasy2 = COFantasy2 || function() {
           comp_def: '13+[rang_voieNUMEROVOIE]',
           comp_pv_max: '[niveau]',
           comp_init: '[init]',
-          predicats_script: 'aucuneActionCombat'
+          predicats_script: 'aucuneActionCombat, familierDeMage'
         }
       }
     },
@@ -13666,8 +13692,8 @@ var COFantasy2 = COFantasy2 || function() {
             let persoCompagnon = {
               charId: character.id
             };
-            for (const attrName in compagnon.attributesFiche) {
-              let val = compagnon.attributesFiche[attrName];
+            for (const attrName in caf) {
+              let val = caf[attrName];
               setFicheAttr(persoCompagnon, attrName, val, {});
             }
             //TODO: rajouter aussi le reste ? Et dans ce cas, partager le code ?
@@ -13677,7 +13703,7 @@ var COFantasy2 = COFantasy2 || function() {
             if (compagnon.token) {
               let optToken = {
                 visionPartagee: compagnon.visionPartagee,
-                taille: compagnon.attributesFiche.taille,
+                taille: caf.taille,
               };
               token = createToken(nomCompagnon, perso, compagnon.token, optToken);
               if (!token) {
@@ -17282,6 +17308,13 @@ var COFantasy2 = COFantasy2 || function() {
   //Attention, seulement faire pour les tokens avec une image dans la librairie
   //C'est toujours le cas pour un token créé par le script
   function deleteTokenWithUndo(token, evt) {
+    if (evt.affectes) {
+      let prev = evt.affectes[token.id];
+      if (prev) {
+        undoOneTokenEffet(token, prev, evt);
+        delete evt.affectes[token.id];
+      }
+    }
     let tokenFields = getTokenFields(token);
     evt.deletedTokens = evt.deletedTokens || [];
     evt.deletedTokens.push(tokenFields);
@@ -20650,7 +20683,7 @@ var COFantasy2 = COFantasy2 || function() {
             });
           }
           break;
-        case 'intangible'://On libère des effets physiques
+        case 'intangible': //On libère des effets physiques
           finDEffetPerso(target, 'prisonVegetale', undefined, pageId, evt);
           break;
       }
@@ -23769,12 +23802,12 @@ var COFantasy2 = COFantasy2 || function() {
     let bonus = predicateAsInt(perso, 'bonusTousTests', 0);
     if (bonus)
       expliquer("Bonus aux tests : " + ((bonus < 0) ? "-" : "+") + bonus);
-      let bonusChantDesHeros = attributeAsInt(perso, 'chantDesHeros', 0, 1);
+    let bonusChantDesHeros = attributeAsInt(perso, 'chantDesHeros', 0, 1);
     if (bonusChantDesHeros) {
       expliquer("Chant des héros : +" + bonusChantDesHeros + " au jet");
       bonus += bonusChantDesHeros;
     }
-      let bonusBenediction = attributeAsInt(perso, 'benediction', 0, 1);
+    let bonusBenediction = attributeAsInt(perso, 'benediction', 0, 1);
     if (bonusBenediction) {
       expliquer("Bénédiction : +" + bonusBenediction + " au jet");
       bonus += bonusBenediction;
@@ -28907,6 +28940,35 @@ var COFantasy2 = COFantasy2 || function() {
         sendPerso(perso, msg);
       }
     };
+    let pageId = perso.token.get('pageid');
+    //Le familier du mage meurt
+    if (predicateAsBool(perso, 'familierDeMage')) {
+      let magicien = compagnonDe(perso, pageId);
+      if (magicien) {
+        if (pvPerso(magicien).pv > 0) {
+          let dm = rollDePlus(deEvolutif(magicien), 'mortDuFamilier' + perso.token.id, evt);
+          let opt = {
+            ignoreTouteRD: true
+          };
+          let explications = [];
+          dealDamage(magicien, dm, [], evt, false, opt, explications,
+            function(dmgDisplay, dmg) {
+              let msg = " perd " + dmgDisplay + " PV en contrecoup";
+              if (expliquer) {
+                expliquer(nomPerso(magicien) + ' ' + msg);
+                explications.forEach(function(m) {
+                  expliquer(m);
+                });
+              } else {
+                sendPerso(magicien, msg);
+                explications.forEach(function(m) {
+                  sendPerso(magicien, m);
+                });
+              }
+            });
+        }
+      }
+    }
     //Phénix
     let phenix = testLimiteUtilisationsCapa(perso, 'phenix', 'combat');
     if (phenix) { //TODO: revoir l'effet
@@ -28921,14 +28983,13 @@ var COFantasy2 = COFantasy2 || function() {
       sendPerso(perso, boutonSimple(cmd, "Disparaître dans son ombre", BS_BUTTON) + ' ?', true, true);
     }
     setState(perso, 'mort', true, evt);
-    let targetPos = {
-      x: perso.token.get('left'),
-      y: perso.token.get('top')
-    };
-    spawnFxBetweenPoints(targetPos, {
-      x: 400,
-      y: 400
-    }, 'splatter-blood');
+    if (predicateAsBool(perso, 'familierDeMage')) {
+      addMsg('disparaît dans un nuage de fumée');
+      spawnFx(perso.token.get('left'), perso.token.get('top'), 'burn-smoke', pageId);
+      deleteTokenWithUndo(perso.token, evt);
+    } else {
+      spawnFx(perso.token.get('left'), perso.token.get('top'), 'splatter-blood', pageId);
+    }
   }
 
   //TODO: implémenter !cof2-mettre-a-zero-pv
@@ -28940,9 +29001,11 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     updateCurrentBar(target, 1, 0, evt);
-    let dr = ficheAttributeAsInt(target, 'dr', 2);
-    if (dr > 0) {
-      setFicheAttr(target, 'dr', dr - 1, evt);
+    if (!persoEstPNJ(target)) {
+      let dr = ficheAttributeAsInt(target, 'dr', 2);
+      if (dr > 0) {
+        setFicheAttr(target, 'dr', dr - 1, evt);
+      }
     }
     if (predicateAsBool(target, 'baroudHonneur')) {
       let msgBarroud = nomPerso(target) + " devrait être mort";
@@ -32428,9 +32491,9 @@ var COFantasy2 = COFantasy2 || function() {
   function getFx(cmd, argName, obj, options, funName) {
     if (cmd.length < 2) {
       if (!options.noError) {
-      let errMsg = "Il manque un argument à l'option --" + argName;
-      if (funName) errMsg += " de " + funName;
-      sendChat("COF", errMsg);
+        let errMsg = "Il manque un argument à l'option --" + argName;
+        if (funName) errMsg += " de " + funName;
+        sendChat("COF", errMsg);
       }
       return;
     }
