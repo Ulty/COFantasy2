@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 13 août 2026,  12:48
+//Dernière modification : jeu. 13 août 2026,  01:45
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1888,10 +1888,10 @@ var COFantasy2 = COFantasy2 || function() {
     return note.trim().split('<br>');
   }
 
-  function normalizeTokenImg(img) {
+  function normalizeTokenImg(img, silent) {
     let m = img.match(/(.*\/images\/.*)(thumb|med|original|max)([^?]*)(\?[^?]+)?$/);
     if (!m || m.length < 4) {
-      error("Impossible d'utiliser l'image " + img, img);
+      if (!silent) error("Impossible d'utiliser l'image " + img, img);
       return img;
     }
     let body = m[1];
@@ -2517,22 +2517,22 @@ var COFantasy2 = COFantasy2 || function() {
     };
     let reposPerso = function(perso) {
       nbReposes++;
+      if (predicateAsBool(perso, 'recuperationRapideTotale')) {
+        //Récupération de tous les PV
+        let {
+          pv,
+          pvMax
+        } = pvPerso(perso);
+        if (pv < pvMax) {
+          updateCurrentBar(perso, 1, pvMax, evt);
+          sendPerso(perso, "récupère tous ses PVs", true);
+        }
+        fin();
+        return;
+      }
       if (!complete) {
         let tps = predicateAsInt(perso, 'tempsRecuperationRapide', 30);
         if (tempsRepos > tps) tempsRepos = tps;
-        if (predicateAsBool(perso, 'familierDeMage')) {
-          //Récupération de tous les PV
-          let {
-            pv,
-            pvMax
-          } = pvPerso(perso);
-          if (pv < pvMax) {
-            updateCurrentBar(perso, 1, pvMax, evt);
-            sendPerso(perso, "récupère tous ses PVs", true);
-          }
-          fin();
-          return;
-        }
       }
       if (complete) {
         //On remet les points de mana au max
@@ -10946,7 +10946,7 @@ var COFantasy2 = COFantasy2 || function() {
         tokenSpec = {...defaultToken
         };
       }
-      tokenSpec.imgsrc = normalizeTokenImg(tokenSpec.imgsrc);
+      tokenSpec.imgsrc = normalizeTokenImg(tokenSpec.imgsrc, true);
       delete tokenSpec.pageid;
       tokenSpec._pageid = pageId;
       tokenSpec.left = left;
@@ -10967,7 +10967,25 @@ var COFantasy2 = COFantasy2 || function() {
       if (updateSpec) updateSpec(tokenSpec);
       let token = createObj('graphic', tokenSpec);
       if (!token) {
-        noToken("Impossible de modifier le token par défaut de cette fiche, il faut en mettre un exemplaire sur la carte (probablement à cause de l'image du token qui n'est pas dans une librairie personnelle)");
+        delete tokenSpec.imgsrc;
+        delete tokenSpec._pageId;
+        tokenSpec.pageid = pageId;
+        for (let field in defaultToken) {
+          if (tokenSpec[field] !== undefined && tokenSpec[field] == defaultToken[field])
+            delete tokenSpec[field];
+        }
+        token = character.createToken(tokenSpec, {}, function(token) {
+          if (!token) {
+            noToken("Impossible de modifier le token par défaut de cette fiche, il faut en mettre un exemplaire sur la carte (probablement à cause de l'image du token qui n'est pas dans une librairie personnelle)");
+            return;
+          }
+          evt.defaultTokens = evt.defaultTokens || [];
+          evt.defaultTokens.push({
+            charId,
+            defaultToken,
+          });
+          treatToken(token);
+        });
         return;
       }
       evt.defaultTokens = evt.defaultTokens || [];
@@ -12969,7 +12987,7 @@ var COFantasy2 = COFantasy2 || function() {
           comp_def: '13+[rang_voieNUMEROVOIE]',
           comp_pv_max: '[niveau]',
           comp_init: '[init]',
-          predicats_script: 'aucuneActionCombat, familierDeMage'
+          predicats_script: 'aucuneActionCombat familierDeMage recuperationRapideTotale'
         }
       }
     },
@@ -13057,7 +13075,7 @@ var COFantasy2 = COFantasy2 || function() {
           comp_def: '13+[rang_voieNUMEROVOIE]',
           comp_pv_max: '[niveau]*2',
           comp_init: '[init]',
-          predicats_script: 'aucuneActionCombat'
+          predicats_script: 'aucuneActionCombat recuperationRapideTotale'
         }
       }
     },
@@ -23116,22 +23134,20 @@ var COFantasy2 = COFantasy2 || function() {
       token.set('top', top);
     } else {
       //On change de carte, il faut donc copier le token
-      let tokenObj = JSON.parse(JSON.stringify(token));
-      tokenObj._pageid = newPageId;
+      let props = {
+        pageid: newPageId,
+      };
       //On met la taille du token à jour en fonction des échelles des cartes.
       let ratio = computeScale(pageId) / computeScale(newPageId);
       if (ratio < 0.9 || ratio > 1.1) {
         if (ratio < 0.25) ratio = 0.25;
         else if (ratio > 4) ratio = 4;
-        tokenObj.width *= ratio;
-        tokenObj.height *= ratio;
+        props.width = token.get('width') * ratio;
+        props.height = token.get('height') * ratio;
       }
-      tokenObj.imgsrc = normalizeTokenImg(tokenObj.imgsrc);
-      tokenObj.left = left;
-      tokenObj.top = top;
-      let newToken = createObj('graphic', tokenObj);
+      let newToken = token.createCopy(props);
       if (newToken === undefined) {
-        error("Impossible de copier le token, et donc de faire le changement de carte", tokenObj);
+        error("Impossible de copier le token, et donc de faire le changement de carte", props);
         return;
       }
     }
@@ -29004,7 +29020,7 @@ var COFantasy2 = COFantasy2 || function() {
       spawnFx(perso.token.get('left'), perso.token.get('top'), 'burn-smoke', pageId);
       deleteTokenWithUndo(perso.token, evt);
     } else if (stateCOF.milieu == 'naturel' && ficheAttribute(perso, 'compagnon', '') !== '' && predicateAsBool(perso, 'animal')) {
-      addMsg("s'enfuit."); 
+      addMsg("s'enfuit.");
       deleteTokenWithUndo(perso.token, evt);
     } else {
       spawnFx(perso.token.get('left'), perso.token.get('top'), 'splatter-blood', pageId);
