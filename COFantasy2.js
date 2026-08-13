@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 13 août 2026,  12:30
+//Dernière modification : jeu. 13 août 2026,  12:48
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2520,6 +2520,19 @@ var COFantasy2 = COFantasy2 || function() {
       if (!complete) {
         let tps = predicateAsInt(perso, 'tempsRecuperationRapide', 30);
         if (tempsRepos > tps) tempsRepos = tps;
+        if (predicateAsBool(perso, 'familierDeMage')) {
+          //Récupération de tous les PV
+          let {
+            pv,
+            pvMax
+          } = pvPerso(perso);
+          if (pv < pvMax) {
+            updateCurrentBar(perso, 1, pvMax, evt);
+            sendPerso(perso, "récupère tous ses PVs", true);
+          }
+          fin();
+          return;
+        }
       }
       if (complete) {
         //On remet les points de mana au max
@@ -2536,7 +2549,10 @@ var COFantasy2 = COFantasy2 || function() {
             pv,
             pvMax
           } = pvPerso(perso);
-          if (pv < pvMax) updateCurrentBar(perso, 1, pvMax, evt);
+          if (pv < pvMax) {
+            updateCurrentBar(perso, 1, pvMax, evt);
+            sendPerso(perso, "récupère tous ses PVs", true);
+          }
           fin();
           return;
         }
@@ -28986,6 +29002,9 @@ var COFantasy2 = COFantasy2 || function() {
     if (predicateAsBool(perso, 'familierDeMage')) {
       addMsg('disparaît dans un nuage de fumée');
       spawnFx(perso.token.get('left'), perso.token.get('top'), 'burn-smoke', pageId);
+      deleteTokenWithUndo(perso.token, evt);
+    } else if (stateCOF.milieu == 'naturel' && ficheAttribute(perso, 'compagnon', '') !== '' && predicateAsBool(perso, 'animal')) {
+      addMsg("s'enfuit."); 
       deleteTokenWithUndo(perso.token, evt);
     } else {
       spawnFx(perso.token.get('left'), perso.token.get('top'), 'splatter-blood', pageId);
