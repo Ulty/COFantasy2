@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 13 août 2026,  01:45
+//Dernière modification : ven. 04 sept. 2026,  03:16
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13075,7 +13075,7 @@ var COFantasy2 = COFantasy2 || function() {
           comp_def: '13+[rang_voieNUMEROVOIE]',
           comp_pv_max: '[niveau]*2',
           comp_init: '[init]',
-          predicats_script: 'aucuneActionCombat recuperationRapideTotale'
+          predicats_script: 'aucuneActionCombat animal recuperationRapideTotale'
         }
       }
     },
@@ -13338,7 +13338,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Donner une action",
         type: 'G',
-        cmd: '!cof2-action reçoit un ordre à @{target|Cible|token_name} --donneAction A --cible @{target|Cible|token_name} --limiteParTour 1 ordreSergent --noSelect',
+        cmd: '!cof2-action donne un ordre à @{target|Cible|token_name} --donneAction A --cible @{target|Cible|token_name} --limiteParTour 1 ordreSergent --noSelect',
       },
     },
     'capitaine': {
@@ -35705,20 +35705,20 @@ var COFantasy2 = COFantasy2 || function() {
     if (character.get('controlledby').length === 0) {
       if (prev && prev.controlledby.length > 0) {
         delete stateCOF.equipes.joueurs.membres[character.id];
-        if (stateCOF.equipes.joueurs.alliance) {
+        if (stateCOF.equipes.joueurs && stateCOF.equipes.joueurs.alliance) {
           recomputeAlliesParPerso(character.id);
         }
       }
     } else {
       if (!prev || prev.controlledby.length === 0) {
-        if (stateCOF.equipes.joueurs.alliance) {
+        if (stateCOF.equipes.joueurs && stateCOF.equipes.joueurs.alliance) {
           alliesParPerso[character.id] = alliesParPerso[character.id] || new Set();
           for (const pj in stateCOF.equipes.joueurs.membres) {
             alliesParPerso[character.id].add(pj);
             alliesParPerso[pj].add(character.id);
           }
         }
-        stateCOF.equipes.joueurs.membres[character.id] = true;
+        if (stateCOF.equipes.joueurs) stateCOF.equipes.joueurs.membres[character.id] = true;
       }
     }
   }
