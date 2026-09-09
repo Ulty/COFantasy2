@@ -1,4 +1,4 @@
-//Dernière modification : ven. 04 sept. 2026,  03:16
+//Dernière modification : mer. 09 sept. 2026,  03:42
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -31678,7 +31678,7 @@ var COFantasy2 = COFantasy2 || function() {
         let label = a.get('current');
         let msg = "a laché " + nomArme + ", ";
         let commande = '!cof2-ramasser-arme ' + label + ' ' + perso.charId + ' ' + perso.token.id;
-        msg += boutonSimple(commande, "la ramasser", BS_BUTTON) + ' ?';
+        msg += boutonSimple(commande, "ramasser l'arme", BS_BUTTON) + ' ?';
         addLineToFramedDisplay(display, msg);
       });
       if (attributeAsBool(perso, 'etatExsangue')) {
