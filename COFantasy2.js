@@ -1,4 +1,4 @@
-//Dernière modification : mer. 09 sept. 2026,  06:04
+//Dernière modification : mer. 09 sept. 2026,  06:08
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -23273,6 +23273,7 @@ var COFantasy2 = COFantasy2 || function() {
   function pointsDeChance(perso) {
     //TODO: ajouter une option de règle pour autoriser les PC aux PNJ
     //if (!estPJ(perso)) return 0;
+    if (estMook(perso)) return 0;
     return ficheAttributeAsInt(perso, 'pc', 0);
   }
 
