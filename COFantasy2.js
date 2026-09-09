@@ -1,4 +1,4 @@
-//Dernière modification : mer. 09 sept. 2026,  06:08
+//Dernière modification : mer. 09 sept. 2026,  06:24
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -24094,6 +24094,8 @@ var COFantasy2 = COFantasy2 || function() {
   function deMalusBonusPerso(perso, explications, options = {}, estCible = false, res = {}) {
     let deMalus = res.deMalus || 0;
     let deBonus = res.deBonus || 0;
+    if (options.deBonus) deBonus++;
+    if (options.deMalus) deMalus++;
     if (perso) {
       if (estAffaibli(perso)) {
         deMalus++;
