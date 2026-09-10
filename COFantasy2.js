@@ -1,4 +1,4 @@
-//Dernière modification : mer. 09 sept. 2026,  06:24
+//Dernière modification : jeu. 10 sept. 2026,  05:50
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -28326,7 +28326,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (nouvelleArme.deuxMains || options.deuxMains || nouvelleArmeGauche) {
       if (tientBouclier) {
         sendPerso(perso, "enlève son bouclier", options.secret);
-      } else if (mainGauche.torche) {
+      } else if (mainGauche && mainGauche.torche) {
         //TODO: la mettre au sol ?
         eteindreTorche(perso, perso.token.get('pageid'));
       }
