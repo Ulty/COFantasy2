@@ -1,4 +1,4 @@
-//Dernière modification : ven. 11 sept. 2026,  01:38
+//Dernière modification : ven. 11 sept. 2026,  01:51
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -14846,6 +14846,14 @@ var COFantasy2 = COFantasy2 || function() {
     if (!attackStats.recharger) {
       //Pour les armes qui se rechargent, on demande les munitions au moment de recharger, pas au moment de tirer
       act = demandeMunition(attaquant, attackStats, options, act);
+      if (options.actionImpossible) {//Pour le cas où il faut des munitions et qu'il n'y en a pas
+        if (options.commande) return {
+          act: text,
+          picto: '',
+          style: ''
+        };
+        return text;
+      }
     }
     if (options.request) act += options.request;
     if (options.ressource) act += " --decrAttribute " + options.ressource.id;
@@ -26371,14 +26379,16 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
-    if (munitionsDeType.length === 0) return act;
     let demande = ' ?{Munition|Normale,&amp;#32;';
     if (ficheAttributeAsInt(perso, 'cfg_use_ammo', 0)) {
-      if (munitionsDeType.length == 1) {
+      if (munitionsDeType.length == 0) {
+        options.actionImpossible = true;
+        return act;
+      } else if (munitionsDeType.length == 1) {
         return act + ' --munition ' + munitionsDeType[0].labelmunition;
       }
-      demande = '?{Munition';
-    }
+      else demande = '?{Munition';
+    } else if (munitionsDeType.length === 0) return act;
     munitionsDeType.forEach(function(m) {
       demande += '|' +
         fieldAsString(m, 'ammo-nom', typeMunition + ' ' + m.labelmunition) +
