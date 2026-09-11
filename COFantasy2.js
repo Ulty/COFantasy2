@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 10 sept. 2026,  05:50
+//Dernière modification : ven. 11 sept. 2026,  01:38
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -26373,6 +26373,12 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (munitionsDeType.length === 0) return act;
     let demande = ' ?{Munition|Normale,&amp;#32;';
+    if (ficheAttributeAsInt(perso, 'cfg_use_ammo', 0)) {
+      if (munitionsDeType.length == 1) {
+        return act + ' --munition ' + munitionsDeType[0].labelmunition;
+      }
+      demande = '?{Munition';
+    }
     munitionsDeType.forEach(function(m) {
       demande += '|' +
         fieldAsString(m, 'ammo-nom', typeMunition + ' ' + m.labelmunition) +
