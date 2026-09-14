@@ -1,4 +1,4 @@
-//Dernière modification : lun. 14 sept. 2026,  05:31
+//Dernière modification : lun. 14 sept. 2026,  05:46
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11452,7 +11452,7 @@ var COFantasy2 = COFantasy2 || function() {
                 log("Action " + options.debloqueAction + " de " + nomPerso(perso) + " non trouvée", infos);
             }
         }
-        if (perso && options.typeAction) {
+        if (perso && options.typeAction && !options.autoriseAction) {
             switch (options.typeAction) {
                 case 'I':
                     break;
@@ -11479,7 +11479,7 @@ var COFantasy2 = COFantasy2 || function() {
                     }
                     if (!typeActionPossible(perso, 'A')) {
                         if (!options.testeRessources) {
-                            sendPerso(perso, "ne peut plus faire d'action d'attaque ce tour");
+                            demandeConfirmationActionLimitee(perso, "ne peut plus faire d'action d'attaque ce tour");
                         }
                         return true;
                     }
@@ -11493,7 +11493,7 @@ var COFantasy2 = COFantasy2 || function() {
                     }
                     if (!typeActionPossible(perso, 'M')) {
                         if (!options.testeRessources) {
-                            sendPerso(perso, "ne peut plus faire d'action de mouvement ce tour");
+                            demandeConfirmationActionLimitee(perso, "ne peut plus faire d'action de mouvement ce tour");
                         }
                         return true;
                     }
@@ -11511,7 +11511,7 @@ var COFantasy2 = COFantasy2 || function() {
             }
         }
         if (perso && combat && options.potion && !options.typeAction) {
-            if (!typeActionPossible(perso, 'M')) {
+            if (!typeActionPossible(perso, 'M') && !options.autoriseAction) {
                 if (!options.testeRessources) {
                     sendPerso(perso, "ne peut pas boire de potion pendant ce tour");
                 }
@@ -11521,7 +11521,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (perso && options.parchemin) {
             if (combat && !options.typeAction) {
-                if (!typeActionPossible(perso, 'L')) {
+                if (!typeActionPossible(perso, 'L') && !options.autoriseAction) {
                     if (!options.testeRessources) {
                         sendPerso(perso, "ne peut plus utiliser de parchemin pendant ce tour");
                     }
