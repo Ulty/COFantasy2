@@ -1,4 +1,4 @@
-//Dernière modification : ven. 11 sept. 2026,  01:51
+//Dernière modification : lun. 14 sept. 2026,  03:15
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -6063,8 +6063,7 @@ var COFantasy2 = COFantasy2 || function() {
     // chances de critique
     let diceOptions = computeAttackDiceOptions(attaquant, weaponStats, explications, evt, options);
     if (diceOptions.deMalus !== true && cibles.length === 1 && options.arme && (options.distance || !weaponStats.dague) && attributeAsBool(cibles[0], 'colleASaProie')) {
-      diceOptions.deMalus = diceOptions.deMalus || 0;
-      diceOptions.deMalus++;
+      ajouteDeMalus(diceOptions);
     }
     if (cibles.length === 1 && options.distance && !options.sortilege && attributeAsBool(cibles[0], 'manteauDOmbre')) {
       explications.push("Cible dans l'ombre => dé malus en attaque");
@@ -9412,7 +9411,7 @@ var COFantasy2 = COFantasy2 || function() {
           sendPerso(target, "est trop loin");
           return false;
         }
-        options.deMalus = true;
+        ajouteDeMalus(options);
         target.porteeLongue = true;
       }
       if (target.distance === 0) {
@@ -9422,7 +9421,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (portee > 0 && !options.armeDeContact && (weaponStats.arc || weaponStats.fronde ||
             ((weaponStats.arbalete || weaponStats.poudre) && !predicateAsBool(attaquant, 'plusViteQueSonOmbre')))) {
-          options.deMalus = true;
+          ajouteDeMalus(options);
           target.tirAuContact = true;
         }
       }
@@ -24100,10 +24099,16 @@ var COFantasy2 = COFantasy2 || function() {
   // Si estCible, on considere que perso est la cible des options
   // Si un dernier argument res est donné, le résultat y est écrit
   function deMalusBonusPerso(perso, explications, options = {}, estCible = false, res = {}) {
-    let deMalus = res.deMalus || 0;
     let deBonus = res.deBonus || 0;
-    if (options.deBonus) deBonus++;
-    if (options.deMalus) deMalus++;
+    let deMalus = res.deMalus || 0;
+    if (options.deBonus) {
+      if (options.deBonus === true) deBonus++;
+      else deBonus += options.deBonus;
+    }
+    if (options.deMalus) {
+      if (options.deMalus === true ) deMalus++;
+      else deMalus += options.deMalus;
+    }
     if (perso) {
       if (estAffaibli(perso)) {
         deMalus++;
@@ -24142,23 +24147,12 @@ var COFantasy2 = COFantasy2 || function() {
     let {
       deBonus,
       deMalus
-    } = deMalusBonusPerso(perso, explications, options);
-    if (options.deBonus === true) {
-      if (!options.deMalus && !deMalus) nbDe = 2;
-    } else if (options.deMalus === true) {
-      if (!deBonus) {
-        nbDe = 2;
-        plusFort = false;
-      }
-    } else {
-      if (options.deBonus) deBonus += options.deBonus;
-      if (options.deMalus) deMalus += options.deMalus;
+    } = deMalusBonusPerso(perso, explications, options);//tiens compte de options.deBonus
       if (deBonus > deMalus) nbDe = 1 + deBonus - deMalus;
       else if (deBonus < deMalus) {
         nbDe = 1 + deMalus - deBonus;
         plusFort = false;
       }
-    }
     let de = nbDe + "d20";
     if (nbDe > 1) {
       if (plusFort) de += "kh1";
@@ -29946,7 +29940,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function dealDamageAfterOthers(target, crit, options, evt, expliquer, displayRes, dmgTotal, dmgDisplay, showTotal, dmSuivis) {
     let token = target.token;
-    // Now do some dmg mitigation rolls, if necessary
+    // Maintenant on diminue les jets de DM, si besoin
     if ((options.distance || options.aoe) &&
       attributeAsBool(target, 'aCouvert')) {
       if (showTotal) dmgDisplay = "(" + dmgDisplay + ")";
