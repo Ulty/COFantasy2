@@ -1,4 +1,4 @@
-//Dernière modification : lun. 14 sept. 2026,  05:46
+//Dernière modification : mer. 16 sept. 2026,  02:27
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -8653,7 +8653,8 @@ var COFantasy2 = COFantasy2 || function() {
                         let action = {
                             nom: 'Attaque à suivre',
                             combat: true,
-                            cmd: command
+                            cmd: command,
+                          type: 'G',
                         };
                         ajouterActionSupplementaire(attaquant, action, evt);
                     }
@@ -15876,10 +15877,10 @@ var COFantasy2 = COFantasy2 || function() {
                 if (command.startsWith('!cof2-soin ')) opt.pasDeBrulureDeMana = true;
                 if (!depenseManaPossible(perso, action.mana, false, opt)) return ligne;
                 command += " --mana " + action.mana;
-                if (stateCOF.combat || action.entrerEnCombat || action.dm) command += " --typeAction " + action.type;
+                if (action.type && (stateCOF.combat || action.entrerEnCombat || action.dm)) command += " --typeAction " + action.type;
             }
         } else {
-            if (stateCOF.combat || action.entrerEnCombat || action.dm) command += " --typeAction " + action.type;
+            if (action.type && (stateCOF.combat || action.entrerEnCombat || action.dm)) command += " --typeAction " + action.type;
         }
         command += ' --acteur ' + perso.token.id;
         let bopt = {
@@ -27774,9 +27775,9 @@ var COFantasy2 = COFantasy2 || function() {
         identifierArme(weaponStats, pred, 'dague', /\bdague\b/i);
         identifierArme(weaponStats, pred, 'hache', /\bhache\b/i);
         identifierArme(weaponStats, pred, 'hachette', /\bhachette\b/i);
-        identifierArme(weaponStats, pred, 'epee', /\b[eé]p[eé]e\b/i);
-        identifierArme(weaponStats, pred, 'epeeCourte', /\b[eé]p[eé]e courte\b/i);
-        identifierArme(weaponStats, pred, 'epieu', /\b[eé]pieu\b/i);
+        identifierArme(weaponStats, pred, 'epee', /(\bep[eé]e\b|ép[eé]e\b)/i);
+        identifierArme(weaponStats, pred, 'epeeCourte', /(\bep[eé]e courte\b|ép[eé]e courte\b)/i);
+        identifierArme(weaponStats, pred, 'epieu', /(\bepieu\b|épieu\b)/i);
         identifierArme(weaponStats, pred, 'fronde', /\bfronde\b/i);
         identifierArme(weaponStats, pred, 'marteau', /\bmarteau\b/i);
         identifierArme(weaponStats, pred, 'masse', /\bmasse\b/i);
