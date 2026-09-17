@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 17 sept. 2026,  03:12
+//Dernière modification : jeu. 17 sept. 2026,  04:08
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4281,7 +4281,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (deBonus === true) deBonus = 1;
         else if (!deBonus) deBonus = 0;
         let bar3 = attaquant.token.get('bar3_value');
-        if (bar3) {
+        if (bar3 && typeof bar3 == 'string') {
             if (bar3.includes('+')) deBonus++;
             else if (bar3.endsWith('-')) deMalus++;
         }
@@ -26597,7 +26597,7 @@ var COFantasy2 = COFantasy2 || function() {
                 texteJetDeTotal += bonus;
             }
             msg += ' = ' + texteJetDeTotal + '" class="a inlinerollresult showtip tipsy-n">';
-        }
+        } else msg += '>';
         msg += res.total + "</span>";
         res.display = msg;
         if (rolls) rolls[rollId] = res;
