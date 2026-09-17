@@ -1,4 +1,4 @@
-//Dernière modification : mer. 16 sept. 2026,  02:27
+//Dernière modification : jeu. 17 sept. 2026,  02:45
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -17657,10 +17657,10 @@ var COFantasy2 = COFantasy2 || function() {
                                 setToken(tokenOriginel, 'bar1_value', tokenCourant.get('bar1_value'), evt);
                             }
                             setToken(tokenOriginel, 'bar2_value', tokenCourant.get('bar2_value'), evt);
-                            setToken(tokenOriginel, 'aura2_radius', tokenCourant.get('aura2_radius'), evt);
-                            setToken(tokenOriginel, 'aura2_color', tokenCourant.get('aura2_color'), evt);
-                            setToken(tokenOriginel, 'aura2_square', tokenCourant.get('aura2_square'), evt);
-                            setToken(tokenOriginel, 'showplayers_aura2', tokenCourant.get('showplayers_aura2'), evt);
+                            setToken(tokenOriginel, 'aura1_radius', tokenCourant.get('aura1_radius'), evt);
+                            setToken(tokenOriginel, 'aura1_color', tokenCourant.get('aura1_color'), evt);
+                            setToken(tokenOriginel, 'aura1_square', tokenCourant.get('aura1_square'), evt);
+                            setToken(tokenOriginel, 'showplayers_aura1', tokenCourant.get('showplayers_aura1'), evt);
                             setToken(tokenOriginel, 'statusmarkers', tokenCourant.get('statusmarkers'), evt);
                             setToken(tokenOriginel, 'light_angle', tokenCourant.get('light_angle'), evt);
                             setToken(tokenOriginel, 'has_limit_field_of_vision', tokenCourant.get('has_limit_field_of_vision'), evt);
