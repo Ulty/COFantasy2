@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 17 sept. 2026,  02:45
+//Dernière modification : jeu. 17 sept. 2026,  03:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -23668,7 +23668,7 @@ var COFantasy2 = COFantasy2 || function() {
             expliquer(msg + ": " + ((bonus < 0) ? "-" : "+") + bonus);
         }
         //TODO: revoir cette liste
-        switch (comp) {
+        switch (comp.toLowerCase()) {
             case 'acrobatie':
             case 'acrobaties':
                 {
