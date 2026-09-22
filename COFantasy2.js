@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 17 sept. 2026,  04:08
+//Dernière modification : mar. 22 sept. 2026,  07:22
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -15952,10 +15952,13 @@ var COFantasy2 = COFantasy2 || function() {
                         else msgPour += effetC;
                     }
                     let carac = attr.get('current').split(' ');
+                  let cmd = "!cof2-save-effet " + perso.token.id + " " + attr.id;
                     if (carac.length < 2)
-                        ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '<br/>';
-                    else if (typeActionPossible(carac[1]))
-                        ligne += boutonSimple("!cof2-save-effet " + perso.token.id + " " + attr.id, msgPour) + '(' + carac[1] + ')<br/>';
+                        ligne += boutonSimple(cmd, msgPour) + '<br/>';
+                    else if (typeActionPossible(perso, carac[1])) {
+                      cmd += ' --typeAction '+carac[1];
+                        ligne += boutonSimple(cmd, msgPour) + '(' + carac[1] + ')<br/>';
+                    }
                 });
                 if (typeActionPossible(perso, 'M')) {
                     //Mouvement
@@ -24801,6 +24804,7 @@ var COFantasy2 = COFantasy2 || function() {
             options
         } = args;
         const evt = evtAvecRedo('saveEffet', args);
+        if (limiteRessources(perso, options, undefined, 'save', evt)) return;
         let titre = "Jet " + deCarac(carac) + options.msgPour;
         let display = startFramedDisplay(playerId, titre, perso);
         let explications = [];
