@@ -1,4 +1,4 @@
-//Dernière modification : mar. 22 sept. 2026,  07:22
+//Dernière modification : jeu. 01 oct. 2026,  10:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -30542,7 +30542,6 @@ var COFantasy2 = COFantasy2 || function() {
             options,
         } = args;
         const evt = evtAvecRedo('soin', args);
-        addEvent(evt);
         options = deepCopy(options);
         let nbCibles = selected.length;
         let ressourceLimiteCibleParJour;
@@ -30951,11 +30950,23 @@ var COFantasy2 = COFantasy2 || function() {
             let ligne = c.quantite + ' ';
             let action = c.effet;
             if (action === '') {
-                if (c.nom.toLowerCase().startsWith('parchemin de ')) {
+              let nomM = c.nom.toLowerCase();
+                if (nomM.startsWith('parchemin de ')) {
                     let command = actionDeParchemin(perso, c.nom.substring(13), playerId, pageId, options);
                     if (command) action = command;
+                } else if (nomM.startsWith('potion de ')) {
+                  let preds = predicatDeConsommable(c.nom.substring(10));
+                  if (preds) {
+                    let actionDuNom = preds.action;
+                    if (actionDuNom) {
+                      actionDuNom = {... actionDuNom};
+                      actionDuNom.cmd += ' --potion';
+  action = commandeDeConsommble(perso, actionDuNom, options);
+        action = selectedToValue(action, 'target', perso);//la cible de la potion est le personnage
+                    }
+                  }
                 }
-                if (action === '') action = '!cof-action utilise ' + c.nom;
+                if (action === '') action = '!cof2-action utilise ' + c.nom;
             } else if (action.startsWith('parchemin ')) {
                 let command = actionDeParchemin(perso, action.substring(10), playerId, pageId, options);
                 if (command) action = command;
@@ -30995,7 +31006,7 @@ var COFantasy2 = COFantasy2 || function() {
             }
             let ligne = c.quantite + ' ';
             let action = c.effet;
-            if (action === '') action = '!cof-action utilise ' + c.nom;
+            if (action === '') action = '!cof2-action utilise ' + c.nom;
             action += ' --potion --acteur ' + perso.token.id;
             if (localisation == 'ceinture') action += ' --typeAction L';
             ligne += boutonComplexe(action, c.nom, perso, {
@@ -31024,12 +31035,27 @@ var COFantasy2 = COFantasy2 || function() {
         sendFramedDisplay(display);
     }
 
-    function actionDeParchemin(perso, nom, playerId, pageId, options) {
+   function predicatDeConsommable(nom) {
         let capacite = removeAccents(nom).toLowerCase();
         let indexPar = capacite.indexOf('(');
         if (indexPar > 0) capacite = capacite.substring(0, indexPar);
         capacite = capacite.trim();
-        let preds = predicatsParCapacite[capacite];
+        return predicatsParCapacite[capacite];
+   }
+
+  function commandeDeConsommble(perso, action, options) {
+        let command = selectedToValue(action.cmd, 'selected', perso);
+        command = TARGETSToSelection(command, perso);
+        if (!command.includes(' --acteur')) {
+          if (options.acteur) command += ' --acteur ' + options.acteur.token.id;
+          else command += ' --acteur ' + perso.token.id;
+        }
+        if (!options.select && !command.includes(' --select')) command += ' --select ' + perso.token.id;
+    return command;
+  }
+
+    function actionDeParchemin(perso, nom, playerId, pageId, options) {
+      let preds = predicatDeConsommable(nom);
         if (!preds) {
             log("Capacité " + nom + " pas (encore ?) reconnue");
             return;
@@ -31060,10 +31086,7 @@ var COFantasy2 = COFantasy2 || function() {
                 profil
             };
         }
-        let command = selectedToValue(action.cmd, 'selected', perso);
-        command = TARGETSToSelection(command, perso);
-        if (!options.acteur) command += ' --acteur ' + perso.token.id;
-        if (!options.select) command += ' --select ' + perso.token.id;
+  let command = commandeDeConsommble(perso, action, options);
         if (!options.parchemin) command += ' --parchemin ' + parchemin.rang + ' ' + parchemin.profil;
         return command;
     }
@@ -32138,6 +32161,9 @@ var COFantasy2 = COFantasy2 || function() {
                     case 'sansEsprit':
                     case 'capa_race':
                     case 'message_version':
+                    case '_jets_caches':
+                    case 'armeEnMain':
+                    case '_defbouclier':
                         //on efface juste
                         break;
                     case 'niveau':
