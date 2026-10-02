@@ -1,4 +1,4 @@
-//Dernière modification : ven. 02 oct. 2026,  04:48
+//Dernière modification : ven. 02 oct. 2026,  05:41
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -9477,7 +9477,8 @@ var COFantasy2 = COFantasy2 || function() {
           return;
       }
       //Prise en compte des personnages engagés au corps à corps avec une des cibles et pas dans l'aoe
-      let ciblesSupplementaires = new Set();
+      let ciblesTraitees = new Set();
+      if (options.cone) ciblesTraitees.add(tokenOrigine.id);
       let eviterAllies = attributeAsBool(attaquant, 'eviteAoeSurAllies');
       cibles.forEach(function(target) {
         let e = ennemisAuContact(target, pageId);
@@ -9492,8 +9493,8 @@ var COFantasy2 = COFantasy2 || function() {
           }
         } else {
           e.forEach(function(token) {
-            if (ciblesSupplementaires.has(token.id)) return;
-            ciblesSupplementaires.add(token.id);
+            if (ciblesTraitees.has(token.id)) return;
+            ciblesTraitees.add(token.id);
             if (cibleIds.has(token.id)) return;
             let cible = persoOfToken(token);
             if (!cible) return;
@@ -12573,6 +12574,30 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 1,
         bufPersonnelNonCumulable: 'chantDesHeros',
         cmd: '!cof2-effet chantDesHeros SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --allies',
+      },
+    },
+    'chant de reconfort': {
+      profil: 'barde',
+      action: {
+        nom: "Chant de réconfort",
+        limiteArmure: 'barde',
+        horsCombat: true,
+        typeAction: 'L',
+        mana: 2,
+        cmd: "!cof2-soin SELONRANG(1,1,1,2,2)d4E --select @{selected|token_id} --allies --portee 10 --message chante pendant une demi-heure --titre Chant de réconfort",
+      },
+    },
+    'attaque sonore': {
+      profil: 'barde',
+      aUneAttaqueAOE: true, //Pour donner la possibilité d'épargner les alliés.
+      action: {
+        nom: "Attaque sonore",
+        limiteArmure: 'barde',
+        combat: true,
+        dm: true,
+        typeAction: 'A',
+        mana: 3,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque sonore --sortilege --auto --dm 2d4E+@{selected|CHA} --portee 10 --cone 120 --psave CON [[10+@{selected|CHA}]]",
       },
     },
     //Voie du saltimbanque
@@ -30667,6 +30692,7 @@ var COFantasy2 = COFantasy2 || function() {
       niveau = niveauPerso(soigneur);
     }
     let effet = "soin";
+    if (options.titre) effet = options.titre;
     let argSoin = cmd[1];
     switch (argSoin) {
       case 'mineur':
@@ -30863,9 +30889,6 @@ var COFantasy2 = COFantasy2 || function() {
           finSoin();
           return;
         }
-        if (display) {
-          addLineToFramedDisplay(display, "Résultat des dés : " + soinTxt);
-        }
         if (options.sacrifierPV) { //paie autant de PV que soins
           if (soigneur === undefined) {
             error("Il faut préciser qui est le soigneur pour utiliser l'option --sacrifierPV", options);
@@ -30920,8 +30943,11 @@ var COFantasy2 = COFantasy2 || function() {
           addToAttributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour, -s, evt);
         }
         if (display) {
-          addLineToFramedDisplay(display,
-            "<b>" + nomPerso(cible) + "</b> : + " + s + " PV" + extraImg);
+          let line = "<b>" + nomPerso(cible) + "</b> : + ";
+          if (s<soins) line += s;
+          else line += soinTxt;
+          line += " PV";
+          addLineToFramedDisplay(display, line + extraImg);
         } else {
           let msgSoin;
           if (!soigneur || cible.token.id == soigneur.token.id) {
