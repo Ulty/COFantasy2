@@ -507,7 +507,7 @@ tr {line-height: 25px;}
                   <li><code>--terrainDifficile <i>duree</i></code> : si l'attaque affecte une zone en forme de disque, cette zone sera considérée comme du terrain difficile pendant <i>duree</i> tours. En deuxième argument, on peut mettre le nom de la zone, et en troisième argument une image à afficher sur la carte.</li>
                   <li><code>--deplaceDe <i>dmax</i></code> : l'attaquant se déplacer de <i>dmax</i> mètres maximum pour arriver à portée de sa cible. Le déplacement (et l'attaque) n'a lieu que si il existe une position libre, sans aucun token sur le trajet. On peut spécifier une distance minimum avec <code>--deplaceDe <i>min</i> <i>max</i></code>. On peut aussi ajouter le mot-clé <code>saut</code> pour ignorer les tokens sur le trajet.</li>
                   <li><code>--repousseCible <i>d</i></code> : l'attaque fait reculer la cible de <i>d</i> mètres. Un bouton propose de déplacer la cible, et l'attaquant suit automatiquement. Si la cible ne peut pas se déplacer de toute la distance, elle subit un malus en DEF égal à la distance restante.</li>
-                  <li><code>--suceLeSang <i>valOpt</i></code>; garde le compte des DM jusqu'à atteindre <i>valOpt</i> (7 par défaut).</li>
+                  <li><code>--suceLeSang <i>valOpt</i></code> : garde le compte des DM jusqu'à atteindre <i>valOpt</i> (7 par défaut).</li>
                 </ul>
               </div>
               <h4 class="text-secondary">Recharger des armes : <code>!cof2-recharger @{selected|token_id} <i>N</i></code></h4>
@@ -1274,6 +1274,7 @@ tr {line-height: 25px;}
                   <li><strong>Arc de feu :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
                   <li><strong>Saper les forces :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
                   <li><strong>Flèche de feu :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
+                  <li><strong>Explosion de feu :</strong> le sort apparaît automatiquement dans les actions du tour.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la magie élémentaire</h4>
                 <ol>
@@ -1519,7 +1520,7 @@ tr {line-height: 25px;}
                   <li><strong>bonusTestEvolutif_<i>competence</i></strong> : bonus ou nom de voie. Si on donne un nom de voie, le bonus est le rang dans la voie + 2, capé à 7.</li>
                   <li><strong>bonusTestPeuple_<i>competence</i></strong>: bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 3.</li>
                   <li><strong>bonusTestPrestige_<i>competence</i></strong> : bonus aux tests de compétence <i>competence</i>. La valeur par défaut est 5.</li>
-                  <li><strong>bouclierDeLaFoi</strong> ; bonus de DEF quand le personnage porte un bouclier.</li>
+                  <li><strong>bouclierDeLaFoi</strong> : bonus de DEF quand le personnage porte un bouclier.</li>
                   <li><strong>briseGenou</strong> : donne la possibilité d'utiliser <code>teigneux</code> plus d'une fois par tour, et ajoute un effet <code>genouBrise</code> si la cible rate un jet de CON difficulté 15.</li>
                   <li><strong>deBonusManoeuvre</strong> : accorde un dé bonus pour les manoeuvres.</li>
                   <li><strong>descriptionTestEvolutif_<i>nom</i></strong> : description des actions et circonstances correspondant au bonus évolutif nommé <i>nom</i></li>
