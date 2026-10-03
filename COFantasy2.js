@@ -1,4 +1,4 @@
-//Dernière modification : sam. 03 oct. 2026,  02:47
+//Dernière modification : sam. 03 oct. 2026,  05:40
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3210,6 +3210,8 @@ var COFantasy2 = COFantasy2 || function() {
     let armeTarget = armesEnMain(target); //peuple target.arme et armeGauche
     //Chair à canon
     if (capaciteDisponible(target, 'chairACanon', 'tour')) {
+      let sousLesOrdres = persosSousLesOrdresDe(target);
+      if (sousLesOrdres.size > 0) {
       let tokensChairACanon = findObjs({
         _type: 'graphic',
         _subtype: 'token',
@@ -3219,34 +3221,19 @@ var COFantasy2 = COFantasy2 || function() {
       target.chairACanon = tokensChairACanon.filter(function(tok) {
         if (tok.id == target.token.id) return false;
         let tokCharId = tok.get('represents');
-        if (tokCharId === '') return false;
+        if (!sousLesOrdres.has(tokCharId)) return false;
         if (distanceCombat(target.token, tok, pageId) > 3) return false;
         let pChair = {
           token: tok,
           charId: tokCharId,
         };
-        if (getState(pChair, 'mort')) return;
-        let tokPreds = predicatesNamed(pChair, 'chairACanonDe');
-        let estChair =
-          tokPreds.find(function(a) {
-            let chairACanonDe = a.split(',');
-            return chairACanonDe.find(function(b) {
-              let trimmed = b.trim();
-              return trimmed == nomPerso(target) || trimmed == target.name;
-            });
-          });
-        if (!estChair) {
-          let attrs = tokenAttribute(pChair, 'attributDeCombat_chairACanonDe');
-          estChair = attrs.find(function(attr) {
-            let p = persoOfIdName(attr.get('current'));
-            return p && p.token.id == target.token.id;
-          });
-        }
-        return estChair;
+        if (getState(pChair, 'mort')) return false;
+        return true;
       });
       if (target.chairACanon.length > 0) {
         defense += 3;
-        explications.push(target.chairACanon[0].get('name') + " aide " + nomPerso(target) + " ! => +5 DEF");
+        explications.push(target.chairACanon[0].get('name') + " aide " + nomPerso(target) + " ! => +3 DEF");
+      }
       }
     }
     if (attaquant && predicateAsBool(target, 'reduireLaDistance')) {
@@ -6652,6 +6639,53 @@ var COFantasy2 = COFantasy2 || function() {
     calculDesCiblesTouchees(args, attaquant, evt, options);
   }
 
+  //cof2-chair-a-canon id1 id2 evtid
+  //id1 est le PNJ frécurrent et id2 la chair à canon
+  function commandeChairACanon(cmd, playerId, pageId, optionsParade, pnjRec) {
+    if (!peutController(pnjRec, playerId)) {
+      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+      return;
+    }
+    let test = testLimiteUtilisationsCapa(pnjRec, 'chairACanon', 'tour', "a déjà utilisé un sous-fifre ce tour", "ne sait pas utiliser ses sous-fifres pour se défendre");
+    if (!test) return;
+    const evt = findEvent(cmd[3]);
+    if (evt === undefined) {
+      error("L'action est trop ancienne ou a été annulée", cmd);
+      return;
+    }
+    let args = getEvtArgs(evt);
+    if (!args || !args.cibles) {
+      sendPlayer("Impossible d'utiliser la chair à canon, ce n'était pas une attaque", playerId);
+      return;
+    }
+    let sousFifre = persoOfId(cmd[2]);
+    if (!sousFifre) {
+      error("Le second argument de !cof2-chair-a-canon n'est pas un token de personnage", cmd);
+      return;
+    }
+    let trouve;
+    args.cibles = args.cibles.filter(function(target) {
+      if (target.token.id == pnjRec.token.id) {
+        trouve = true;
+        return false;
+      }
+      return true;
+    });
+    if (!trouve) {
+      error("Impossible de trouver " + nomPerso(pnjRec) + " parmis les cibles de l'attaque", args);
+      return;
+    }
+    utiliseCapacite(pnjRec, test, evt);
+    args.cibles.push(sousFifre);
+    sousFifre.chairACanon = true;
+    args.choices = args.choices || {};
+    args.choices[sousFifre.token.id] = args.choices[sousFifre.token.id] || {};
+    let options = args.calculDesCiblesTouchees.options || {};
+    removePreDmg(options, pnjRec);
+    let attaquant = persoOfId(args.attaquantId);
+    calculDesCiblesTouchees(args, attaquant, evt, options);
+  }
+
   function commandeResistanceALaMagieNaine(cmd, playerId, pageId, options, perso) {
     annulerAttaqueGenerique(cmd, playerId, perso, "résister au sortilège", 'resistanceALaMagieNaine', 'jour', "ne peut plus résister à un sortilège", function(args) {
       return args.options.sortilege && args.attaquant &&
@@ -8730,7 +8764,7 @@ var COFantasy2 = COFantasy2 || function() {
           }
           if (preDmgToken.chairACanon) {
             preDmgToken.chairACanon.forEach(function(tok) {
-              line += "<br/>" + boutonSimple("!cof-chair-a-canon " + target.token.id + ' ' + tok.id + ' ' + evt.id, "utiliser " + tok.get('name') + " comme chair à canon");
+              line += "<br/>" + boutonSimple("!cof2-chair-a-canon " + target.token.id + ' ' + tok.id + ' ' + evt.id, "utiliser " + tok.get('name') + " comme chair à canon");
               nbBoutons++;
             });
           }
@@ -22314,6 +22348,19 @@ var COFantasy2 = COFantasy2 || function() {
     equipe.chef = cid;
   }
 
+  function persosSousLesOrdresDe(perso) {
+      let sousLesOrdres = new Set();
+      const equipes = stateCOF.equipes;
+      for (const ne in equipes) {
+        const equipe = equipes[ne];
+        if (!equipe.chef || equipe.chef != perso.charId) continue;
+        for (const cid in equipe.membres) {
+          if (cid != perso.charId) sousLesOrdres.add(cid);
+        }
+      }
+    return sousLesOrdres;
+  }
+
   //S'assure que tous les membres de l'équipe sont alliés
   function allierEquipe(equipe) {
     let seen = {};
@@ -30396,15 +30443,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (predicateAsBool(target, 'commandant') && alliesParPerso[target.charId]) {
       //On cherche si il y a au moins 4 créatures sous ses ordres à moins de 20 m
-      let sousLesOrdres = new Set();
-      const equipes = stateCOF.equipes;
-      for (const ne in equipes) {
-        const equipe = equipes[ne];
-        if (!equipe.chef || equipe.chef != target.charId) continue;
-        for (const cid in equipe.membres) {
-          if (cid != target.charId) sousLesOrdres.add(cid);
-        }
-      }
+      let sousLesOrdres = persosSousLesOrdresDe(target);
       if (sousLesOrdres.size > 0) {
         let tokens =
           findObjs({
@@ -36291,6 +36330,11 @@ var COFantasy2 = COFantasy2 || function() {
     'centrer-sur-token': {
       fn: commandeCentrerSurToken,
       minArgs: 1
+    },
+    'chair-a-canon': {
+      fn: commandeChairACanon,
+      minArgs: 2,
+      acteur: 1,
     },
     'chatiment-divin': {
       fn: commandeChatimentDivin,
