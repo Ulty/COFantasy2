@@ -1,4 +1,4 @@
-//Dernière modification : ven. 02 oct. 2026,  05:41
+//Dernière modification : sam. 03 oct. 2026,  02:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -452,6 +452,11 @@ var COFantasy2 = COFantasy2 || function() {
     renverse: 'status_back-pain',
     surpris: 'status_lightning-helix',
   };
+
+  const etatsPrejudiciables = [
+    'affaibli', 'apeure', 'assomme', 'aveugle', 'endormi', 'essouffle', 'etourdi', 'invalide',
+    'immobilise', 'paralyse', 'ralenti'
+  ];
 
   function stringOfEtat(etat, perso) {
     if (etat == 'invisible') return etat;
@@ -3098,9 +3103,9 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     let niveau = niveauPerso(target);
-    let instinctSurvie = predicateAsInt(target, 'instinctDeSurvie', 0, niveau * 5);
-    if (instinctSurvie > 0 && target.token.get('bar1_value') <= instinctSurvie)
-      defense += 5;
+    let instinctSurvie = predicateAsInt(target, 'instinctDeSurviePNJ', 0, niveau * 5);
+    if (instinctSurvie > 0 && target.token.get('bar1_value') < instinctSurvie)
+      defense += 3;
     if (attributeAsBool(target, 'danseIrresistible')) {
       defense -= 4;
       explications.push("En train de danser => -4 DEF");
@@ -3240,7 +3245,7 @@ var COFantasy2 = COFantasy2 || function() {
         return estChair;
       });
       if (target.chairACanon.length > 0) {
-        defense += 5;
+        defense += 3;
         explications.push(target.chairACanon[0].get('name') + " aide " + nomPerso(target) + " ! => +5 DEF");
       }
     }
@@ -9489,7 +9494,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (a) {
             target.eviteOuDivise = true;
             target.messages = target.messages || [];
-            target.messages.push("peut plus facilement éviter l'attaque, car "+onGenre(target, 'il', 'elle')+" est proche de "+a.get('name'));
+            target.messages.push("peut plus facilement éviter l'attaque, car " + onGenre(target, 'il', 'elle') + " est proche de " + a.get('name'));
           }
         } else {
           e.forEach(function(token) {
@@ -13589,6 +13594,10 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Vampirisation --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --seulementVivant --portee 30 --dm @{selected|demi_NC}d8 --drain',
       },
     },
+    //Voie du PNJ récurrent
+    'instinct de survie PNJ': {
+      instinctDeSurviePNJ: true,
+    },
     //Voie du prédateur
     'embuscade': {
       embuscade: true, //propose le bouton de surprise quand le perso rentre en combat
@@ -15365,13 +15374,14 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Tour terminé, plus possible de le retarder.");
       return;
     }
+    let init1 = persoInit(perso);
+    let init2 = toInt(cmd[2], -1);
     let cible = persoOfId(cmd[2], cmd[2], pageId);
-    if (!cible) {
+    if (cible) init2 = persoInit(cible);
+    if (init2 < 0) {
       sendPlayer("La cible n'est pas valide", playerId);
       return;
     }
-    let init1 = persoInit(perso);
-    let init2 = persoInit(cible);
     if (init2 >= init1) {
       sendPlayer("Impossible d'agir après " + nomPerso(cible) + " si " + onGenre(cible, 'il', 'elle') + " ne le veut pas", playerId);
       return;
@@ -15459,8 +15469,8 @@ var COFantasy2 = COFantasy2 || function() {
       setTokenAttr(perso, 'eviteAoeSurAllies', true, evt);
       sendPlayer(nomPerso(perso) + " va maintenant tout faire pour éviter que ses alliés au contact avec un ennemi dans une zone d'effet soit affecté", playerId);
     } else {
-    removeTokenAttr(perso, 'eviteAoeSurAllies', evt);
-    sendPlayer(nomPerso(perso) + " va maintenant lancer ses sorts de zone normalement, même quand des alliés risquent d'être touchés", playerId);
+      removeTokenAttr(perso, 'eviteAoeSurAllies', evt);
+      sendPlayer(nomPerso(perso) + " va maintenant lancer ses sorts de zone normalement, même quand des alliés risquent d'être touchés", playerId);
     }
     montrerActions(playerId, pageId, options);
   }
@@ -16172,6 +16182,24 @@ var COFantasy2 = COFantasy2 || function() {
         //Proposer au MJ de faire afficher les actions avec --actionsAvantLeTour ?
       }
     }
+    if (combat && capaciteDisponible(perso, 'instinctDeSurviePNJ', 'combat') && !persoImmobilise(perso)) {
+      let initNormale = persoInit(perso) - 10;
+      if (combat.init > initNormale) {
+        let vitesse = vitessePerso(perso);
+        let b = "!cof2-mvt " + perso.token.id + ' ' + vitesse + " --limiteParCombat 1 instinctDeSurviePNJ";
+        let picto = '<span style="font-family: \'Pictos\'">4</span> ';
+        let style = 'style="background-color:#272751"';
+        ligne += boutonSimple(b, picto, style) + " Se déplacer de " + vitesse + " m avant son tour";
+        b = PICTO_ATTENDRE.picto + " Attendre";
+        let c = "!cof2-retarder-tour " + perso.token.id + ' ' + initNormale;
+        ligne += boutonSimple(c, b, BS_ATTENDRE) + " son tour normal ";
+        if (!options.actionsAvantLeTour && playerIsGM(playerId)) {
+          let cmd = apiMsg.content + ' --actionsAvantLeTour';
+          ligne += boutonSimple(cmd, PICTO_LISTE_ACTIONS.picto + ' afficher les actions avant son tour', BS_LISTE_ACTIONS) + '<br/>';
+        }
+        avant = true;
+      }
+    }
     if (options.actionsAvantLeTour || !avant) {
       //Les actions proposées seulement au tour du personnage
       if (actionsEnCombat) {
@@ -16209,6 +16237,35 @@ var COFantasy2 = COFantasy2 || function() {
             ligne += boutonSimple(cmd, msgPour) + '(' + carac[1] + ')<br/>';
           }
         });
+        if (capaciteDisponible(perso, 'instinctDeSurviePNJ', 'tour')) {
+          //Save contre les effets qui donnent un état préjudiciable
+          let etat = etatsPrejudiciables.find(function(etat) {
+            return attributeAsBool(perso, etat + 'Temp');
+          });
+          let msgPour;
+          if (etat) {
+            etat = etat + 'Temp';
+            let met = messageOfEffet(etat + 'Temp');
+            if (met && met.msgSave) msgPour = met.msgSave;
+          } else {
+            etat = effetsAvecEtatPrejudiciable(function(effet) {
+              return attributeAsBool(perso, effet);
+            });
+            if (etat) {
+              let met = messageOfEffet(etat);
+              if (met && met.msgSave) msgPour = met.msgSave;
+            } else {
+              etat = etatsPrejudiciables.find(function(etat) {
+                return getState(perso, etat);
+              });
+            }
+          }
+          if (etat) {
+            if (!msgPour) msgPour = "Test pour se débarasser de " + etat;
+            let cmd = "cof2-effet " + etat + ' fin --save AGIINT 10 --limiteParTour 1 instinctDeSurviePNJ --select ' + perso.token.id;
+            ligne += boutonSimple(cmd, msgPour) + '(G)<br/>';
+          }
+        }
         if (typeActionPossible(perso, 'M')) {
           //Mouvement
           if (!persoImmobilise(perso)) {
@@ -17705,6 +17762,8 @@ var COFantasy2 = COFantasy2 || function() {
     }
     return res;
   }
+
+  const effetsAvecEtatPrejudiciable = ['prisonVegetale', 'paralyseGoule', 'poisonParalysant'];
 
   //options:
   //fromTemp si on est en train de supprimer un effet temporaire
@@ -23531,8 +23590,6 @@ var COFantasy2 = COFantasy2 || function() {
   // Les jets ----------------------------------------------------------
 
   function pointsDeChance(perso) {
-    //TODO: ajouter une option de règle pour autoriser les PC aux PNJ
-    //if (!estPJ(perso)) return 0;
     if (estMook(perso)) return 0;
     return ficheAttributeAsInt(perso, 'pc', 0);
   }
@@ -25956,6 +26013,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (compagnonEnVue(perso, 'familierMage', pageId)) init += 2;
     if (predicateAsBool(perso, 'bonusTerrainDifficile') && estEnTerrainDifficile(perso)) init += 3;
     if (aUnCapitaine(perso, undefined, pageId)) init += 2;
+    if (capaciteDisponible(perso, 'instinctDeSurviePNJ', 'combat') && !persoImmobilise(perso)) init += 10;
     return init;
   }
 
@@ -30944,7 +31002,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (display) {
           let line = "<b>" + nomPerso(cible) + "</b> : + ";
-          if (s<soins) line += s;
+          if (s < soins) line += s;
           else line += soinTxt;
           line += " PV";
           addLineToFramedDisplay(display, line + extraImg);
