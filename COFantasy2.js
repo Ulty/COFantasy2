@@ -1,4 +1,4 @@
-//Dernière modification : sam. 03 oct. 2026,  05:40
+//Dernière modification : mer. 07 oct. 2026,  05:08
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3212,28 +3212,28 @@ var COFantasy2 = COFantasy2 || function() {
     if (capaciteDisponible(target, 'chairACanon', 'tour')) {
       let sousLesOrdres = persosSousLesOrdresDe(target);
       if (sousLesOrdres.size > 0) {
-      let tokensChairACanon = findObjs({
-        _type: 'graphic',
-        _subtype: 'token',
-        _pageid: pageId,
-        layer: 'objects'
-      });
-      target.chairACanon = tokensChairACanon.filter(function(tok) {
-        if (tok.id == target.token.id) return false;
-        let tokCharId = tok.get('represents');
-        if (!sousLesOrdres.has(tokCharId)) return false;
-        if (distanceCombat(target.token, tok, pageId) > 3) return false;
-        let pChair = {
-          token: tok,
-          charId: tokCharId,
-        };
-        if (getState(pChair, 'mort')) return false;
-        return true;
-      });
-      if (target.chairACanon.length > 0) {
-        defense += 3;
-        explications.push(target.chairACanon[0].get('name') + " aide " + nomPerso(target) + " ! => +3 DEF");
-      }
+        let tokensChairACanon = findObjs({
+          _type: 'graphic',
+          _subtype: 'token',
+          _pageid: pageId,
+          layer: 'objects'
+        });
+        target.chairACanon = tokensChairACanon.filter(function(tok) {
+          if (tok.id == target.token.id) return false;
+          let tokCharId = tok.get('represents');
+          if (!sousLesOrdres.has(tokCharId)) return false;
+          if (distanceCombat(target.token, tok, pageId) > 3) return false;
+          let pChair = {
+            token: tok,
+            charId: tokCharId,
+          };
+          if (getState(pChair, 'mort')) return false;
+          return true;
+        });
+        if (target.chairACanon.length > 0) {
+          defense += 3;
+          explications.push(target.chairACanon[0].get('name') + " aide " + nomPerso(target) + " ! => +3 DEF");
+        }
       }
     }
     if (attaquant && predicateAsBool(target, 'reduireLaDistance')) {
@@ -3689,7 +3689,8 @@ var COFantasy2 = COFantasy2 || function() {
       options.additionalDmg = options.additionalDmg || [];
       options.additionalDmg.push({
         type: 'feu',
-        value: '1d6',
+        nbDe: 1,
+        dice: 6,
       });
       messageAttaqueDM("Boutefeu", explications, options, 2, '+1d6');
     }
@@ -3704,11 +3705,8 @@ var COFantasy2 = COFantasy2 || function() {
       if (pv <= pvMax / 2) {
         attBonus += 3;
         options.additionalDmg = options.additionalDmg || [];
-        options.additionalDmg.push({
-          type: options.type || 'normal',
-          value: '1d' + deEvolutif(attaquant),
-        });
-        messageAttaqueDM("Hausse le ton", explications, options, 5, '+1' + options.d6);
+        ajouteDesEvolutifs(attaquant, 1, options);
+        messageAttaqueDM("Hausse le ton", explications, options, 5, '+1d4°');
       }
     }
     if (predicateAsBool(attaquant, 'fureurDrakonide')) {
@@ -4032,22 +4030,14 @@ var COFantasy2 = COFantasy2 || function() {
       let msgFeinte = "Feinte => +" + bonusFeinte + " en attaque";
       let niveauTouche = attrFeinte[0].get('max');
       if (niveauTouche > 0) { //La feinte avait touché cette cible
-        let faireMouche = predicateAsInt(attaquant, 'faireMouche', 0);
-        if (faireMouche > 0) {
-          if (options.contact && !options.pasDeDmg) {
-            target.faireMouche = faireMouche * niveauTouche;
-            msgFeinte += " et peut faire mouche";
-          }
-        } else {
-          let desFeinte = predicateAsInt(attaquant, 'nbDesFeinte', 2);
-          desFeinte *= niveauTouche;
-          target.feinte = desFeinte;
-          if (!options.pasDeDmg) {
-            msgFeinte += " et +" + desFeinte + options.d6;
-            if (options.attaqueFlamboyanteBonus)
-              msgFeinte += "+" + options.attaqueFlamboyanteBonus;
-            msgFeinte += " DM";
-          }
+        let desFeinte = predicateAsInt(attaquant, 'nbDesFeinte', 2);
+        desFeinte *= niveauTouche;
+        target.feinte = desFeinte;
+        if (!options.pasDeDmg) {
+          msgFeinte += " et +" + desFeinte + options.d6;
+          if (options.attaqueFlamboyanteBonus)
+            msgFeinte += "+" + options.attaqueFlamboyanteBonus;
+          msgFeinte += " DM";
         }
       }
       explications.push(msgFeinte);
@@ -4164,18 +4154,6 @@ var COFantasy2 = COFantasy2 || function() {
         attBonus += bonus;
       }
     }
-    let attrMeneurCible = tokenAttribute(target, 'meneurDHommesCible');
-    if (attrMeneurCible.length > 0) {
-      let meneurTokenId = attrMeneurCible[0].get('current');
-      let meneurDHommes = persoOfId(meneurTokenId, meneurTokenId, pageId);
-      if (meneurDHommes && alliesParPerso[meneurDHommes.charId] &&
-        alliesParPerso[meneurDHommes.charId].has(attaquant.charId)) {
-        attBonus += 2;
-        if (!options.pasDeDmg) target.cibleMeneurDHommes = true;
-        explications.push(nomPerso(meneurDHommes) + " a désigné " + nomPerso(target) +
-          " comme la cible des attaques du groupe : +2 attaque, +1d6 DM");
-      }
-    }
     let combattreLaCorruption =
       predicateAsInt(attaquant, 'combattreLaCorruption', 0, 1);
     if (combattreLaCorruption > 0 &&
@@ -4286,9 +4264,6 @@ var COFantasy2 = COFantasy2 || function() {
       attBonus += 2;
       explications.push("Tir double => +2 Att");
     }
-    if (options.semonce && attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) == 1) {
-      attBonus += 5;
-    }
     if (persoEstPNJ(attaquant) && options.attaqueDeGroupe === undefined) {
       options.attaqueDeGroupe = ficheAttributeAsInt(attaquant, 'attaque_de_groupe', 1);
     }
@@ -4303,10 +4278,6 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push(m);
       }, evt);
       removeTokenAttr(attaquant, 'baroudHonneurActif', evt);
-    }
-    if (options.sortilege && attributeAsBool(attaquant, 'zoneDeSilence')) {
-      attBonus -= 2;
-      explications.push("Zone de silence => -2 en Attaque Magique");
     }
     if (attributeAsBool(attaquant, 'monteSur')) {
       if (!options.distance) {
@@ -4444,10 +4415,6 @@ var COFantasy2 = COFantasy2 || function() {
     };
   }
 
-  function addOrigin(name, toEvaluate) {
-    return toEvaluate.replace(/@{/g, "@{" + name + "|");
-  }
-
   function attackRollExpr(attaquant, explications, diceOptions = {}) {
     let de = computeDice(attaquant, explications, diceOptions);
     let crit = diceOptions.crit || 20;
@@ -4520,9 +4487,6 @@ var COFantasy2 = COFantasy2 || function() {
   function testConditionAttribut(cond, attaquant) {
     if (cond.valeur === undefined) {
       if (attributeAsBool(attaquant, cond.attribute)) return true;
-      if (cond.attribute == 'armeDArgent') {
-        return attributeAsBool(attaquant, 'formeDAnge') && predicateAsInt(attaquant, 'voieDeLArchange', 1) > 2;
-      }
       return false;
     }
     return testAttribut(attaquant, cond.attribute, cond.valeur, cond);
@@ -5063,14 +5027,15 @@ var COFantasy2 = COFantasy2 || function() {
     switch (typePoison) {
       case 'rapide':
         {
-          options.additionalDmg.push({
-            type: 'poison',
-            value,
-            partialSave: {
+          let dm = parseDice(value, attaquant, "effet de poison");
+          if (dm) {
+            dm.type = 'poison';
+            dm.partialSave = {
               carac: 'CON',
               seuil
-            }
-          });
+            };
+            options.additionalDmg.push(dm);
+          }
           break;
         }
       case 'affaiblissant':
@@ -5199,12 +5164,6 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push(explEnnemiJure);
       target.ennemiJure = true;
     }
-    if (options.armeDArgent) {
-      if (estMortVivant(target) || estDemon(target)) {
-        explications.push("Arme en argent => +1d6 aux DM");
-        target.armeDArgent = true;
-      }
-    }
     if (options.tueurDe) {
       options.tueurDe.forEach(function(categorie) {
         if (persoEstDeCategorie(target, categorie)) {
@@ -5222,21 +5181,13 @@ var COFantasy2 = COFantasy2 || function() {
       let niveauTouche = attrFeinte[0].get('max');
       if (niveauTouche > 0) { //La feinte avait touché cette cible
         let msgFeinte = "Feinte => ";
-        let faireMouche = predicateAsInt(attaquant, 'faireMouche', 0);
-        if (faireMouche > 0) {
-          if (options.contact && !options.pasDeDmg) {
-            target.faireMouche = faireMouche * niveauTouche;
-            msgFeinte += " peut faire mouche";
-          }
-        } else {
-          let desFeinte = predicateAsInt(attaquant, 'nbDesFeinte', 2);
-          desFeinte *= niveauTouche;
-          target.feinte = desFeinte;
-          msgFeinte += " +" + desFeinte + options.d6;
-          if (options.attaqueFlamboyanteBonus)
-            msgFeinte += "+" + options.attaqueFlamboyanteBonus;
-          msgFeinte += " DM";
-        }
+        let desFeinte = predicateAsInt(attaquant, 'nbDesFeinte', 2);
+        desFeinte *= niveauTouche;
+        target.feinte = desFeinte;
+        msgFeinte += " +" + desFeinte + options.d6;
+        if (options.attaqueFlamboyanteBonus)
+          msgFeinte += "+" + options.attaqueFlamboyanteBonus;
+        msgFeinte += " DM";
         explications.push(msgFeinte);
       }
     }
@@ -5693,24 +5644,27 @@ var COFantasy2 = COFantasy2 || function() {
           if (options.contact && !options.feinte && !options.attaqueAssuree && !options.pasDeDmg && attackRoll > defense + 4 &&
             predicateAsBool(attaquant, 'botteMortelle')) {
             if (predicateAsBool(attaquant, 'botteMortelleEtFeinte') && target.feinte) {
-              let nbDes = Math.floor((attackRoll - defense) / 5);
-              target.messages.push("Botte mortelle et feinte => + " + nbDes + options.d6 + " aux DM");
+              let nbDe = Math.floor((attackRoll - defense) / 5);
+              target.messages.push("Botte mortelle et feinte => + " + nbDe + options.d6 + " aux DM");
               target.additionalDmg.push({
                 type: mainDmgType,
-                value: nbDes + options.d6
+                nbDe,
+                dice: options.d6,
               });
             } else if (attackRoll > defense + 9) { //botte mortelle du barde
               target.messages.push("Botte mortelle => + 2" + options.d6 + " aux DM");
               target.additionalDmg.push({
                 type: mainDmgType,
-                value: '2' + options.d6
+                nbDe: 2,
+                dice: options.d6
               });
             }
           }
           if (predicateAsBool(attaquant, 'batonDesRunesMortes') && attributeAsBool(attaquant, 'runeMelianil')) {
             target.additionalDmg.push({
               type: mainDmgType,
-              value: '1' + options.d6
+              nbDe: 1,
+              dice: options.d6
             });
             if (options.auto)
               target.messages.push("Melianil => +1d6 DM");
@@ -5769,11 +5723,6 @@ var COFantasy2 = COFantasy2 || function() {
             }
             evt.succes = false;
             diminueMalediction(attaquant, evt);
-            if (options.distance && predicateAsBool(attaquant, 'tirDeSemonce')) {
-              setTokenAttr(attaquant, 'attributDeCombat_attaqueADistanceRatee', 2, evt, {
-                maxVal: 1
-              });
-            }
             if (predicateAsBool(attaquant, 'teigne')) {
               setTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', true, evt);
             }
@@ -5987,6 +5936,15 @@ var COFantasy2 = COFantasy2 || function() {
     else options.deMalus = 1;
   }
 
+  function ajouteDesEvolutifs(attaquant, nbDe, options, type) {
+    type = type || options.type || 'normal';
+    options.additionalDmg.push({
+      type,
+      nbDe,
+      dice: deEvolutif(attaquant),
+    });
+  }
+
   function resoudreAttaque(args, attaquant, evt, explications, options) {
     let {
       cibles,
@@ -6004,12 +5962,13 @@ var COFantasy2 = COFantasy2 || function() {
       //Prise en compte du corps élémentaire
       let typeCorpsElem = predicateAsBool(attaquant, 'corpsElementaire');
       if (typeCorpsElem && typeCorpsElem !== true) {
-        let nbDes = predicateAsInt(attaquant, 'nbCorpsElementaire', 1);
+        let nbDe = predicateAsInt(attaquant, 'nbCorpsElementaire', 1);
         options.additionalDmg.push({
           type: typeCorpsElem,
-          value: nbDes + 'd6',
+          nbDe,
+          dice: 6,
         });
-        explications.push("Corps de " + typeCorpsElem + " => +" + nbDes + "d6 DM");
+        explications.push("Corps de " + typeCorpsElem + " => +" + nbDe + "d6 DM");
       }
     }
     //Les attaques des teignes
@@ -6020,10 +5979,7 @@ var COFantasy2 = COFantasy2 || function() {
         msg += " dé bonus";
       }
       if (!options.pasDeDmg) {
-        options.additionalDmg.push({
-          type: options.type || 'normal',
-          value: '2d' + deEvolutif(attaquant),
-        });
+        ajouteDesEvolutifs(attaquant, 2, options);
         if (!options.auto) msg += " et";
         msg += " +2d4° DM";
       }
@@ -6037,10 +5993,7 @@ var COFantasy2 = COFantasy2 || function() {
         msg += " dé bonus";
       }
       if (!options.pasDeDmg) {
-        options.additionalDmg.push({
-          type: options.type || 'normal',
-          value: '1d' + deEvolutif(attaquant),
-        });
+        ajouteDesEvolutifs(attaquant, 2, options);
         if (!options.auto) msg += " et";
         msg += " +1d4° DM";
       }
@@ -6182,24 +6135,22 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     // Armes chargées
-    if ((!options.semonce || attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) != 1) && !options.tirDeBarrage) {
-      if (attackLabel && options.recharger) {
-        let nomCharges = 'attributDeCombat_charge_' + attackLabel;
-        let maxCharges = maxChargesArme(attaquant, weaponName);
-        let currentCharge = attributeAsInt(attaquant, nomCharges, maxCharges);
-        if (isNaN(currentCharge) || currentCharge < 1) {
-          sendPerso(attaquant, "ne peut pas attaquer avec " + weaponName + " car elle n'est pas chargée");
-          return;
-        }
-        //Les munitions spéciales ont normalement déjà été réduites avec le traitement de options.munitions
-        currentCharge -= 1;
-        //Si l'arme n'est plus chargée, on peut perdre le bonus d'initiative
-        if (currentCharge === 0 &&
-          bonusPlusViteQueSonOmbre(attaquant, weaponStats)) {
-          updateNextInit(attaquant);
-        }
-        setTokenAttr(attaquant, nomCharges, currentCharge, evt);
+    if (attackLabel && options.recharger) {
+      let nomCharges = 'attributDeCombat_charge_' + attackLabel;
+      let maxCharges = maxChargesArme(attaquant, weaponName);
+      let currentCharge = attributeAsInt(attaquant, nomCharges, maxCharges);
+      if (isNaN(currentCharge) || currentCharge < 1) {
+        sendPerso(attaquant, "ne peut pas attaquer avec " + weaponName + " car elle n'est pas chargée");
+        return;
       }
+      //Les munitions spéciales ont normalement déjà été réduites avec le traitement de options.munitions
+      currentCharge -= 1;
+      //Si l'arme n'est plus chargée, on peut perdre le bonus d'initiative
+      if (currentCharge === 0 &&
+        bonusPlusViteQueSonOmbre(attaquant, weaponStats)) {
+        updateNextInit(attaquant);
+      }
+      setTokenAttr(attaquant, nomCharges, currentCharge, evt);
     }
     // Effets quand on rentre en combat
     entrerEnCombat(attaquant, cibles, explications, evt);
@@ -7056,29 +7007,6 @@ var COFantasy2 = COFantasy2 || function() {
     return 0;
   }
 
-  //TODO: Roll20 ne permet d'exploser juste une fois, il faudrait ne pas utiliser l'évaluation de Roll20.
-  //-> utiliser rollDePlus à la place
-  function computeDmgDice(perso, weaponStats, maxDmg, options) {
-    const d = weaponStats.attDice;
-    if (isNaN(d) || d < 0) {
-      error("Dé d'attaque incorrect", d);
-      return 0;
-    }
-    let attDice = d;
-    if (maxDmg) return attDice; //Dans ce cas, pas de reroll ni d'explosion
-    if (options.reroll2) {
-      if (attDice > 3 && options.rituelAssure) attDice += 'r3';
-      else attDice += 'r2';
-    } else if (options.reroll1) {
-      if (attDice > 2 && options.rituelAssure) attDice += 'r2';
-      else attDice += 'r1';
-    } else if (options.rituelAssure) attDice += 'r1';
-    else if (weaponStats.arme && predicateAsBool(perso, 'armeBenie')) attDice += 'ro1';
-    if (options.explodeMax) attDice += '!';
-    else if (options.relanceSiMax) attDice += '!'; //TODO: utiliser rollDePlus au lieu du jet
-    return attDice;
-  }
-
   //retourne le mod de la caractéristique x, undefined si ce n'en est pas une
   // options peut contenur transforme
   function computeCarValue(perso, x, options) {
@@ -7102,16 +7030,13 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function computeMainDmgRollExpr(attaquant, target, weaponStats, attNbDices, attDMBonus, options) {
-    let attDMArme = weaponStats.attDMBonusCommun;
-    if (isNaN(attDMArme) || attDMArme === 0) attDMArme = '';
-    else if (attDMArme > 0) attDMArme = '+' + attDMArme;
-    attDMBonus = attDMArme + attDMBonus;
-    let attNbDicesCible = attNbDices;
-    let attDiceCible = computeDmgDice(attaquant, weaponStats, target.maxDmg, options);
-    let attCarBonus = '';
+  function computeMainDmgRollExpr(attaquant, target, weaponStats, nbDe, attDMBonus, options) {
+    let attDMArme = toInt(weaponStats.attDMBonusCommun, 0);
+    let bonus = attDMArme + attDMBonus;
+    let dice = toInt(weaponStats.attDice, 0);
     if (weaponStats.attCarBonus) {
-      if (weaponStats.sabre && predicateAsBool(attaquant, 'techniqueDuSabre') && weaponStats.attCarBonus == '@{FOR}' && !(options.lamesJumelles && weaponStats.armeGauche)) {
+    let attCarBonus = 0;
+      if (weaponStats.sabre && predicateAsBool(attaquant, 'techniqueDuSabre') && weaponStats.attCarBonus == '@{for}' && !(options.lamesJumelles && weaponStats.armeGauche)) {
         let modForce = modCarac(attaquant, 'force');
         let bonus = predicateAsInt(attaquant, 'techniqueDuSabre', 0, 1);
         if (bonus > 2 * modForce) attCarBonus = bonus;
@@ -7119,23 +7044,32 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         attCarBonus = computeCarValue(attaquant, weaponStats.attCarBonus);
         if (attCarBonus === undefined) {
-          attCarBonus = parseInt(weaponStats.attCarBonus);
+          attCarBonus = toInt(weaponStats.attCarBonus, 0);
         }
       }
-      if (attCarBonus === 0) attCarBonus = '';
-      else if (attCarBonus > 0) attCarBonus = '+' + attCarBonus;
+      bonus += attCarBonus;
     }
-    if (options.epieu && !ficheAttributeAsBool(target, 'defarmureon', false)) {
-      attNbDicesCible++;
+    let res = {
+      nbDe,
+      dice,
+      bonus,
+      maxResult: target.maxDmg || options.maxDmg || options.runeDePuissance,
+    };
+    if (!res.maxResult) {
+      if (options.flecheMagique) {
+        res.reroll1 = 'max';
+      } else if (options.reroll1) {
+        res.reroll1 = 'always';
+      } else if (weaponStats.arme && predicateAsBool(attaquant, 'armeBenie')) {
+        res.reroll1 = 'once';
+      }
+      if (options.explodeMax) {
+        res.deExplosif = true;
+      } else if (options.relanceSiMax) {
+        res.relanceSiMax = true;
+      }
     }
-    if (target.pressionMortelle) {
-      attNbDicesCible = 1;
-      attDiceCible = 6; //TODO : have an option for that
-      attCarBonus = '';
-    }
-    let symbde = 'd';
-    if (target.maxDmg) symbde = '*';
-    return addOrigin(attaquant.name, attNbDicesCible + symbde + attDiceCible + attCarBonus + attDMBonus);
+    return res;
   }
 
   function peurOneToken(target, difficulte, duree, options, messages, evt) {
@@ -7328,10 +7262,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       } else if (args.choices.chatimentDivin > 0) {
         //Les points de mana sont dépensés dans l'appel à !cof2-chatiment-divin
-        options.additionalDmg.push({
-          type: 'magique',
-          value: args.choices.chatimentDivin + 'd' + deEvolutif(attaquant),
-        });
+        ajouteDesEvolutifs(attaquant, args.choices.chatimentDivin, options, 'magique');
         explications.push("Châtiment divin => +" + args.choices.chatimentDivin + "d4° DM");
       }
     }
@@ -7346,85 +7277,54 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     // Les autres modifications aux dégâts qui ne dépendent pas de la cible
-    let attDMBonusCommun = '';
+    let attDMBonusCommun = 0;
     if (options.armeMagiquePlus) {
-      attDMBonusCommun += " + " + options.armeMagiquePlus;
+      attDMBonusCommun += options.armeMagiquePlus;
     }
     if (weaponStats.attCarBonus != '@{per}' && weaponStats.arc && predicateAsBool(attaquant, 'ajoutePERauxDMdArc')) {
       let bonus = modCarac(attaquant, 'per');
       if (bonus > 0) {
-        attDMBonusCommun += ' + ' + bonus;
+        attDMBonusCommun += bonus;
       }
     }
     if (options.bonusDM) {
-      if (options.bonusDM > 0) attDMBonusCommun += " + " + options.bonusDM;
-      else attDMBonusCommun += " " + options.bonusDM;
+      attDMBonusCommun += options.bonusDM;
     }
     if (options.rageBerserk) {
       options.additionalDmg.push({
         type: mainDmgType,
-        value: options.rageBerserk + options.d6
+        nbDe: options.rageBerserk,
+        dice: options.d6
       });
     }
     if (options.enrage) {
-      options.additionalDmg.push({
-        type: mainDmgType,
-        value: '1d' + deEvolutif(attaquant),
-      });
+      ajouteDesEvolutifs(attaquant, 1, options, mainDmgType);
     }
     if (options.contact && attributeAsBool(attaquant, 'memePasMalBonus')) {
       options.additionalDmg.push({
         type: mainDmgType,
-        value: '1' + options.d6,
+        nbDe: 1,
+        dice: options.d6,
       });
       explications.push("Même pas mal => +1" + options.d6 + " DM");
     }
     if (!options.auto) {
       if (options.attaquePrecise) {
-        options.additionalDmg.push({
-          type: mainDmgType,
-          value: '1d' + deEvolutif(attaquant),
-        });
+        ajouteDesEvolutifs(attaquant, 1, options, mainDmgType);
       } else if (options.attaqueViolente) {
-        options.additionalDmg.push({
-          type: mainDmgType,
-          value: '2d' + deEvolutif(attaquant),
-        });
-      }
-    }
-    let attaqueAOutrance = attributeAsInt(attaquant, 'attaqueAOutrance', 0);
-    if (attaqueAOutrance > 1) {
-      if (attaqueAOutrance < 5) {
-        options.additionalDmg.push({
-          type: mainDmgType,
-          value: '1' + options.d6
-        });
-        explications.push("Attaque à outrance => +1d6 DM");
-      } else {
-        options.additionalDmg.push({
-          type: mainDmgType,
-          value: '2' + options.d6
-        });
-        explications.push("Attaque à outrance => +2d6 DM");
+        ajouteDesEvolutifs(attaquant, 2, options, mainDmgType);
       }
     }
     // Les autres sources de dégâts
-    if (options.distance) {
-      if (options.semonce && attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) == 1) {
-        options.additionalDmg.push({
-          type: mainDmgType,
-          value: '1' + options.d6
-        });
-        explications.push("Tir de semonce => +5 en Attaque et +1" + options.d6 + " aux DM");
-      }
-    } else { //bonus aux attaques de contact
+    if (options.contact) {
+      //bonus aux attaques de contact
       if (attributeAsBool(attaquant, 'agrandissement')) {
-        attDMBonusCommun += "+2";
+        attDMBonusCommun += 2;
         explications.push("Agrandissement => +2 aux DM");
       }
       if (attributeAsBool(attaquant, 'forceDeGeant')) {
         let bonusForceDeGeant = getIntValeurOfEffet(attaquant, 'forceDeGeant', 2);
-        attDMBonusCommun += "+" + bonusForceDeGeant;
+        attDMBonusCommun += bonusForceDeGeant;
         explications.push("Force de géant => +" + bonusForceDeGeant + " aux DM");
       }
     }
@@ -7441,26 +7341,20 @@ var COFantasy2 = COFantasy2 || function() {
         }
         options.additionalDmg.push({
           type: 'feu',
-          value: feuForgeron
+          bonus: feuForgeron,
         });
       }
       nAEF = armeElementaire(attaquant, 'armeEnflammee', attackLabel, evt);
       let n = armeElementaire(attaquant, 'armeGlacee', attackLabel, evt);
       if (n) {
-        options.additionalDmg.push({
-          type: 'froid',
-          value: n + 'd6'
-        });
+        ajouteDesEvolutifs(attaquant, n, options, 'froid');
       }
     }
     if (nAEF === 0 && attributeAsBool(attaquant, 'armesEnflammees')) {
       nAEF = 1;
     }
     if (nAEF > 0) {
-      options.additionalDmg.push({
-        type: 'feu',
-        value: nAEF + 'd6'
-      });
+      ajouteDesEvolutifs(attaquant, nAEF, options, 'feu');
     }
     if (attackLabel && (attackingToken.get('bar1_link') === '' || !weaponStats.armeDeJet)) {
       let poisonAttr = tokenAttribute(attaquant, 'enduitDePoison_' + attackLabel);
@@ -7473,11 +7367,13 @@ var COFantasy2 = COFantasy2 || function() {
       if (attributeAsBool(attaquant, attrDmgArme)) {
         let dmgArme = {
           type: mainDmgType,
-          value: '1' + options.d6
+          nbDe: 1,
+          dice: deEvolutif(attaquant),
         };
         let valDmgArme = tokenAttribute(attaquant, attrDmgArme + 'Valeur');
         if (valDmgArme.length > 0) {
-          dmgArme.value = valDmgArme[0].get('current');
+          let dmgArmeParsed = parseDice(valDmgArme[0].get('current'), attaquant);
+          if (dmgArmeParsed) dmgArme = dmgArmeParsed;
           let dmgArmeType = valDmgArme[0].get('max');
           if (dmgArmeType !== '') dmgArme.type = dmgArmeType;
         }
@@ -7487,10 +7383,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (!options.pasDeDmg) {
       if (options.imparable) {
-        options.additionalDmg.push({
-          type: mainDmgType,
-          value: '2d' + deEvolutif(attaquant)
-        });
+        ajouteDesEvolutifs(attaquant, 2, options, mainDmgType);
         let msgChampion =
           nomPerso(attaquant) + " est un" + eForFemale(attaquant) + " champion" +
           onGenre(attaquant, '', 'ne') + ", son attaque porte !";
@@ -7595,11 +7488,8 @@ var COFantasy2 = COFantasy2 || function() {
           if (attr.length > 0) {
             let tid = attr[0].get('current');
             if (tid == target.token.id) {
-              target.additionalDmg.push({
-                type: 'normal',
-                value: '2d6'
-              });
-              target.messages.push("Éventration => +2d6 DM");
+              ajouteDesEvolutifs(attaquant, 2, target, 'normal');
+              target.messages.push("Éventration => +2d4° DM");
             }
           } else {
             setTokenAttr(attaquant, 'limiteParTour_eventrationReussie', target.token.id, evt);
@@ -7617,11 +7507,8 @@ var COFantasy2 = COFantasy2 || function() {
             represents: target.charId
           });
           if (tokens.length > 3) {
-            target.additionalDmg.push({
-              type: mainDmgType,
-              value: '1' + options.d6
-            });
-            target.messages.push("Massacrer la piétaille => +1d6 DM");
+            ajouteDesEvolutifs(attaquant, 1, target, mainDmgType);
+            target.messages.push("Massacrer la piétaille => +1d4° DM");
           }
         }
         let attDMBonus = attDMBonusCommun;
@@ -7629,20 +7516,10 @@ var COFantasy2 = COFantasy2 || function() {
         if (target.tempDmg) {
           let forceTarg = modCarac(target, 'force');
           if (forceTarg < 0) {
-            attDMBonus += " +" + (-forceTarg);
+            attDMBonus += (-forceTarg);
           } else if (forceTarg > 0) {
-            attDMBonus += " -" + forceTarg;
+            attDMBonus -= forceTarg;
           }
-        }
-        if (options.pressionMortelle || target.pressionMortelle) {
-          let pMortelle = tokenAttribute(target, 'pressionMortelle');
-          if (pMortelle.length === 0) {
-            sendPerso(attaquant, "essaie une pression mortelle, mais aucun point vital de " + nomPerso(target) + " n'a encore été affecté");
-            ciblesCount--;
-            return;
-          }
-          target.pressionMortelle = pMortelle;
-          attDMBonus = "+ " + pMortelle[0].get('current');
         }
         let sournoise = options.sournoise || 0;
         if (target.sournoise) sournoise += target.sournoise;
@@ -7679,7 +7556,6 @@ var COFantasy2 = COFantasy2 || function() {
               if (options.ouvertureMortelle) {
                 target.messages.push("Ouverture mortelle => + 2 x " + valueSournoise + " DM");
                 sournoise = sournoise * 2;
-                valueSournoise = sournoise + 'd' + deEvolutif(attaquant);
               } else {
                 target.messages.push("Attaque sournoise => +" + valueSournoise + " DM");
               }
@@ -7696,128 +7572,65 @@ var COFantasy2 = COFantasy2 || function() {
               }
               target.additionalDmg.push({
                 type: mainDmgType,
-                value: valueSournoise,
+                nbDe: sournoise,
+                dice: deEvolutif(attaquant),
                 divide,
               });
             }
           }
         }
-        if (target.faireMouche) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: target.faireMouche + options.d6
-          });
-          target.messages.push(nomPerso(attaquant) + " profite de l'ouverture et son attaque fait mouche !");
-        }
         if (target.chasseurEmerite) {
-          attDMBonus += "+2";
+          attDMBonus += 2;
         }
         if (target.combattreLaCorruption) {
-          attDMBonus += "+" + target.combattreLaCorruption;
+          attDMBonus += target.combattreLaCorruption;
         }
         if (target.attaqueDansLeNoir) {
-          attDMBonus += '-' + target.attaqueDansLeNoir;
+          attDMBonus -= target.attaqueDansLeNoir;
         }
         if (predicateAsBool(attaquant, 'chasseurDeSorciere') && predicateAsBool(target, 'necromancien')) {
-          attDMBonus += "+2";
+          attDMBonus += 2;
           target.messages.push("Chasseur de sorcière => +2 en DM");
         }
         if (target.ennemiJure) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '1' + options.d6
-          });
+          ajouteDesEvolutifs(attaquant, 1, target, mainDmgType);
         }
         if (target.cibleLiberateurDeDorn) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '2' + options.d6
-          });
+          ajouteDesEvolutifs(attaquant, 2, target, mainDmgType);
         }
         if (target.cibleLiberateurDeKerserac) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '1' + options.d6
-          });
+          ajouteDesEvolutifs(attaquant, 1, target, mainDmgType);
         }
         if (target.cibleLiberateurDAnathazerin) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '2' + options.d6
-          });
+          ajouteDesEvolutifs(attaquant, 2, target, mainDmgType);
         }
         if (target.tueurDeGeants || target.tueurDe) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '2' + options.d6
-          });
-        }
-        if (target.cibleMeneurDHommes) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '1' + options.d6
-          });
-        }
-        if (target.armeDArgent) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '1d6'
-          });
+          ajouteDesEvolutifs(attaquant, 2, target, mainDmgType);
         }
         if (target.estAgrippee) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '1d6'
-          });
+          ajouteDesEvolutifs(attaquant, 1, target, mainDmgType);
         }
         if (target.feinte) {
-          let value = target.feinte + options.d6;
-          if (options.attaqueFlamboyanteBonus)
-            value += "+" + options.attaqueFlamboyanteBonus;
           target.additionalDmg.push({
             type: mainDmgType,
-            value
+            nbDe: target.feinte,
+            dice: deEvolutif(attaquant),
+            bonus: options.attaqueFlamboyanteBonus,
           });
         }
         let targetTaille = taillePerso(target);
         if (options.tueurDeGrands) {
           if (targetTaille == 5) {
-            target.additionalDmg.push({
-              type: mainDmgType,
-              value: '1d6'
-            });
-            target.messages.push("Cible grande => +1d6 DM");
+            ajouteDesEvolutifs(attaquant, 1, target, mainDmgType);
+            target.messages.push("Cible grande => +1d4° DM");
           } else if (targetTaille > 5) {
-            target.additionalDmg.push({
-              type: mainDmgType,
-              value: '2d6'
-            });
-            target.messages.push("Cible énorme => +2d6 DM");
-          }
-        }
-        if (options.contact && weaponStats.deuxMains && targetTaille > 4) {
-          if (predicateAsBool(attaquant, 'bucheron')) {
-            if (targetTaille == 5) {
-              target.additionalDmg.push({
-                type: mainDmgType,
-                value: '1d6'
-              });
-              target.messages.push("Arme tenue à 2 mains => +1d6 DM");
-            } else if (targetTaille > 5) {
-              target.additionalDmg.push({
-                type: mainDmgType,
-                value: '2d6'
-              });
-              target.messages.push("Arme tenue à 2 mains et cible énorme => +2d6 DM");
-            }
+            ajouteDesEvolutifs(attaquant, 2, target, mainDmgType);
+            target.messages.push("Cible énorme => +2d4° DM");
           }
         }
         if (predicateAsBool(attaquant, 'laissezLeMoi') &&
           getState(target, 'chef')) {
-          target.additionalDmg.push({
-            type: mainDmgType,
-            value: '1d6'
-          });
+          ajouteDesEvolutifs(attaquant, 1, target, mainDmgType);
           target.messages.push("Laissez-le moi ! => +1d6 DM");
         }
         //Bonus aux DMs dus au défi samouraï
@@ -7839,7 +7652,7 @@ var COFantasy2 = COFantasy2 || function() {
             let bonusDefi = parseInt(defiSamouraiAttr.get('current'));
             target.additionalDmg.push({
               type: mainDmgType,
-              value: bonusDefi
+              bonus: bonusDefi
             });
             target.messages.push(attackerTokName + " bénéficie d'un bonus de +" + bonusDefi + " aux DMs contre " + nomPerso(target));
           }
@@ -7848,27 +7661,25 @@ var COFantasy2 = COFantasy2 || function() {
           if (options.divise) options.divise *= 2;
           else options.divise = 2;
         }
-        let mainDmgRollExpr;
+        let mainDmgRollDice;
         if (target.dmRate) {
-          mainDmgRollExpr = options.dmSiRate.value;
+          mainDmgRollDice = options.dmSiRate;
           mainDmgType = options.dmSiRate.type;
         } else if (options.dmCible && options.dmCible.target && options.dmCible.target.id === target.token.id) {
-          mainDmgRollExpr = options.dmCible.value;
+          mainDmgRollDice = options.dmCible;
           mainDmgType = options.dmCible.type;
         } else {
-          mainDmgRollExpr = computeMainDmgRollExpr(attaquant, target, weaponStats, attNbDices,
+          mainDmgRollDice = computeMainDmgRollExpr(attaquant, target, weaponStats, attNbDices,
             attDMBonus, options);
         }
         //Additional damage
         let additionalDmg = options.additionalDmg.concat(target.additionalDmg);
-        //On enlève les DM qui ne passent pas les conditions
-        additionalDmg = additionalDmg.filter(function(dmSpec) {
-          if (dmSpec.conditions === undefined) return true;
-          if (dmSpec.caracEnDouble) return false;
-          return dmSpec.conditions.every(function(cond) {
-            return testCondition(cond, attaquant, [target], attackd20roll, options);
-          });
-        });
+        if (target.etreinteImmole) {
+          let dmImmole = {...mainDmgRollDice
+          };
+          dmImmole.type = 'feu';
+          additionalDmg.push(dmImmole);
+        }
         if (!options.sortilege && !options.magique &&
           predicateAsBool(target, 'immuniteAuxArmes')) {
           additionalDmg = additionalDmg.filter(function(dmSpec) {
@@ -7884,134 +7695,46 @@ var COFantasy2 = COFantasy2 || function() {
           });
         }
         additionalDmg.forEach(function(dmSpec) {
-          if (dmSpec.carac) dmSpec.value = modCarac(attaquant, dmSpec.value);
+          if (dmSpec.carac) dmSpec.bonus = modCarac(attaquant, dmSpec.value);
         });
-        if (options.tirDeBarrage || options.dmFoisDeux) {
-          mainDmgRollExpr += " +" + mainDmgRollExpr;
-          additionalDmg.forEach(function(dmSpec) {
-            if (dmSpec.divide && dmSpec.divide > 1) {
-              let divide = dmSpec.divide / 2;
-              if (divide == 1) delete dmSpec.divide;
-            } else {
-              dmSpec.value += " +" + dmSpec.value;
-            }
-          });
-        }
-        if (target.etreinteImmole) {
-          additionalDmg.push({
-            value: mainDmgRollExpr,
-            type: 'feu'
-          });
-        }
-        let extraDmgRollExpr = "";
         additionalDmg = additionalDmg.filter(function(dmSpec) {
           dmSpec.type = dmSpec.type || 'normal';
-          if (dmSpec.type != mainDmgType || isNaN(dmSpec.value)) {
-            let expr = dmSpec.value;
-            if (dmSpec.divide && dmSpec.divide > 1) expr = "ceil(" + expr + "/2)";
-            extraDmgRollExpr += " [[" + expr + "]]";
+          if (dmSpec.type != mainDmgType || dmSpec.nbDe) {
+            if (options.maxDmg || options.runeDePuissance) dmSpec.maxResult = true;
+
             return true;
           }
-          // Même type et valeur constante -> va dans les mainDmgRollExpr, qui est multiplié en cas de critique 
-          mainDmgRollExpr += " + " + dmSpec.value;
+          // Même type et valeur constante -> va dans les mainDmgRollDice, qui est multiplié en cas de critique 
+          mainDmgRollDice.bonus += dmSpec.bonus;
           return false;
         });
         // On ajoute le jet pour les dégâts de critiques supplémentaires
         if (target.critique && options.additionalCritDmg) {
           options.additionalCritDmg.forEach(function(dmSpec) {
-            extraDmgRollExpr += " [[" + dmSpec.value + "]]";
+            if (dmSpec.nbDe && (options.maxDmg || options.runeDePuissance)) dmSpec.maxResult = true;
           });
         }
-        if (options.maxDmg && options.runeDePuissance) {
-          extraDmgRollExpr = extraDmgRollExpr.replace(/\[\[(\d+)d([\d\+\-]+)\]\]/g, '[[$1*$2]]');
-        }
-        let mainDmgRoll = {
-          type: mainDmgType,
-          value: mainDmgRollExpr
-        };
-        // toEvaluateDmg inlines
-        // 0 : roll de dégâts principaux
-        // 1+ : les rolls de dégâts supplémentaires
-        // 1+nb dégâts supplémentaires + : rolls de dégâts critiques
-        let toEvaluateDmg = "[[" + mainDmgRollExpr + "]]" + extraDmgRollExpr;
-        sendChat('', toEvaluateDmg, function(resDmg) {
-          let rollsDmg = resDmg[0];
-          if (target.rollsDmg) {
-            //We may have more rolls or different rolls
-            let pos = 0;
-            let original = target.rollsDmg.inlinerolls;
-            let reroll = rollsDmg.inlinerolls;
-            original.forEach(function(r, i) {
-              while (reroll[pos] && r.expression != reroll[pos].expression)
-                pos++;
-              if (reroll[pos]) {
-                reroll[pos] = r;
-              }
-              pos++;
-            });
-          }
-          let afterEvaluateDmg = rollsDmg.content.split(' ');
-          let mainDmgRollNumber = rollNumber(afterEvaluateDmg[0]);
-          mainDmgRoll.total = rollsDmg.inlinerolls[mainDmgRollNumber].results.total;
-          mainDmgRoll.display = buildinline(rollsDmg.inlinerolls[mainDmgRollNumber], mainDmgType, options.magique);
+        mainDmgRollDice.type = mainDmgType;
+        let rollId = "DM "+target.token.id;
+        let mainDmgRoll = rollDePlus(mainDmgRollDice, rollId, evt);
           if (target.critique && options.additionalCritDmg) {
-            let firstCritRoll = 1 + additionalDmg.length;
             target.additionalCritDmg = [];
-            let rollsCrit = resDmg[0];
-            if (target.rollsDmg && target.rollsDmg.length >= firstCritRoll + options.additionalCritDmg.length)
-              rollsCrit = target.rollsDmg;
             options.additionalCritDmg.forEach(function(dmSpec, i) {
-              let rn = rollNumber(afterEvaluateDmg[i + firstCritRoll]);
-              let rRoll = rollsCrit.inlinerolls[rn];
-              if (rRoll) {
-                target.additionalCritDmg.push(dmSpec);
-                dmSpec.total = dmSpec.total || rRoll.results.total;
-                let addDmType = dmSpec.type || 'normal';
-                dmSpec.display = dmSpec.display || buildinline(rRoll, addDmType, options.magique);
-              } else { //l'expression de DM additionel est mal formée
-                error("Expression de dégâts de critiques mal formée : " + options.additionalCritDmg[i].value, options.additionalCritDmg[i]);
-              }
+              let rollId = "DMG critique " + target.token.id + " " + i;
+              target.additionalCritDmg.push(rollDePlus(dmSpec, rollId, evt));
             });
             if (target.additionalCritDmg.length === 0) delete target.additionalCritDmg;
           }
           let correctAdditionalDmg = [];
           additionalDmg.forEach(function(dmSpec, i) {
-            let rRoll = rollsDmg.inlinerolls[rollNumber(afterEvaluateDmg[i + 1])];
-            if (rRoll) {
-              correctAdditionalDmg.push(dmSpec);
-              dmSpec.total = dmSpec.total || rRoll.results.total;
-              let addDmType = dmSpec.type;
-              dmSpec.display = dmSpec.display || buildinline(rRoll, addDmType, options.magique);
-            } else { //l'expression de DM additionel est mal formée
-              error("Expression de dégâts supplémentaires mal formée : " + additionalDmg[i].value, additionalDmg[i]);
-            }
+            let rollId = "DMG " + target.token.id + " " + i;
+            correctAdditionalDmg.push(rollDePlus(dmSpec, rollId, evt));
           });
           additionalDmg = correctAdditionalDmg;
           if (target.touche) { //Devrait être inutile ?
-            if (options.tirDeBarrage)
-              target.messages.push("Tir de barrage : undo si la cible décide de ne pas bouger");
-            if (options.pointsVitaux)
-              target.messages.push(attackerTokName + " vise des points vitaux mais ne semble pas faire de dégâts");
-            if (options.pressionMortelle || target.pressionMortelle) {
-              removeTokenAttr(target, 'pressionMortelle', evt);
-              target.messages.push(attackerTokName + " libère la pression des points vitaux, l'effet est dévastateur !");
-              spawnFx(target.token.get('left'), target.token.get('top'), 'bomb-death', pageId);
-            }
             if (target.malediction) {
               setTokenAttr(target, 'malediction', 3, evt);
               target.messages.push(nomPerso(target) + " est maudit" + eForFemale(target) + "...");
-            }
-            if (options.attaqueBouclierRenverse && weaponStats.attDice == 4 &&
-              rollsDmg.inlinerolls[mainDmgRollNumber].results.rolls[0].results[0].v >= 4) {
-              target.etats = target.etats || [];
-              target.etats.push({
-                etat: 'renverse',
-                condition: {
-                  type: 'moins',
-                  attribute: 'FOR',
-                  text: 'force'
-                }
-              });
             }
             if (options.draineMana) {
               let manaAttr = findObjs({
@@ -8073,7 +7796,6 @@ var COFantasy2 = COFantasy2 || function() {
             if (options.fxCible && !options.aoe) {
               spawnFx(target.token.get('left'), target.token.get('top'), options.fxCible, pageId);
             }
-            target.rollsDmg = rollsDmg;
             // Compte le nombre de saves pour la synchronisation
             // (On ne compte pas les psave, gérés dans dealDamage)
             let saves = 0;
@@ -8530,7 +8252,6 @@ var COFantasy2 = COFantasy2 || function() {
             evt.succes = false;
             finCibles();
           }
-        });
       });
     }); //Fin de la boucle pour toutes cibles
   }
@@ -9063,6 +8784,10 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     if (weaponStats.arme && predicateAsBool(attaquant, 'armeBenie')) options.magique = true;
+    if (weaponStats.arc && predicateAsBool(attaquant, 'flecheMagique')) {
+      options.magique = true;
+      options.flecheMagique = true;
+    }
     attackLabel = weaponStats.label;
     //On parse les options de sélection qui ont un sens différent pour les attaques
     options.selection.forEach(function(cmd) {
@@ -9692,10 +9417,6 @@ var COFantasy2 = COFantasy2 || function() {
           return false;
         }
       }
-      if (options.pointsVitaux && estNonVivant(target)) {
-        sendPlayer("La cible n'est pas vraiment vivante : " + nomPerso(attaquant) + " ne trouve pas de points vitaux", playerId);
-        return false;
-      }
       if (ripostesDuTour.has(target.token.id)) {
         sendPerso(attaquant, "a déjà fait une riposte contre " + nomPerso(target));
         return false;
@@ -9866,10 +9587,11 @@ var COFantasy2 = COFantasy2 || function() {
         let value = predicateAsInt(attaquant, p.predicat, 0);
         if (p.max && p.max > value) value = p.max;
         if (value) {
-          options.additionalDmg = options.additionalDmg || [];
-          options.additionalDmg.push({
-            value
-          });
+          let dm = parseDice(value, attaquant);
+          if (dm) {
+            options.additionalDmg = options.additionalDmg || [];
+            options.additionalDmg.push(dm);
+          }
         }
       });
     }
@@ -11649,6 +11371,18 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         error("Impossible de savoir qui doit dépenser de la mana", options);
         return true;
+      }
+      //Test d'INT pour lancer un sort dans une zone de silence
+      if (attributeAsBool(perso, 'zoneDeSilence')) {
+        let testId = 'sortDansZoneDeSilence';
+        let tr = testCaracteristique(perso, 'INT', 10, testId, options, evt);
+        explications.push("Jet d'INT pour réussir à lancer le sort : " + tr.texte);
+        if (tr.reussite) {
+          explications.push(" => réussi, " + nomPerso(perso) + " réussit à kancer le sort sans prononcer de formule");
+        } else {
+          explications.push(" => raté, la zone de silence a rendu le lancement trop difficile");
+          return true;
+        }
       }
     }
     // vérifie le type d'actions. Le compteur d'actions sera fait plus bas
@@ -13570,6 +13304,11 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-jet CHA --titre Augure --difficulte 10 --select @{selected|token_id}",
       },
     },
+    //Voies de prestige /////////////////////////////////////////////////
+    //Voie de l'archer arcanique (pour l'instant seulement pour un arc)
+    'fleche magique': {
+      flecheMagique: true,
+    },
     // Voies de créatures ----------------------------
     // TODO: ajouter les caracs supérieurs ?
     //Voie du champion
@@ -15080,8 +14819,7 @@ var COFantasy2 = COFantasy2 || function() {
         (attackStats.armeDeJet && attackStats.nbArmesDeJet < 1) ||
         (attackStats.portee &&
           (opt.attaqueFlamboyante || opt.seulementContact)) ||
-        (!opt.semonce && !opt.tirDeBarrage && armeDechargee(attaquant, attackStats)) ||
-        (opt.semonce && attributeAsInt(attaquant, 'attributDeCombat_attaqueADistanceRatee', 0) != 1) ||
+        armeDechargee(attaquant, attackStats) ||
         (options.typeAction && !typeActionPossible(attaquant, options.typeAction)) ||
         actionImpossible(attaquant, opt, label);
       options.actionImpossible = impossible;
@@ -20307,6 +20045,12 @@ var COFantasy2 = COFantasy2 || function() {
       finF: "n'est plus chargée d'énergie électrique",
       visible: false
     },
+    zoneDeSilence: { //effet sur les personnes dans la zone de silence
+      activation: "ne fait plus de bruit",
+      actif: "est dans une zone de silence",
+      fin: "fait du bruit",
+      visible: false
+    },
     zoneDeVie: {
       activation: "enchante une zone autour de lui",
       activationF: "enchante une zone autour d'elle",
@@ -22349,15 +22093,15 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function persosSousLesOrdresDe(perso) {
-      let sousLesOrdres = new Set();
-      const equipes = stateCOF.equipes;
-      for (const ne in equipes) {
-        const equipe = equipes[ne];
-        if (!equipe.chef || equipe.chef != perso.charId) continue;
-        for (const cid in equipe.membres) {
-          if (cid != perso.charId) sousLesOrdres.add(cid);
-        }
+    let sousLesOrdres = new Set();
+    const equipes = stateCOF.equipes;
+    for (const ne in equipes) {
+      const equipe = equipes[ne];
+      if (!equipe.chef || equipe.chef != perso.charId) continue;
+      for (const cid in equipe.membres) {
+        if (cid != perso.charId) sousLesOrdres.add(cid);
       }
+    }
     return sousLesOrdres;
   }
 
@@ -26839,9 +26583,19 @@ var COFantasy2 = COFantasy2 || function() {
   //    id
   //    type (le type de dmg, pour la couleur du jet)
   //    relanceSiMax,    deExplosif,    maxResult
+  //    reroll1, de valeur soit 'max', soit 'always', soit 'once'
   //    deMalus: entier, deBonus: entier
   //    seuilEC: 1 par défaut
+  //    divide (valeur par laquelle diviser)
   function rollDePlus(args, rollId, evt) {
+    if (typeof args != 'object') {
+      args = {
+        nbDe: 1,
+        dice: args,
+      };
+    } else if (args.dice === undefined && args.nbDe === undefined) {
+      args.nbDe = 0;
+    }
     let rolls;
     //On regarde si on refait evt, auquel cas il faut utiliser le jet précédent
     if (evt) {
@@ -26855,9 +26609,6 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
-    if (args.dice === undefined) args = {
-      dice: args
-    };
     const {
       nbDe = 1, bonus = 0, type = 'normal', dice: de, seuilEC = 1,
     } = args;
@@ -26875,9 +26626,34 @@ var COFantasy2 = COFantasy2 || function() {
       if (args.deMalus) deBonus -= args.deMalus;
       do {
         let jetDe = randomInteger(de);
+        let textJet = jetDe;
+        if (args.reroll1 && jetDe == 1) {
+          switch (args.reroll1) {
+            case 'max':
+              jetDe = de;
+              textJet += '->'+de;
+              break;
+            case 'once':
+              jetDe = randomInteger(de);
+              textJet += '->'+jetDe;
+              break;
+            case 'always':
+              //On tire un max de 10 fois, puis on tire entre 2 et de
+              let rerolls = 1;
+              while(rerolls < 10) {
+                jetDe = randomInteger(de);
+                textJet += '->'+jetDe;
+                if (jetDe > 1) break;
+              }
+              if (jetDe == 1) {
+                jetDe = randomInteger(de-1)+1;
+                textJet += '->'+jetDe;
+              }
+              break;
+          }
+        }
         if (jetDe <= seuilEC) echecCrit = true;
         else if (jetDe == 20) reussiteCrit = true;
-        let textJet = jetDe;
         if (args.maxResult) {
           jetDe = de;
           textJet = de;
@@ -26915,6 +26691,9 @@ var COFantasy2 = COFantasy2 || function() {
       deVal: jetTotal,
       type
     };
+    if (args.divide && args.divide > 1) {
+      res.total = Math.ceil(res.total / args.divide);
+    }
     let style = 'display: inline-block; border-radius: 5px; padding: 0 4px;';
     let couleurs = couleurType[args.type];
     if (couleurs === undefined) {
@@ -26958,10 +26737,13 @@ var COFantasy2 = COFantasy2 || function() {
         msg += bonus;
         texteJetDeTotal += bonus;
       }
+      if (args.divide && args.divide > 1) {
+        texteJetDeTotal = '(' + texteJetDeTotal + ') / ' + args.divide;
+      }
       msg += ' = ' + texteJetDeTotal + '" class="a inlinerollresult showtip tipsy-n">';
     } else msg += '>';
-    msg += res.total + "</span>";
-    res.display = msg;
+    msg += res.total;
+    res.display = msg + '</span>';
     if (rolls) rolls[rollId] = res;
     return res;
   }
@@ -27427,8 +27209,8 @@ var COFantasy2 = COFantasy2 || function() {
       }
       let saveId = 'saveParTour_' + attrEffet.id + '_' + perso.token.id;
       let s = {
-        carac: carac,
-        seuil: seuil,
+        carac,
+        seuil,
         entrave: met.entrave,
         etat: effetEtatTemp(effetC),
       };
@@ -30016,19 +29798,6 @@ var COFantasy2 = COFantasy2 || function() {
 
   //On a déterminé les DM du type principal(possiblement après save des dmgExtra, maintenant on applique les résistances, puis on ajoute les DM d'autres types
   function dealDamageAfterDmgExtra(target, mainDmgType, dmgTotal, dmgDisplay, showTotal, dmgParType, dmgExtra, crit, options, evt, expliquer, displayRes) {
-    if (options.pointsVitaux && dmgTotal > 0) { //dégâts retardés pour une pression mortelle
-      let pMortelle = tokenAttribute(target, 'pressionMortelle');
-      let dmgPMort = dmgTotal;
-      let numberPMort = 1;
-      if (pMortelle.length > 0) {
-        dmgPMort += pMortelle[0].get('current');
-        numberPMort += pMortelle[0].get('max');
-      }
-      setTokenAttr(target, 'pressionMortelle', dmgPMort, evt, {
-        maxVal: numberPMort
-      });
-      dmgTotal = 0;
-    }
     let rd;
     let rdElems = 0;
     if (attributeAsBool(target, 'protectionContreLesElements')) {
@@ -33556,19 +33325,19 @@ var COFantasy2 = COFantasy2 || function() {
     let champ = ctx.optName || 'additionalDmg';
     let scope = state.scope;
     scope[champ] = scope[champ] || [];
-    //TODO: utiliser parseDice
-    if (options.acteur) value = (value + '').replace(/(\d+)d4[°eE]/g, '$1d' + deEvolutif(options.acteur));
-    let dm = {
-      value,
-      type: scope.type,
-    };
+    let dm = {};
     if (isCarac(value)) {
       let champCarac = champ + 'Carac';
       scope[champCarac] = scope[champCarac] || {};
-      if (scope[champCarac][value]) return;
+      if (scope[champCarac][value]) return; //empêche d'avoir 2 fois la même carac en additionalDmg
       scope[champCarac][value] = dm;
-      dm.carac = true;
+      dm.carac = value;
+      dm.nbDe = 0; //bonus sera calculé plus tard
+    } else {
+      dm = parseDice(value, options.acteur, '--' + cmd[0]);
+      if (!dm) return;
     }
+    dm.type = scope.type;
     scope[champ].push(dm);
   }
 
@@ -34276,6 +34045,12 @@ var COFantasy2 = COFantasy2 || function() {
     dm: {
       fn: diceOption
     },
+    dmCible: {
+      fn: diceOption,
+    },
+    dmSiRate: {
+      fn: diceOption,
+    },
     donneAction: stringDefaultOption,
     drain: {
       fn: dmgTypeOption
@@ -34530,6 +34305,10 @@ var COFantasy2 = COFantasy2 || function() {
       min: 1,
       local: true,
     },
+    tempDmg: {
+      fn: booleanOption,
+      local: true
+    },
     tempsRecharge: {
       fn: tempsRechargeOption
     },
@@ -34599,10 +34378,6 @@ var COFantasy2 = COFantasy2 || function() {
       local: true,
     },
     succes: stringDefaultOption,
-    pressionMortelle: {
-      fn: booleanOption,
-      local: true,
-    },
     maxDmg: {
       fn: booleanOption,
       local: true,
@@ -34620,10 +34395,6 @@ var COFantasy2 = COFantasy2 || function() {
       local: true
     },
     seulementContact: {
-      fn: booleanOption,
-      local: true
-    },
-    tempDmg: {
       fn: booleanOption,
       local: true
     },
