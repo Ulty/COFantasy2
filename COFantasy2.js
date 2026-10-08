@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 08 oct. 2026,  03:19
+//Dernière modification : jeu. 08 oct. 2026,  05:48
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3106,8 +3106,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (instinctSurvie > 0 && target.token.get('bar1_value') < instinctSurvie)
       defense += 3;
     if (attributeAsBool(target, 'danseIrresistible')) {
-      defense -= 4;
-      explications.push("En train de danser => -4 DEF");
+      defense -= 5;
+      explications.push("En train de danser => -5 DEF");
     }
     if (options.sortilege) {
       defense += predicateAsInt(target, 'DEF_magie', 0);
@@ -3795,10 +3795,6 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push("Posture de combat => +" + postureVal + " en Attaque");
       }
     }
-    if (attributeAsBool(personnage, 'danseIrresistible')) {
-      attBonus -= 4;
-      explications.push("En train de danser => -4 en Attaque");
-    }
     if (attributeAsBool(personnage, 'cadavreAnime')) {
       attBonus -= 4;
       explications.push("Cadavre animé => -2 en Attaque");
@@ -4406,6 +4402,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.manoeuvre && predicateAsBool(attaquant, 'deBonusManoeuvre')) {
       deBonus++;
+    }
+    if (attributeAsBool(attaquant, 'danseIrresistible')) {
+      deMalus++;
+        explications.push("En train de danser => dé malus en Attaque");
     }
     return {
       deMalus,
@@ -12372,6 +12372,29 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque sonore --sortilege --auto --dm 2d4E+@{selected|CHA} --portee 10 --cone 120 --psave CON [[10+@{selected|CHA}]]",
       },
     },
+    'zone de silence': {
+      profil: 'barde',
+      action: {
+        nom: "Zone de silence",
+        limiteArmure: 'barde',
+        typeAction: 'A',
+        mana: 4,
+        //TODO: utiliser une zone d'effet, dont l'effet soit dynamique en fonction des mouvements
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --optionEffet dureeEnMinutes @{selected|CHA}",
+      },
+    },
+    'danse irresisitible': {
+      profil: 'barde',
+      action: {
+        nom: "Danse irrésisitible",
+        limiteArmure: 'barde',
+        combat: true,
+        entrerEnCombat: true,
+        typeAction: 'A',
+        mana: 5,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 10 --effet danseIrresistible [[1d4E+@{selected|CHA}]] --optionEffet valeurSiNCAuMoins @{selected|niveau} 1",
+      },
+    },
     //Voie du saltimbanque
     'acrobate': {
       bonusTestEvolutif_acrobaties: true,
@@ -19640,6 +19663,14 @@ var COFantasy2 = COFantasy2 || function() {
       dm: true,
       visible: true
     },
+    danseIrresistible: {
+      activation: "se met à danser",
+      actif: "ne peut s'empêcher de danser",
+      fin: "arrête de danser",
+      msgSave: "résister à l'appel de la danse",
+      prejudiciable: true,
+      visible: true,
+    },
     distrait: {
       activation: "est distrait",
       activationF: "est distraite",
@@ -21271,6 +21302,10 @@ var COFantasy2 = COFantasy2 || function() {
       let expliquer = function(s) {
         expliquerPerso(perso, s, options);
       };
+      let valeurCible = valeur;
+      if (options.valeurSiNCAuMoins && niveauPerso(perso) >= options.valeurSiNCAuMoins.ncMin) {
+        valeurCible = options.valeurSiNCAuMoins.valeur;
+      }
       if (options.save) {
         let msgPour = options.save.msgPour;
         if (!msgPour) {
@@ -21296,7 +21331,7 @@ var COFantasy2 = COFantasy2 || function() {
         let reussite = save(options.save, perso, saveId, expliquer, saveOpts, evt);
         if (reussite && options.save.demiDuree) {
           reussite = false;
-          valeur = Math.ceil(valeur / 2);
+          valeurCible = Math.ceil(valeurCible / 2);
         }
         if (reussite) {
           return;
@@ -21328,7 +21363,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (activer) {
           options.insensibleTeste = true;
-          activerEffet(lanceur, perso, effet, mEffet, valeur, pageId, evt, options);
+          activerEffet(lanceur, perso, effet, mEffet, valeurCible, pageId, evt, options);
         } else {
           finDEffetPerso(perso, effet, mEffet, pageId, evt, options);
         }
@@ -33134,9 +33169,9 @@ var COFantasy2 = COFantasy2 || function() {
     else options[op] = true;
   }
 
-  function integerOption(ctx, cmd, options, state, optionString, pageId) {
+  function parseIntOption(ctx, cmd, i, options, optionString) {
     let d = ctx.default;
-    if (cmd.length < 2) {
+    if (cmd.length < i+1) {
       if (ctx.defaultPredicate && options.acteur) {
         d = predicateAsInt(options.acteur, ctx.defaultPredicate, d);
       }
@@ -33146,7 +33181,7 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       }
     } else {
-      let de = parseDice(cmd[1], options.acteur);
+      let de = parseDice(cmd[i], options.acteur);
       if (de) {
         ({
           total: d
@@ -33168,6 +33203,11 @@ var COFantasy2 = COFantasy2 || function() {
         d = ctx.max;
       }
     }
+  }
+
+  function integerOption(ctx, cmd, options, state, optionString, pageId) {
+    let d = parseIntOption(ctx, cmd, 1, options, optionString);
+    if (d === undefined) return;
     let scope = options;
     if (ctx.local) scope = state.scope;
     let op = ctx.optName || cmd[0];
@@ -33178,6 +33218,28 @@ var COFantasy2 = COFantasy2 || function() {
       scope[op] = scope[op] || 1;
       scope[op] *= d;
     } else scope[op] = d;
+  }
+
+  function twoIntegersOption(ctx, cmd, options, state, optionString, pageId) {
+    if (cmd.length < 3) {
+      if (!options.noError) {
+        error("Il faut deux arguments pour l'option "+cmd[0]);
+      }
+      return;
+    }
+    let d1 = parseIntOption(ctx, cmd, 1, options, optionString);
+    if (d1 === undefined) return;
+    let d2 = parseIntOption(ctx, cmd, 2, options, optionString);
+    if (d2 === undefined) return;
+    let scope = options;
+    if (ctx.local) scope = state.scope;
+    let op = ctx.optName || cmd[0];
+    let val1 = ctx.val1 || 'val1';
+    let val2 = ctx.val2 || 'val2';
+    let res = {};
+    res[val1] = d1;
+    res[val2] = d2;
+    scope[op] = res;
   }
 
   function floatOption(ctx, cmd, options, state, optionString, pageId) {
@@ -34087,6 +34149,11 @@ var COFantasy2 = COFantasy2 || function() {
       fn: integerOption,
       min: 1,
     },
+    valeurSiNCAuMoins: {
+      fn: twoIntegersOption,
+      val1: 'ncMin',
+      val2: 'valeur',
+    },
     echecCritique: {
       fn: tricheOption
     },
@@ -34307,6 +34374,10 @@ var COFantasy2 = COFantasy2 || function() {
     self: {
       fn: selectionOption
     },
+    seulementContact: {
+      fn: booleanOption,
+      local: true
+    },
     sonique: {
       fn: dmgTypeOption
     },
@@ -34416,10 +34487,6 @@ var COFantasy2 = COFantasy2 || function() {
       local: true
     },
     seulementDistance: {
-      fn: booleanOption,
-      local: true
-    },
-    seulementContact: {
       fn: booleanOption,
       local: true
     },
