@@ -1324,6 +1324,7 @@ tr {line-height: 25px;}
                   <li><strong>Récupération mineure :</strong> il y a  une compétence évolutive nommée <code>medecine</code>. Le sort apparaît dans la liste d'actions, si la limite du nombre de lancements journaliers n'est pas atteinte.</li>
                   <li><strong>Vigueur divine :</strong> le script ajoute une compétence évolutive <code>vigueur</code>, utilisée dans les jets pour résister aux maladies et aux poison (bien penser à mettre <code>--maladie</code> ou <code>--poison</code> en argument aux commandes qui mettent ces effets). Pour le soin, le script propose une action qui va principalement faire dépenser la mana, il faudra que le MJ enlève l'effet visé par le prêtre.</li>
                   <li><strong>Récupération majeure :</strong> le sort apparaît dans la liste d'actions.</li>
+                  <li><strong>Phénix :</strong> le personnage revient automatiquement à la vie la première fois qu'il tombe à 0 PV de la journée, et le script applique les soins.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la spiritualité</h4>
                 <ol>
@@ -1543,6 +1544,7 @@ tr {line-height: 25px;}
                   <li><strong>descriptionTestPrestige_<i>nom</i></strong> : description des actions et circonstances correspondant au bonus de voie de prestige nommé <i>nom</i></li>
                   <li><strong>exemplaire</strong> : nombre de fois où on peut donner un dé bonus à l'attaque d'un allié contre un personnage à son contact, par tour.</li>
                   <li><strong>familierMage</strong> : un nom de familier. Quand le familier est visible du personnage, donne un bonus de +2 en initiative et en défense.</li>
+                  <li><strong>flecheMagique</strong> : les dés de dégáts à l'arc qui font 1 sont transformé en la valeur max du dé.</li>
                   <li><strong>hachesEtMarteaux</strong> : donne un bonus de +1 à l'attaque et aux DM avec une hache ou un marteau de guerre.</li>
                   <li><strong>hausserLeTon</strong> : ajoute +3 RD, +3 attaque et +1d4° DM quand les PV sont en dessous de la moitié.</li>
                   <li><strong>imparable</strong> : les attaques touchent automatiquement sur 15+ et on ajoute +2d4° DM à ces attaques.</li>
@@ -1557,6 +1559,7 @@ tr {line-height: 25px;}
                 <li><strong>paradeCroisee</strong> : bonus en DEF quand on porte une arme en main gauche. Le script propose de s'engager à ne pas utiliser son arme gauche on début du tour.</li>
                 <li><strong>pasDeRisquePoudre</strong> : peut tirer avec une arme à poudre sans aucun risque de la faire exploser.</li>
                 <li><strong>peutEnrager</strong> : si le personnage reçoit un coup critique, il devient enragé et obtient +3 en attaque, +1d4° DM, et l'immunité à la peur, ainsi que la possibilité d'agir encore 1 tour quand à zéro PV.</li>
+                <li><strong>phenix</strong> : nombre de fois par jour où un personnage qui tombe à 0 PV revient à la vie en soignant ses alliés.</li>
                   <li><strong>protegerUnallie</strong> : donne la possibilité d'ajouter +2 en DEF à un allié une fois par tour lorsqu'on porte un bouclier.</li>
                   <li><strong>Prouesse</strong> : propose de relancer les jets de CON et FOR une fois par round, en échange de 1d4° PV.</li>
                   <li><strong>resistanceA_<i>type</i></strong> : divise par 2 les DM associés au type.</li>
