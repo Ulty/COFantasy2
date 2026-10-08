@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 08 oct. 2026,  02:14
+//Dernière modification : jeu. 08 oct. 2026,  03:19
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13313,7 +13313,12 @@ var COFantasy2 = COFantasy2 || function() {
     },
     //Voie de l'armure sacrée
     'armure de bronze': {
-      armureSacree: 3,
+      action: {
+        nom: "Mettre son armure dSELONRANG(e bronze,e bronze,e bronze,e bronze,e bronze,'argent,'argent,'or)",
+        bufPersonnelNonCumulable: 'armureSacree',
+        typeAction: 'M',
+        cmd: "!cof2-effet armureSacree SELONRANG(3,3,3,3,3,5,5,7)  --select @{selected|token_id} --message l'armure dSELONRANG(e bronze,e bronze,e bronze,e bronze,e bronze,'argent,'argent,'or) se déploie et recouvre le corps de @{selected|token_name}"
+      },
     },
     // Voies de créatures ----------------------------
     // TODO: ajouter les caracs supérieurs ?
@@ -19806,6 +19811,17 @@ var COFantasy2 = COFantasy2 || function() {
       visible: false,
       plusieurs: true,
     },
+    zoneDeVie: {
+      activation: "enchante une zone autour de lui",
+      activationF: "enchante une zone autour d'elle",
+      actif: "a créé une zone de vie",
+      fin: "la zone de vie se termine",
+      finFun: finZoneDeVie,
+      parTourFun: parTourZoneDeVie,
+      dureeEnTours: true,
+      visible: true,
+      generic: true, //pour pouvoir avoir plusieurs zones de vie
+    },
     armureMagique: {
       activation: "est entouré d'un halo magique",
       activationF: "est entourée d'un halo magique",
@@ -19912,6 +19928,13 @@ var COFantasy2 = COFantasy2 || function() {
       actifF: "est protégée par une armure de mana",
       fin: "la protection magique disparaît",
       visible: true
+    },
+    armureSacree: {
+      //courant: le bonus de RD
+      activation: "l'armure sacrée se déploie et recouvre son corps",
+      actif: "porte une armure sacrée",
+      fin: "l'armure sacrée s'envole du corps et forme un cube de métal au pied de son porteur",
+      visible: true,
     },
     benediction: {
       //courant: bonus de bénédiction
@@ -20056,17 +20079,6 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est dans une zone de silence",
       fin: "fait du bruit",
       visible: false
-    },
-    zoneDeVie: {
-      activation: "enchante une zone autour de lui",
-      activationF: "enchante une zone autour d'elle",
-      actif: "a créé une zone de vie",
-      fin: "la zone de vie se termine",
-      finFun: finZoneDeVie,
-      parTourFun: parTourZoneDeVie,
-      dureeEnTours: true,
-      visible: true,
-      generic: true, //pour pouvoir avoir plusieurs zones de vie
     },
   };
 
@@ -21044,6 +21056,7 @@ var COFantasy2 = COFantasy2 || function() {
       valeurAjoutee: options.valeurAjoutee,
       dureeEnMinutes: options.dureeEnMinutes,
       remplaceAttribut: options.remplaceAttribut,
+      pasDeMessageDActivation: lanceur && options.message && lanceur.token.id == perso.token.id,
     };
     setEffet(perso, effet, mEffet, valeur, pageId, evt, ef, options);
   }
@@ -28946,9 +28959,14 @@ var COFantasy2 = COFantasy2 || function() {
       if (!isActive(perso)) return;
       let persoTest = persoParCharId[perso.charId];
       let arme = predicateAsBool(persoTest, 'armeParDefaut');
-      if (arme === undefined || arme === false) return;
-      if (arme === true) degainerArme(perso, '', evt);
-      else degainerArme(perso, arme, evt);
+      if (arme) {
+        if (arme === true) degainerArme(perso, '', evt);
+        else degainerArme(perso, arme, evt);
+      }
+      if (attributeAsBool(perso, 'armureSacree')) {
+        let b = boutonSimple('!cof2-effet armureSacree false --select ' + perso.token.id, "retirer son armure sacrée", BS_BUTTON);
+        sendPerso(perso, b, true);
+      }
     });
     //Remise à zéro des options de combat
     let def0 = {
@@ -29535,6 +29553,7 @@ var COFantasy2 = COFantasy2 || function() {
       rdt: 0,
       sauf: {}
     };
+    res.rdt += attributeAsInt(perso, 'armureSacree', 0);
     if (attributeAsBool(perso, 'formeDArbre')) {
       res.sauf.feu_hache = (res.sauf.feu_hache || 0) + 10;
     }
