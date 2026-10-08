@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 08 oct. 2026,  05:48
+//Dernière modification : jeu. 08 oct. 2026,  06:12
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12789,7 +12789,17 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 1,
         limiteArmure: 'ensorceleur',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
+      },
+    },
+    sommeil: {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Sommeil",
+        limiteArmure: 'ensorceleur',
+        type: 'L',
+        mana: 2,
+        cmd: "!cof2-effet endormiEnMinutes true --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
       },
     },
     //Voie des illusions
@@ -19526,6 +19536,15 @@ var COFantasy2 = COFantasy2 || function() {
       msgSave: "ne pas devenir invisible",
       visible: true
     },
+    endormiEnMinutes: {
+      activation: "s'endort",
+      actif: "dort profondément",
+      fin: "se réveille",
+      finFun: finEtatTemp,
+      msgSave: "résister au sommeil",
+      prejudiciable: true,
+      visible: true
+    },
     invisibleEnMinutes: {
       activation: "disparaît",
       actif: "est invisible",
@@ -21233,6 +21252,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let cibles = [];
     iterSelected(selected, function(perso) {
+      if (options.nombreMaximumDeCibles && cibles.length >= options.nombreMaximumDeCibles) return;
       if (options.portee !== undefined) {
         let dist = distanceCombat(lanceur.token, perso.token);
         if (dist > options.portee) {
@@ -21252,6 +21272,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       if (estInsensibleAEffet(perso, effet, mEffet, options)) return;
+      if (options.NCInferieurA && niveauPerso(perso) >= options.NCInferieurA) return;
       cibles.push(perso);
     });
     if (cibles.length == 0) {
@@ -34288,7 +34309,15 @@ var COFantasy2 = COFantasy2 || function() {
       fn: booleanOption,
       optName: 'nature'
     },
+    NCInferieurA: {
+      fn: integerOption,
+      min: 1,
+    },
     nom: stringDefaultOption,
+    nombreMaximumDeCibles: {
+      fn: integerOption,
+      min: 1,
+    },
     noSelect: boolDefaultOption,
     optionEffet: {
       fn: effetOptionOption
@@ -34375,6 +34404,14 @@ var COFantasy2 = COFantasy2 || function() {
       fn: selectionOption
     },
     seulementContact: {
+      fn: booleanOption,
+      local: true
+    },
+    seulementDistance: {
+      fn: booleanOption,
+      local: true
+    },
+    seulementVivant: {
       fn: booleanOption,
       local: true
     },
@@ -34479,14 +34516,6 @@ var COFantasy2 = COFantasy2 || function() {
       local: true,
     },
     ouvertureMortelle: {
-      fn: booleanOption,
-      local: true
-    },
-    seulementVivant: {
-      fn: booleanOption,
-      local: true
-    },
-    seulementDistance: {
       fn: booleanOption,
       local: true
     },
