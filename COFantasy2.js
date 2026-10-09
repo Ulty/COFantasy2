@@ -1,4 +1,4 @@
-//Dernière modification : ven. 09 oct. 2026,  04:09
+//Dernière modification : ven. 09 oct. 2026,  04:34
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12819,6 +12819,26 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
       },
     },
+    'amitie': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Amitié",
+        limiteArmure: 'ensorceleur',
+        typeAction: 'L',
+        mana: 4,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]]"
+      },
+    },
+    'domination': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Domination",
+        limiteArmure: 'ensorceleur',
+        typeAction: 'A',
+        mana: 5,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome",
+      },
+    },
     //Voie des illusions
     'mirage': {
       bonusTestEvolutif_supercherie: true,
@@ -13040,6 +13060,26 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'magicien',
         cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{target|token_id}',
       }],
+    },
+    'vol': {
+      profil: 'magicien',
+      action: {
+        nom: "Vol",
+        limiteArmure: 'magicien',
+        typeAction: 'A',
+        mana: 4,
+        cmd: '!cof2-effet enVol oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
+      }
+    },
+    'teleportation': {
+      profil: 'magicien',
+      action: {
+        nom: "Téléportation",
+        limiteArmure: 'magicien',
+        typeAction: 'L',
+        mana: 5,
+        cmd: '!cof2-action se téléporte --messageMJ à moins de [[@{selected|niveau}*@{selected|INT}]] km dans un lieu en vue ou parfaitement connu',
+      },
     },
     //Voies de sorcier /////////////////////////////////////////////
     //Voie de la sombre magie
@@ -20069,6 +20109,13 @@ var COFantasy2 = COFantasy2 || function() {
       seulementVivant: true,
     },
     //Effet sans unité de durée par défaut
+    amitie: {
+      //valeur: difficulté du jet journalier pour résister
+      activation: "s'est trouvé un nouvel ami",
+      activationF: "s'est trouvée un nouvel ami",
+      actif: "a un bon ami",
+      prejudiciable: true,
+    },
     armureDeMana: {
       //courant: bonus d'armure
       activation: "fait apparaître une protection magique chatoyante qui recouvre son corps et produit des étincelles à chaque fois qu’il encaisse un coup",
@@ -20120,6 +20167,18 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est collé à sa proie",
       fin: "se détache de sa proie",
       visible: true
+    },
+    enVol: {
+      activation: "se met à voler",
+      actif: "vole",
+      fin: "se pose au sol",
+      visible: true,
+    },
+    domination: {
+      activation: "perd le contrôle de ses actions",
+      actif: "est sous la domination de quelqu'un",
+      fin: "retrouve le contrôle de ses actions",
+      prejudiciable: true,
     },
     enTerrainDifficile: {
       activation: "entre en terrain difficile",
@@ -21082,6 +21141,7 @@ var COFantasy2 = COFantasy2 || function() {
       expliquerPerso(perso, "reste libre de ses mouvements !", options);
       return true;
     }
+    if (etat == 'renverse' && attributeAsBool(perso, 'enVol')) return true;
     return false;
   }
 
