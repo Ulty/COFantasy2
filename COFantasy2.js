@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 08 oct. 2026,  06:12
+//Dernière modification : ven. 09 oct. 2026,  04:09
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11375,11 +11375,18 @@ var COFantasy2 = COFantasy2 || function() {
       if (attributeAsBool(perso, 'zoneDeSilence')) {
         let testId = 'sortDansZoneDeSilence';
         let tr = testCaracteristique(perso, 'INT', 10, testId, options, evt);
-        explications.push("Jet d'INT pour réussir à lancer le sort : " + tr.texte);
+        let expliquer = function(m) {
+          if(explications) explications.push(m);
+          else expliquerPerso(perso, m);
+        };
+        expliquer("Jet d'INT pour réussir à lancer le sort : " + tr.texte);
+    tr.explications.forEach(function(m) {
+      expliquer(m);
+    });
         if (tr.reussite) {
-          explications.push(" => réussi, " + nomPerso(perso) + " réussit à kancer le sort sans prononcer de formule");
+          expliquer(" => réussi, " + nomPerso(perso) + " réussit à kancer le sort sans prononcer de formule"+tr.modifiers);
         } else {
-          explications.push(" => raté, la zone de silence a rendu le lancement trop difficile");
+          expliquer(" => raté, la zone de silence a rendu le lancement trop difficile"+tr.rerolls+tr.modifiers);
           return true;
         }
       }
@@ -12800,6 +12807,16 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 2,
         cmd: "!cof2-effet endormiEnMinutes true --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
+      },
+    },
+    'confusion': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Confusion",
+        limiteArmure: 'ensorceleur',
+        type: 'A',
+        mana: 3,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
       },
     },
     //Voie des illusions
@@ -15982,9 +15999,81 @@ var COFantasy2 = COFantasy2 || function() {
     return tr.pr != pasAgi[0].pr;
   }
 
-  function actionsParDefaut(perso, ligne, playerId, pageId, options) {
+  //evt peut être undefined
+  function actionsParDefaut(perso, ligne, playerId, pageId, evt, options) {
     let combat = stateCOF.combat;
     let actionsEnCombat = combat || options.actionsDeCombat;
+    if (actionsEnCombat && attributeAsBool(perso, 'confusion')) {
+        if (typeActionPossible(perso, 'A')) {
+          if (!evt) {
+            evt = {type:"actions par défaut"};
+            addEvent(evt);
+          }
+          let deConfusion = attributeAsInt(perso, 'limiteParTour_jetDeConfusion', -1);
+          if (deConfusion == -1) {
+            let r = rollDePlus(6);
+            sendPerso(perso, "fait "+r.display+" au jet de confusion", true);
+            deConfusion = r.deVal;
+            setTokenAttr(perso, 'limiteParTour_jetDeConfusion', deConfusion);
+          }
+          if (deConfusion < 4 || attributeAsBool(perso, 'intangible')) {
+            sendPerso(perso, "semble totalement perdu et ne fait rien ce tour");
+            depenseAction(perso, actionMax(perso), combat, evt);
+          } else {
+          //Attaque sur le personnage le plus proche, et sortir
+            //TODO: tenir compte des murs
+            let allTokens = findObjs({
+              _type: 'graphic',
+              _subtype: 'token',
+              _pageid: pageId,
+              layer: 'objects'
+            });
+            let cible;
+            let distance;
+            allTokens.forEach(function(token) {
+              if (token.id == perso.toen.id) return;
+              let p = persoOfToken(token);
+              if (!p) return;
+              if (getState(p, 'mort')) return;
+              let d = distancePixToken(p.token, perso.token);
+              if (!cible || d < distance) {
+                cible = p;
+                distance = d;
+              }
+            });
+            if (cible) {
+              let arme = armesEnMain(perso);
+              let d = distanceCombat(perso.token, cible.token, pageId);
+              if (d === 0 || (arme && arme.portee >= d)) {
+                let bopt = {
+                  text: "Attaquer",
+                  target: cible,
+                };
+                let b = boutonAttaque(perso, -1, bopt);
+                if (!b.actionImpossible) {
+                  ligne += b + ' ' + nomPerso(cible)+'<br/>';
+                  return;
+                }
+              }
+              let vitesse = vitessePerso(perso);
+              let picto = '<span style="font-family: \'Pictos\'">4</span> ';
+              let style = 'style="background-color:#272751"';
+              let commande = "!cof2-mvt " + perso.token.id + " " + vitesse + " --typeAction M";
+              ligne += boutonSimple(commande, picto, style) + " Se déplacer de vers "+nomPerso(cible)+'<br/>';
+              return;
+            }
+            sendPerso(perso, "semble totalement perdu et ne fait rien ce tour");
+            depenseAction(perso, actionMax(perso), combat, evt);
+          }
+        }
+        //Proposer le jet de résistance (cas où le personnage ne fait rien)
+      if (attributeAsInt(perso, 'limiteParTour_resisteConfusion', 1)) {
+      let difficulte = getIntValeurOfEffet(perso, 'confusion', 12);
+      let command = "!cof2-effet confusion 0 --save VOL "+difficulte+" --limiteParTour 1 resisteConfusion";
+      ligne += boutonSimple(command, "Essayer de retrouver ses esprits", BS_BUTTON)+'<br/>';
+      }
+      return;
+    }
     let avant = avantSonTour(perso, combat);
     if (avant) {
       if (aucuneActionRealiseeCeTour(perso)) {
@@ -16364,7 +16453,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //listActions est optionnel et fait référence à une liste d'actions de la
   //  fiche.
-  function turnAction(perso, playerId, pageId, listActions, options = {}) {
+  function turnAction(perso, playerId, pageId, listActions, evt, options = {}) {
     pageId = pageId || perso.token.get('pageid');
     let opt_display = {
       chuchote: true
@@ -16382,7 +16471,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let ligne = '';
     if (actionsDuTour == 1) {
-      ligne = actionsParDefaut(perso, ligne, playerId, pageId, options);
+      ligne = actionsParDefaut(perso, ligne, playerId, pageId, evt, options);
     } else {
       //Pour les autre listes, on n'affiche que la liste sur la fiche
       ligne = actionsDeListe(perso, actionsDuTour, pageId, ligne);
@@ -16455,7 +16544,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (liste) {
         if (limiteRessources(perso, options, liste, liste, evt)) return;
       }
-      let actions = turnAction(perso, playerId, pageId, liste, options);
+      let actions = turnAction(perso, playerId, pageId, liste, evt, options);
       if (!actions) {
         let l = liste || '';
         sendPerso(perso, "n'a pas de liste d'actions " + l + " définie");
@@ -19493,6 +19582,15 @@ var COFantasy2 = COFantasy2 || function() {
       prejudiciable: true,
       visible: true
     },
+    endormiEnMinutes: {
+      activation: "s'endort",
+      actif: "dort profondément",
+      fin: "se réveille",
+      finFun: finEtatTemp,
+      msgSave: "résister au sommeil",
+      prejudiciable: true,
+      visible: true
+    },
     essouffleTemp: {
       activation: "s'essouffle",
       actif: "est essoufflé",
@@ -19534,15 +19632,6 @@ var COFantasy2 = COFantasy2 || function() {
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "ne pas devenir invisible",
-      visible: true
-    },
-    endormiEnMinutes: {
-      activation: "s'endort",
-      actif: "dort profondément",
-      fin: "se réveille",
-      finFun: finEtatTemp,
-      msgSave: "résister au sommeil",
-      prejudiciable: true,
       visible: true
     },
     invisibleEnMinutes: {
@@ -19681,6 +19770,16 @@ var COFantasy2 = COFantasy2 || function() {
       customStatusMarker: 'cof-asphyxie',
       dm: true,
       visible: true
+    },
+    confusion: {
+      activation: "devient désorienté",
+      activationF: "devient désorientée",
+      actif: "est complètement désorienté",
+      actifF: "est complètement désorientée",
+      fin: "retrouve ses esprits",
+      msgSave: "retrouver ses esprits",
+      prejudiciable: true,
+      visible: true,
     },
     danseIrresistible: {
       activation: "se met à danser",
@@ -20842,6 +20941,10 @@ var COFantasy2 = COFantasy2 || function() {
         case 'aveugleEnMinutes':
           setState(target, 'aveugle', true, evt);
           break;
+        case 'endormiTemp':
+        case 'endormiEnMinutes':
+          setState(target, 'endormi', true, evt);
+          break;
         case 'penombreTemp':
           setState(target, 'penombre', true, evt);
           break;
@@ -21411,7 +21514,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let m = montrerActions(playerId, pageId, options);
     if (!m && options.montreActions && cibles.length === 1)
-      turnAction(cibles[0], playerId, pageId);
+      turnAction(cibles[0], playerId, pageId, evt);
   }
 
   //Pour les effets activés par un perso
