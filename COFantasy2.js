@@ -1,4 +1,4 @@
-//Dernière modification : ven. 09 oct. 2026,  04:34
+//Dernière modification : sam. 10 oct. 2026,  01:29
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2020,6 +2020,7 @@ var COFantasy2 = COFantasy2 || function() {
       roll = res[0].inlinerolls[0];
       args.rolls[rollId] = roll;
     } else {}
+    roll.id = rollId;
     return roll;
   }
 
@@ -4346,6 +4347,9 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push("Terrain difficile => +1 en Attaque");
       attBonus += 1;
     }
+    if (options.controleMental) {
+      attBonus += predicateAsInt(attaquant, 'bonusAttaque_controleMental', 0);
+    }
     return attBonus;
   }
 
@@ -4405,7 +4409,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (attributeAsBool(attaquant, 'danseIrresistible')) {
       deMalus++;
-        explications.push("En train de danser => dé malus en Attaque");
+      explications.push("En train de danser => dé malus en Attaque");
     }
     return {
       deMalus,
@@ -6204,8 +6208,8 @@ var COFantasy2 = COFantasy2 || function() {
           attBonusCommun =
             bonusAttaqueA(attaquant, weaponStats, evt, explications, options);
           if (rollAttack.chance) {
-            attBonusCommun += 10;
-            explications.push("Point de chance dépensé => +10 en Attaque");
+            attBonusCommun += rollAttack.chance.bonus;
+            explications.push("Point de chance dépensé => +"+rollAttack.chance.bonus+" en Attaque");
           }
         } else { //calcul des options affectant les DM
           bonusDMA(attaquant, weaponStats, evt, explications, options);
@@ -6775,8 +6779,8 @@ var COFantasy2 = COFantasy2 || function() {
       if (attBonus > 0) msg += "+" + attBonus;
       else if (attBonus < 0) msg += attBonus;
       if (attackRoll.chance) {
-        totalEvitement += 10;
-        msg += "+10 (PC)";
+        totalEvitement += attackRoll.chance.bonus;
+        msg += "+"+attackRoll.chance.bonus+" (PC)";
       }
       const optionsEvitement = {
         displayName: true,
@@ -6795,11 +6799,10 @@ var COFantasy2 = COFantasy2 || function() {
       let generalMsg = '';
       if (totalEvitement < jetAdversaire) {
         msg += " => Raté";
-        if (!attackRoll.chance) {
-          let pc = pointsDeChance(lanceur);
-          if (attackRoll.results.total != 1 && pc > 0) {
-            generalMsg += '<br/>' + boutonChance(lanceur, testId, evt) + " (reste " + pc + " PC)";
-          }
+        if (attackRoll.results.total != 1) {
+          boutonChance(lanceur, attackRoll, evt, function(m) {
+            generalMsg += '<br/>' + m;
+          });
         }
         if (attributeAsBool(lanceur, 'runeForgesort_énergie') &&
           attributeAsInt(lanceur, 'attributDeCombat_runeForgesort_énergie', 1) > 0) {
@@ -8576,12 +8579,11 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
         let rolls = getRollsFromEvt(evt);
-        if (rolls && rolls.attaque && !rolls.attaque.chance) {
-          let pc = pointsDeChance(attaquant);
-          if (pc > 0) {
-            //L'id du roll de l'attaque est simplement 'attaque'
-            addLineToFramedDisplay(display, boutonChance(attaquant, 'attaque', evt) + " (reste " + pc + " PC)");
-          }
+        if (rolls && rolls.attaque) {
+          //L'id du roll de l'attaque est simplement 'attaque'
+          boutonChance(attaquant, rolls.attaque, evt, function(m) {
+            addLineToFramedDisplay(display, m);
+          });
           if (attributeAsBool(attaquant, 'runeForgesort_énergie') &&
             attributeAsInt(attaquant, 'attributDeCombat_runeForgesort_énergie', 1) > 0) {
             addLineToFramedDisplay(display, boutonSimple("!cof2-bouton-rune-energie " + attaquant.token.id + ' ' + evt.id, "Rune d'énergie"));
@@ -8594,11 +8596,10 @@ var COFantasy2 = COFantasy2 || function() {
           if (options.attaqueContactOppose) t = 'attaqueContactOpposee_';
           cibles.forEach(function(cible) {
             let testId = t + cible.token.id;
-            if (rolls[testId] && !rolls[testId].chance) {
-              let pc = pointsDeChance(cible);
-              if (pc > 0) {
-                addLineToFramedDisplay(display, boutonChance(cible, testId, evt) + " pour " + nomPerso(cible) + " (reste " + pc + " PC)");
-              }
+            if (rolls[testId]) {
+              boutonChance(cible, rolls[testId], evt, function(m) {
+                addLineToFramedDisplay(display, m + " pour " + nomPerso(cible));
+              });
             }
           });
         }
@@ -9969,8 +9970,38 @@ var COFantasy2 = COFantasy2 || function() {
     return '<a href="' + action + '"' + style + '>' + texte + '</a>';
   }
 
-  function boutonChance(perso, rollId, evt) {
-    return boutonSimple("!cof2-bouton-chance " + perso.token.id + ' ' + evt.id + ' ' + rollId, "Chance");
+  //Si le perso a des points de chance, appelle callback sur le bouton + nbr de PC restants
+  function boutonChance(perso, roll, evt, callback) {
+    if (!perso.token) return;
+    if (!roll.chance || !roll.chance[perso.token.id]) {
+      let pc = pointsDeChance(perso);
+      if (pc > 0) {
+        let b = boutonSimple("!cof2-bouton-chance " + perso.token.id + ' ' + evt.id + ' ' + roll.id, "Chance", BS_BUTTON);
+        callback(b + " (reste " + pc + " PC)");
+      }
+    }
+    let allies = alliesParPerso[perso.charId];
+    if (!allies) return;
+    let pageId;
+    let page;
+    let murs;
+    allies.forEach(function(charId) {
+      if (predicateAsBool({
+          charId
+        }, 'depenserPCPourAllies')) {
+        pageId = pageId || perso.token.get('pageid');
+        let a = persoOfCharId(charId, pageId);
+        if (roll.chance && roll.chance[a.token.id]) return;
+        let pc = pointsDeChance(a);
+        if (pc < 1) return;
+        if (!a) return;
+        page = page || getObj('page', pageId);
+        murs = getWalls(page, pageId, murs);
+        if (murs && obstaclePresentPerso(perso, a, murs)) return;
+        let b = boutonSimple("!cof2-bouton-chance " + a.token.id + ' ' + evt.id + ' ' + roll.id + ' ' + perso.token.id, "Donner chance", BS_BUTTON);
+        callback(b + " de " + nomPerso(a) + " (reste " + pc + " PC)");
+      }
+    });
   }
 
   function hexDec(hex_string) {
@@ -11363,6 +11394,11 @@ var COFantasy2 = COFantasy2 || function() {
     let depMana = {
       cout_null: true
     };
+    let expliquer = function(m) {
+      if (explications) explications.push(m);
+      else if (perso) expliquerPerso(perso, m);
+      else sendChat('', m);
+    };
     if (options.mana) {
       if (perso) {
         depMana = depenseManaPossible(perso, options.mana, msg, options);
@@ -11375,18 +11411,14 @@ var COFantasy2 = COFantasy2 || function() {
       if (attributeAsBool(perso, 'zoneDeSilence')) {
         let testId = 'sortDansZoneDeSilence';
         let tr = testCaracteristique(perso, 'INT', 10, testId, options, evt);
-        let expliquer = function(m) {
-          if(explications) explications.push(m);
-          else expliquerPerso(perso, m);
-        };
         expliquer("Jet d'INT pour réussir à lancer le sort : " + tr.texte);
-    tr.explications.forEach(function(m) {
-      expliquer(m);
-    });
+        tr.explications.forEach(function(m) {
+          expliquer(m);
+        });
         if (tr.reussite) {
-          expliquer(" => réussi, " + nomPerso(perso) + " réussit à kancer le sort sans prononcer de formule"+tr.modifiers);
+          expliquer(" => réussi, " + nomPerso(perso) + " réussit à kancer le sort sans prononcer de formule" + tr.modifiers);
         } else {
-          expliquer(" => raté, la zone de silence a rendu le lancement trop difficile"+tr.rerolls+tr.modifiers);
+          expliquer(" => raté, la zone de silence a rendu le lancement trop difficile" + tr.rerolls + tr.modifiers);
           return true;
         }
       }
@@ -11500,7 +11532,7 @@ var COFantasy2 = COFantasy2 || function() {
             }
             if (!diffTest) {
               //Impossible de lire le parchemin
-              if (!options.testeRessources) expliquerPerso(perso, "ne peut pas lire ce parchemin");
+              if (!options.testeRessources) expliquer("ne peut pas lire ce parchemin");
               return true;
             }
           }
@@ -11508,7 +11540,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (diffTest && !options.testeRessources) {
           diffTest = diffTest * 5;
           //Il faut faire un jet d'attaque magique
-          expliquerPerso(perso, "Jet d'attaque magique difficulté " + diffTest + " pour utiliser le parchemin");
+          expliquer("Jet d'attaque magique difficulté " + diffTest + " pour utiliser le parchemin");
           let bonus = attaquePerso(perso, 'atkmag');
           let deArgs = {
             dice: 20,
@@ -11518,7 +11550,7 @@ var COFantasy2 = COFantasy2 || function() {
           let rollId = defResource + "parchemin";
           let roll = rollDePlus(deArgs, rollId, evt);
           if (roll.deVal == 1 || (roll.total < diffTest && roll.deVal != 20)) {
-            expliquerPerso(perso, roll.display + " => échec !"); //TODO: proposer d'utliser la chance
+            expliquer(roll.display + " => échec !"); //TODO: proposer d'utliser la chance
             //L'action est dépensée
             if (combat) {
               depenseAction(perso, options.typeAction, combat, evt);
@@ -11527,19 +11559,18 @@ var COFantasy2 = COFantasy2 || function() {
               }
             }
             if (roll.total + 10 <= diffTest && options.decrAttribute) {
-              expliquerPerso(perso, "le parchemin devient inutilisable");
+              expliquer("le parchemin devient inutilisable");
               //Alors le parchemin est détruit
               decrementeAttribut(perso, options.decrAttribute, evt, options);
             }
-            if ((!roll.chance) && roll.total + 20 > diffTest) {
-              let pc = pointsDeChance(perso);
-              if (pc > 0) {
-                expliquerPerso(perso, boutonChance(perso, rollId, evt) + " (reste " + pc + " PC)");
-              }
+            if (roll.total + 20 > diffTest) {
+              boutonChance(perso, roll, evt, function(m) {
+                expliquer(m);
+              });
             }
             return true;
           } else {
-            expliquerPerso(perso, roll.display + " => réussi");
+            expliquer(roll.display + " => réussi");
           }
         }
       }
@@ -11640,9 +11671,9 @@ var COFantasy2 = COFantasy2 || function() {
                 if (explications) explications.push(dmgMsg);
                 else {
                   expl.forEach(function(m) {
-                    sendPerso(perso, m, options.secret);
+                    expliquerPerso(perso, m, options.secret);
                   });
-                  sendPerso(perso, dmgMsg, options.secret);
+                  expliquerPerso(perso, dmgMsg, options.secret);
                 }
               });
           }
@@ -12410,7 +12441,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie de la séduction
     'charmant': {
       bonusTestEvolutif_charmer: true,
-      //TODO: ajouter un bouton de PC du barde sur toutes les actions des alliés ?
+      depenserPCPourAllies: true,
     },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
@@ -12806,7 +12837,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         type: 'L',
         mana: 2,
-        cmd: "!cof2-effet endormiEnMinutes true --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
+        cmd: "!cof2-effet endormiEnMinutes true --controleMental --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
       },
     },
     'confusion': {
@@ -12816,7 +12847,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         type: 'A',
         mana: 3,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
       },
     },
     'amitie': {
@@ -12826,7 +12857,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         typeAction: 'L',
         mana: 4,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]]"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --controleMental --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]]"
       },
     },
     'domination': {
@@ -12836,7 +12867,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         typeAction: 'A',
         mana: 5,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome",
       },
     },
     //Voie des illusions
@@ -13510,6 +13541,63 @@ var COFantasy2 = COFantasy2 || function() {
       monture: true,
     },
     //Les voies venant de capacités PJ
+    "voie du musicien": {
+      bonusTestEvolutif_musique: true,
+      aUneAttaqueAOE: true, //Pour donner la possibilité d'épargner les alliés.
+      actions: [{
+        nom: 'Chant des héros',
+        type: 'L',
+        bufPersonnelNonCumulable: 'chantDesHeros',
+        cmd: '!cof2-effet chantDesHeros SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --allies',
+      }, {
+        nom: "Chant de réconfort",
+        horsCombat: true,
+        typeAction: 'L',
+        cmd: "!cof2-soin SELONRANG(1,1,1,2,2)d4E --select @{selected|token_id} --allies --portee 10 --message chante pendant une demi-heure --titre Chant de réconfort",
+      }, {
+        nom: "Attaque sonore",
+        combat: true,
+        dm: true,
+        typeAction: 'A',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque sonore --sortilege --auto --dm 2d4E+@{selected|CHA} --portee 10 --cone 120 --psave CON [[10+@{selected|CHA}]]",
+      }, {
+        nom: "Zone de silence",
+        typeAction: 'A',
+        //TODO: utiliser une zone d'effet, dont l'effet soit dynamique en fonction des mouvements
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --optionEffet dureeEnMinutes @{selected|CHA}",
+      }, {
+        nom: "Danse irrésisitible",
+        combat: true,
+        entrerEnCombat: true,
+        typeAction: 'A',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 10 --effet danseIrresistible [[1d4E+@{selected|CHA}]] --optionEffet valeurSiNCAuMoins @{selected|niveau} 1",
+      }],
+    },
+    "voie de l'envouteur": {
+      bonusTestEvolutif_injonction: true,
+      actions: [{
+        nom: 'Injonction',
+        type: 'A',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
+      }, {
+        nom: "Sommeil",
+        type: 'L',
+        cmd: "!cof2-effet endormiEnMinutes true --controleMental --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
+      }, {
+        nom: "Confusion",
+        limiteArmure: 'ensorceleur',
+        type: 'A',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
+      }, {
+        nom: "Amitié",
+        typeAction: 'L',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --controleMental --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]]"
+      }, {
+        nom: "Domination",
+        typeAction: 'A',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome",
+      }],
+    },
     "voie de l'air": {
       actions: [{
         nom: 'Murmures dans le vent',
@@ -13548,6 +13636,60 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         sortilege: true,
         cmd: '!cof2-effet intangible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
+      }],
+    },
+    "voie de la magie universelle": {
+      familierMage: 'PARAM.nom', //Le nom du familier.
+      compagnon: {
+        id: 'familierMageId',
+        name: 'PARAM.nom',
+        visionPartagee: true,
+        avatar: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
+        token: "https://files.d20.io/images/400485634/jTKApI_eg_8QS_5ARgvaZg/original.webp?1720722429",
+        pvParNiveau: 1,
+        attributesFiche: {
+          taille: 'Très petite',
+          agi: 3,
+          agi_sup: 'S',
+          for: -4,
+          per: 2,
+          cha: -2,
+          int: -2,
+          vol: 2,
+          comp_def: '13+[rang_voieNUMEROVOIE]',
+          comp_pv_max: '[niveau]',
+          comp_init: '[init]',
+          predicats_script: 'aucuneActionCombat familierDeMage recuperationRapideTotale'
+        }
+      },
+      actions: [{
+        nom: 'Lumière',
+        type: 'L',
+        cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10',
+      }, {
+        nom: 'Lumière dans les yeux',
+        combat: true,
+        entrerEnCombat: true,
+        type: 'L',
+        //TODO: ajouter effet de lumière sur la cible
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
+      }, {
+        nom: 'Invisibilité',
+        type: 'A',
+        cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{selected|token_id}',
+      }, {
+        aPartirDeRang: 5,
+        nom: 'Invisibilité sur',
+        type: 'L',
+        cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{target|token_id}',
+      }, {
+        nom: "Vol",
+        typeAction: 'A',
+        cmd: '!cof2-effet enVol oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
+      }, {
+        nom: "Téléportation",
+        typeAction: 'L',
+        cmd: '!cof2-action se téléporte --messageMJ à moins de [[@{selected|niveau}*@{selected|INT}]] km dans un lieu en vue ou parfaitement connu',
       }],
     },
   };
@@ -16044,73 +16186,75 @@ var COFantasy2 = COFantasy2 || function() {
     let combat = stateCOF.combat;
     let actionsEnCombat = combat || options.actionsDeCombat;
     if (actionsEnCombat && attributeAsBool(perso, 'confusion')) {
-        if (typeActionPossible(perso, 'A')) {
-          if (!evt) {
-            evt = {type:"actions par défaut"};
-            addEvent(evt);
-          }
-          let deConfusion = attributeAsInt(perso, 'limiteParTour_jetDeConfusion', -1);
-          if (deConfusion == -1) {
-            let r = rollDePlus(6);
-            sendPerso(perso, "fait "+r.display+" au jet de confusion", true);
-            deConfusion = r.deVal;
-            setTokenAttr(perso, 'limiteParTour_jetDeConfusion', deConfusion);
-          }
-          if (deConfusion < 4 || attributeAsBool(perso, 'intangible')) {
-            sendPerso(perso, "semble totalement perdu et ne fait rien ce tour");
-            depenseAction(perso, actionMax(perso), combat, evt);
-          } else {
-          //Attaque sur le personnage le plus proche, et sortir
-            //TODO: tenir compte des murs
-            let allTokens = findObjs({
-              _type: 'graphic',
-              _subtype: 'token',
-              _pageid: pageId,
-              layer: 'objects'
-            });
-            let cible;
-            let distance;
-            allTokens.forEach(function(token) {
-              if (token.id == perso.toen.id) return;
-              let p = persoOfToken(token);
-              if (!p) return;
-              if (getState(p, 'mort')) return;
-              let d = distancePixToken(p.token, perso.token);
-              if (!cible || d < distance) {
-                cible = p;
-                distance = d;
-              }
-            });
-            if (cible) {
-              let arme = armesEnMain(perso);
-              let d = distanceCombat(perso.token, cible.token, pageId);
-              if (d === 0 || (arme && arme.portee >= d)) {
-                let bopt = {
-                  text: "Attaquer",
-                  target: cible,
-                };
-                let b = boutonAttaque(perso, -1, bopt);
-                if (!b.actionImpossible) {
-                  ligne += b + ' ' + nomPerso(cible)+'<br/>';
-                  return;
-                }
-              }
-              let vitesse = vitessePerso(perso);
-              let picto = '<span style="font-family: \'Pictos\'">4</span> ';
-              let style = 'style="background-color:#272751"';
-              let commande = "!cof2-mvt " + perso.token.id + " " + vitesse + " --typeAction M";
-              ligne += boutonSimple(commande, picto, style) + " Se déplacer de vers "+nomPerso(cible)+'<br/>';
-              return;
-            }
-            sendPerso(perso, "semble totalement perdu et ne fait rien ce tour");
-            depenseAction(perso, actionMax(perso), combat, evt);
-          }
+      if (typeActionPossible(perso, 'A')) {
+        if (!evt) {
+          evt = {
+            type: "actions par défaut"
+          };
+          addEvent(evt);
         }
-        //Proposer le jet de résistance (cas où le personnage ne fait rien)
+        let deConfusion = attributeAsInt(perso, 'limiteParTour_jetDeConfusion', -1);
+        if (deConfusion == -1) {
+          let r = rollDePlus(6);
+          sendPerso(perso, "fait " + r.display + " au jet de confusion", true);
+          deConfusion = r.deVal;
+          setTokenAttr(perso, 'limiteParTour_jetDeConfusion', deConfusion);
+        }
+        if (deConfusion < 4 || attributeAsBool(perso, 'intangible')) {
+          sendPerso(perso, "semble totalement perdu et ne fait rien ce tour");
+          depenseAction(perso, actionMax(perso), combat, evt);
+        } else {
+          //Attaque sur le personnage le plus proche, et sortir
+          //TODO: tenir compte des murs
+          let allTokens = findObjs({
+            _type: 'graphic',
+            _subtype: 'token',
+            _pageid: pageId,
+            layer: 'objects'
+          });
+          let cible;
+          let distance;
+          allTokens.forEach(function(token) {
+            if (token.id == perso.toen.id) return;
+            let p = persoOfToken(token);
+            if (!p) return;
+            if (getState(p, 'mort')) return;
+            let d = distancePixToken(p.token, perso.token);
+            if (!cible || d < distance) {
+              cible = p;
+              distance = d;
+            }
+          });
+          if (cible) {
+            let arme = armesEnMain(perso);
+            let d = distanceCombat(perso.token, cible.token, pageId);
+            if (d === 0 || (arme && arme.portee >= d)) {
+              let bopt = {
+                text: "Attaquer",
+                target: cible,
+              };
+              let b = boutonAttaque(perso, -1, bopt);
+              if (!b.actionImpossible) {
+                ligne += b + ' ' + nomPerso(cible) + '<br/>';
+                return;
+              }
+            }
+            let vitesse = vitessePerso(perso);
+            let picto = '<span style="font-family: \'Pictos\'">4</span> ';
+            let style = 'style="background-color:#272751"';
+            let commande = "!cof2-mvt " + perso.token.id + " " + vitesse + " --typeAction M";
+            ligne += boutonSimple(commande, picto, style) + " Se déplacer de vers " + nomPerso(cible) + '<br/>';
+            return;
+          }
+          sendPerso(perso, "semble totalement perdu et ne fait rien ce tour");
+          depenseAction(perso, actionMax(perso), combat, evt);
+        }
+      }
+      //Proposer le jet de résistance (cas où le personnage ne fait rien)
       if (attributeAsInt(perso, 'limiteParTour_resisteConfusion', 1)) {
-      let difficulte = getIntValeurOfEffet(perso, 'confusion', 12);
-      let command = "!cof2-effet confusion 0 --save VOL "+difficulte+" --limiteParTour 1 resisteConfusion";
-      ligne += boutonSimple(command, "Essayer de retrouver ses esprits", BS_BUTTON)+'<br/>';
+        let difficulte = getIntValeurOfEffet(perso, 'confusion', 12);
+        let command = "!cof2-effet confusion 0 --save VOL " + difficulte + " --limiteParTour 1 resisteConfusion";
+        ligne += boutonSimple(command, "Essayer de retrouver ses esprits", BS_BUTTON) + '<br/>';
       }
       return;
     }
@@ -16193,7 +16337,7 @@ var COFantasy2 = COFantasy2 || function() {
             let met = messageOfEffet(etat + 'Temp');
             if (met && met.msgSave) msgPour = met.msgSave;
           } else {
-            etat = effetsAvecEtatPrejudiciable(function(effet) {
+            etat = effetsAvecEtatPrejudiciable.forEach(function(effet) {
               return attributeAsBool(perso, effet);
             });
             if (etat) {
@@ -23076,7 +23220,7 @@ var COFantasy2 = COFantasy2 || function() {
           return;
         case 'enVue':
           {
-            page = page || getObj("page", pageId);
+            page = page || getObj('page', pageId);
             murs = getWalls(page, pageId, murs);
             let tokensEnVue = findObjs({
               _type: 'graphic',
@@ -23623,7 +23767,7 @@ var COFantasy2 = COFantasy2 || function() {
     return ficheAttributeAsInt(perso, 'pc', 0);
   }
 
-  //!cof2-bouton-chance tokenId evtid rollId
+  //!cof2-bouton-chance tokenId evtid rollId [beneficiaireid]
   function commandeBoutonChance(cmd, playerId, pageId, options, perso) {
     let evt = findEvent(cmd[2]);
     if (evt === undefined) {
@@ -23641,7 +23785,23 @@ var COFantasy2 = COFantasy2 || function() {
       error("Erreur interne du bouton de chance : roll non identifié", cmd);
       return;
     }
-    if (roll.chance) {
+    let target;
+    let bonus = 10;
+    let textBonus = '10';
+    if (cmd.length > 4) {
+      target = persoOfId(cmd[4]);
+      if (target) {
+        let de = {
+          nbDe: 1,
+          dice: deEvolutif(target),
+          bonus: modCarac(target, 'cha')
+        };
+        let r = rollDePlus(de);
+        bonus = r.total;
+        textBonus = r.display;
+      }
+    }
+    if (roll.chance && roll.chance[perso.token.id]) {
       error("Un point de chance déjà dépensé pour ce jet, impossible d'en faire plus", roll);
       return;
     }
@@ -23663,11 +23823,15 @@ var COFantasy2 = COFantasy2 || function() {
     setFicheAttr(perso, 'pc', chance, evtChance, {
       msg: " a dépensé un point de chance. Il lui en reste " + chance
     });
-    roll.chance = true;
+    roll.chance = roll.chance || {
+      bonus: 0
+    };
+    roll.chance.bonus += bonus;
+    roll.chance[perso.token.id] = true;
     if (!roll.results) {
       //roll.results quand on fait le jet en sendChat. Sinon, c'est un rollDePlus, et on peut modifier directement
-      roll.total += 10;
-      roll.display += " +10 (PC)";
+      roll.total += bonus;
+      roll.display += " +" + textBonus + " (PC)";
     }
     if (!redoEvent(evt, args))
       error("Type d'évènement pas encore géré pour la chance", evt);
@@ -24559,17 +24723,16 @@ var COFantasy2 = COFantasy2 || function() {
     let jetTotal = roll.total + bonusCarac;
     let bonusText = (bonusCarac > 0) ? "+" + bonusCarac : (bonusCarac === 0) ? "" : bonusCarac;
     testRes.texte = jetCache ? jetTotal : roll.display + bonusText;
-    let chanceUtilisee = roll.chance;
     if (d20roll == 20) {
       testRes.reussite = true;
       testRes.critique = true;
-    } else if (d20roll <= plageEC && (!chanceUtilisee || jetTotal < seuil)) {
+    } else if (d20roll <= plageEC && (!roll.chance || jetTotal < seuil)) {
       testRes.reussite = false;
       testRes.echecCritique = true;
       diminueMalediction(perso, evt);
     } else if (jetTotal >= seuil) {
       testRes.reussite = true;
-      testRes.reussiteAvecComplications = chanceUtilisee && d20roll <= plageEC;
+      testRes.reussiteAvecComplications = roll.chance && d20roll <= plageEC;
     } else {
       diminueMalediction(perso, evt);
       testRes.reussite = false;
@@ -24578,12 +24741,11 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     testRes.valeur = jetTotal;
-    if (!testRes.reussite && !chanceUtilisee &&
+    if (!testRes.reussite &&
       (jetTotal + 10 >= seuil || prouessePossible(perso, carac, jetTotal + 10, seuil))) {
-      let pc = pointsDeChance(perso);
-      if (pc > 0) {
-        testRes.rerolls += '<br/>' + boutonChance(perso, testId, evt) + " (reste " + pc + " PC)";
-      }
+      boutonChance(perso, roll, evt, function(m) {
+        testRes.rerolls += '<br/>' + m;
+      });
     }
     testRes.modifiers = '';
     if (jetCache) sendChat('COF', "/w GM Jet caché : " + roll.display + bonusText);
@@ -25179,7 +25341,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - texte: Le texte du jet
   // - total : Le résultat total du jet
   // - echecCritique, critique pour indiquer si 1 ou 20
-  // - roll: le inlineroll
+  // - roll: le roll obtenu depuis rollDePlus
   // - explications
   function jetCaracteristique(perso, carac, options, testId, evt) {
     let explications = [];
@@ -25205,11 +25367,10 @@ var COFantasy2 = COFantasy2 || function() {
     let d20roll = roll.deVal;
     let total = roll.total + bonusCarac;
     let rtext = jetCache ? total : roll.display + bonusText;
-    let chanceUtilisee = roll.chance;
     let rt = {
       total,
-      chanceUtilisee,
       explications,
+      roll,
     };
     if (d20roll <= plageEC) {
       rtext += " -> échec critique";
@@ -25296,12 +25457,9 @@ var COFantasy2 = COFantasy2 || function() {
         diminueMalediction(perso, evt, attrMalediction);
       }
       let boutonsReroll = '';
-      if (!rt.chanceUtilisee) {
-        let pc = pointsDeChance(perso);
-        if (pc > 0) {
-          boutonsReroll += '<br/>' + boutonChance(perso, testId, evt) + " (reste " + pc + " PC)";
-        }
-      }
+      boutonChance(perso, rt.roll, evt, function(m) {
+        boutonsReroll += '<br/>' + m;
+      });
       if (stateCOF.combat && attributeAsBool(perso, 'runeForgesort_énergie') &&
         attributeAsInt(perso, 'attributDeCombat_runeForgesort_énergie', 1) > 0
       ) {
@@ -25652,11 +25810,9 @@ var COFantasy2 = COFantasy2 || function() {
         texte1 += "<br/>" + boutonSimple("!cof2-bouton-rune-energie " + perso1.token.id + ' ' + evt.id + " " + rollId1, "Rune d'énergie");
       }
       if (!rt1.echecCritique && !rt2.critique) {
-        if (!rt1.chanceUtilisee) {
-          let pcPerso1 = pointsDeChance(perso1);
-          if (pcPerso1 > 0)
-            texte1 += "<br/>" + boutonChance(perso1, rollId1, evt) + " (reste " + pcPerso1 + " PC)";
-        }
+        boutonChance(perso1, rt1.roll, evt, function(m) {
+          texte1 += "<br/>" + m;
+        });
         if (capaciteDisponible(perso1, 'prouesse', 'tour') &&
           (carac1 == 'FOR' || carac1 == 'CON')) {
           texte1 += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso1.token.id + ' ' + evt.id + " " + rollId1, "Prouesse");
@@ -25685,11 +25841,9 @@ var COFantasy2 = COFantasy2 || function() {
         texte2 += "<br/>" + boutonSimple("!cof2-bouton-rune-energie " + perso2.token.id + ' ' + evt.id + " " + rollId2, "Rune d'énergie");
       }
       if (!rt2.echecCritique && !rt1.critique) {
-        if (!rt2.chanceUtilisee) {
-          let pcPerso2 = pointsDeChance(perso2);
-          if (pcPerso2 > 0)
-            texte2 += "<br/>" + boutonChance(perso2, rollId2, evt) + " (reste " + pcPerso2 + " PC)";
-        }
+        boutonChance(perso2, rt2.roll, evt, function(m) {
+          texte2 += "<br/>" + m;
+        });
         if (capaciteDisponible(perso2, 'prouesse', 'tour') &&
           (carac2 == 'FOR' || carac2 == 'CON')) {
           texte2 += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso2.token.id + ' ' + evt.id + " " + rollId2, "Prouesse");
@@ -26927,6 +27081,7 @@ var COFantasy2 = COFantasy2 || function() {
     let res = {
       total: jetTotal + bonus,
       deVal: jetTotal,
+      id: rollId,
       type
     };
     if (args.divide && args.divide > 1) {
@@ -33355,7 +33510,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function parseIntOption(ctx, cmd, i, options, optionString) {
     let d = ctx.default;
-    if (cmd.length < i+1) {
+    if (cmd.length < i + 1) {
       if (ctx.defaultPredicate && options.acteur) {
         d = predicateAsInt(options.acteur, ctx.defaultPredicate, d);
       }
@@ -33407,7 +33562,7 @@ var COFantasy2 = COFantasy2 || function() {
   function twoIntegersOption(ctx, cmd, options, state, optionString, pageId) {
     if (cmd.length < 3) {
       if (!options.noError) {
-        error("Il faut deux arguments pour l'option "+cmd[0]);
+        error("Il faut deux arguments pour l'option " + cmd[0]);
       }
       return;
     }
