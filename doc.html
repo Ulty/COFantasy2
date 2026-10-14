@@ -1168,6 +1168,10 @@ tr {line-height: 25px;}
                 <ol>
                   <li><strong>Charmant :</strong> le script rajoute la compétence évolutive <code>charmer</code> et proposer au barde de dépenser ses PC sur les jets ratés de ses alliés.</li>
                 </ol>
+                <h4 class="text-secondary">Voie du vagabond</h4>
+                <ol>
+                  <li><strong>Rumeurs et légendes :</strong> le script rajoute la compétence évolutive <code>legendes</code>.</li>
+                </ol>
               </div>
                 <h3 class="text-info" id="caravanier">Caravanier</h3>
               <div class="decalage">
@@ -1395,6 +1399,18 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="voleur">Voleur</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie de l'assassin</h4>
+                <ol>
+                  <li><strong>Discrétion :</strong> ajoute la compétence évolutive, ainsi que le dé bonus contre les adversaires surpris.</li>
+                </ol>
+                <h4 class="text-secondary">Voie de l'aventurier</h4>
+                <ol>
+                  <li><strong>Baratin :</strong> ajoute la compétence évolutive, ainsi que la possibilité d'utiliser tous les parchemins.</li>
+                </ol>
+                <h4 class="text-secondary">Voie du déplacement</h4>
+                <ol>
+                  <li><strong>Agile :</strong> le script ajoute la compétence évolutive, ainsi que les bonus de DEF et d'init sur la fiche.</li>
+                </ol>
               </div>
               <h2 class="text-primary" id="prestige">5. Voies de prestige</h2>
               <h3 class="text-info" id="aventurier">Voies de prestige d'aventurier</h3>
@@ -1409,7 +1425,7 @@ tr {line-height: 25px;}
                 <h4 class="text-secondary">Voie de l'armure sacrée</h4>
                 <p>Pour que les valeurs de RD et les noms d'armure fonctionnent correctement, il faut que les rangs à partir du 6 soient pris seulement au sein de la Voie de l'armure sacrée, pas depuis une autre voie.
                 <ol start=4>
-                  <li><strong>Armure de bronze :</strong> le script propose de porter son armure de bronze en une action de mouvement.</p>
+                  <li><strong>Armure de bronze :</strong> le script propose de porter son armure de bronze en une action de mouvement. La gestion de l'armure est assez sommaire, elle va se contenter de cocher le fait de porter une armure, sans vérifier laquelle. À améliorer</p>
                 </ol>
               </div>
               <h2 class="text-primary" id="autres_capacites">6. Autres capacités</h2>
@@ -1602,6 +1618,7 @@ tr {line-height: 25px;}
                   <li><strong>tempsRecuperationRapide</strong> : le temps nécessaire à une récupération rapide</li>
                   <li><strong>tirIgnoreCibleEngagee</strong>: les attaques à distance igorent les pénalités liées aux cible aux contact avec des alliés.</li>
                   <li><strong>travailDEquipe</strong> : ajoute un dé bonus aux jet de pistage et de vigilance quand on contact du compagnon. Ajoute un dé bonus en attaque au compagnon s'il est au contact du personnage.</li>
+                  <li><strong>utilisationDeParchemins</strong> : donne la possibilité d'utiliser tous les parchemins avec un test de difficulté 10 + 2*rang du sort.</li>
                   <li><strong>visionDansLeNoir</strong> : entier. Le personnage voit dans le noir jusqu'à cette distance.</li>
                 <li><strong>vivacite</strong> : bonus aux tests pour éviter d'être immoblisé ou renversé.</li>
                 </ul>

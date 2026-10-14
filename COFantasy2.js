@@ -1,4 +1,4 @@
-//Dernière modification : sam. 10 oct. 2026,  01:29
+//Dernière modification : mar. 13 oct. 2026,  07:56
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3049,7 +3049,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (!options.distance)
         defense += predicateAsInt(target, 'dentellesEtRapiere', 0);
     }
-    defense += predicateAsInt(target, 'esquiveVoleur', 0);
     if (predicateAsBool(target, 'graceFeline')) {
       defense += modCarac(target, 'charisme');
     }
@@ -6361,7 +6360,7 @@ var COFantasy2 = COFantasy2 || function() {
       evt = lastEvent();
     }
     if (evt === undefined) {
-      sendChat('', "Historique d'actions vide, pas d'action trouvée pour esquiver");
+      sendChat('', "Historique d'actions vide, pas d'action trouvée pour "+verbe);
       return;
     }
     if (evt.type != 'Attaque') {
@@ -11531,14 +11530,25 @@ var COFantasy2 = COFantasy2 || function() {
               }
             }
             if (!diffTest) {
+              if (predicateAsBool(perso, 'utilisationDeParchemins')) {
+                diffTest = -1;
+              } else {
               //Impossible de lire le parchemin
               if (!options.testeRessources) expliquer("ne peut pas lire ce parchemin");
               return true;
+              }
             }
           }
         }
         if (diffTest && !options.testeRessources) {
-          diffTest = diffTest * 5;
+          if (diffTest < 0) diffTest = 10 + 2*options.parchemin.rang;
+          else {
+            diffTest = diffTest * 5;
+            if (predicateAsBool(perso, 'utilisationDeParchemins')) {
+              let d2 = 10 + 2*options.parchemin.rang;
+              if (d2 < diffTest) diffTest = d2;
+            }
+          }
           //Il faut faire un jet d'attaque magique
           expliquer("Jet d'attaque magique difficulté " + diffTest + " pour utiliser le parchemin");
           let bonus = attaquePerso(perso, 'atkmag');
@@ -11558,7 +11568,7 @@ var COFantasy2 = COFantasy2 || function() {
                 finDeplacementControle(perso, evt);
               }
             }
-            if (roll.total + 10 <= diffTest && options.decrAttribute) {
+            if (roll.total + 10 <= diffTest && options.decrAttribute && !predicateAsBool(perso, 'utilisationDeParchemins')) {
               expliquer("le parchemin devient inutilisable");
               //Alors le parchemin est détruit
               decrementeAttribut(perso, options.decrAttribute, evt, options);
@@ -12026,6 +12036,11 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'artificier',
         description: "fabriquer et tirer des feux d'artifices",
       },
+      baratin: {
+        nom: "Baratin",
+        description: "baratiner, séduire, négocier, mentir, marché noir",
+        competences: ['mentir'],
+      },
       charmer: {
         nom: 'Charmer',
         description: "séduire, convaincre, mentir, baratiner",
@@ -12034,6 +12049,16 @@ var COFantasy2 = COFantasy2 || function() {
       convertir: {
         nom: "Prédicateur",
         description: "convaincre ou convertir un auditoire",
+      },
+      discretion: {
+        nom: "Discrétion",
+        description: "discrétion, déguisement, cacher une arme sur soi",
+        competences: ['discretion'],
+      },
+      deplacement: {
+        nom: 'Déplacement',
+        description: "esquive, saut, course, éauilibre, escalade, se glisser entre des barreaux",
+        competences: ['saut', 'course', 'escalade', 'esquive']
       },
       eclaireur: {
         nom: 'Éclaireur',
@@ -12047,10 +12072,16 @@ var COFantasy2 = COFantasy2 || function() {
       esquive: {
         nom: "Esquive",
         description: "Tests d'AGI destinés à esquiver",
+        competences: ['esquive'],
       },
       injonction: {
         nom: "Persuasion de l'envoûteur",
         description: "persuasion et séduction",
+      },
+      legendes: {
+        nom: "Rumeurs et légendes",
+        description: "histoire, politique, géographie, occulte et objets magiques",
+        carac: "INT",
       },
       mecanismes: {
         nom: 'Mécanismes',
@@ -12443,6 +12474,10 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_charmer: true,
       depenserPCPourAllies: true,
     },
+    //Voie du vagabond
+    'rumeurs et legendes': {
+      bonusTestEvolutif_legendes: true,
+    },
     //Voies de rôdeur /////////////////////////////////////////////
     //Voie de l'archer
     'archer emerite': {
@@ -12581,6 +12616,33 @@ var COFantasy2 = COFantasy2 || function() {
         debutDuTour: true,
         cmd: '!cof2-effet paradeCroiseeDoublee 1',
       }
+    },
+    //Voies de voleur /////////////////////////////////////////////
+    //Voie de l'assassin
+    'discretion': {
+      bonusTestEvolutif_discretion: true,
+      deBonusContreSurpris: true,
+      Restriction_deBonusContreSurpris: 'armure_voleur',
+    },
+    //Voie de l'aventurier
+    'baratin': {
+      bonusTestEvolutif_baratin: true,
+      utilisationDeParchemins: true,
+    },
+    //Voie du déplacement
+    'agile': {
+      bonusTestEvolutif_deplacement: true,
+      buffsSurFiche: [{
+        nom: 'Agile (DEF)',
+        attrib: 'def',
+        limiteArmure: 'voleur',
+        value: 'SELONRANG(1,1,2,2,3)'
+      }, {
+        nom: 'Agile (init)',
+        attrib: 'init',
+        limiteArmure: 'voleur',
+        value: 'SELONRANG(1,1,2,2,3)'
+      }],
     },
     //Voies de barbare
     //Voie de la brute
@@ -19652,6 +19714,13 @@ var COFantasy2 = COFantasy2 || function() {
       });
   }
 
+  function retirerArmure(perso, effet, attr, newInit, evt, options) {
+    if (ficheAttributeAsInt(perso, 'armure_eqp', 0)) {
+      removeFicheAttr(perso, 'armure_eqp', evt);
+    }
+  }
+
+
   //Attributs possibles :
   // activation : message à l'activation
   // activationF : message à l'activation si la cible est féminine
@@ -20275,6 +20344,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "porte une armure sacrée",
       fin: "l'armure sacrée s'envole du corps et forme un cube de métal au pied de son porteur",
       visible: true,
+      finFun: retirerArmure,
     },
     benediction: {
       //courant: bonus de bénédiction
@@ -21172,6 +21242,11 @@ var COFantasy2 = COFantasy2 || function() {
         case 'invisibleTemp':
         case 'invisibleEnMinutes':
           setState(target, 'invisible', true, evt);
+          break;
+        case 'armureSacree':
+         if (!ficheAttributeAsInt(target, 'armure_eqp', 0) && ficheAttributeAsInt(target, 'armure', 0)) {
+           setFicheAttr(target, 'armure_eqp', 1, evt);
+         }
           break;
         case 'aspectDuDemon':
           //On retire l'autre aspect du Nécromancien si il est présent
@@ -24014,15 +24089,17 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //expliquer est optionnel, et si présent, il faut msg
-  function malusArmure(personnage, expliquer, msg) {
+  function malusArmure(perso, expliquer, msg) {
     let malusArmure = 0;
-    if (personnage.malusArmure === undefined) {
-      if (ficheAttributeAsInt(personnage, 'armure_eqp', 0, optTransforme))
-        malusArmure += ficheAttributeAsInt(personnage, 'armure_malus', 0, optTransforme);
-      //    if (ficheAttributeAsInt(personnage, 'bouclier_eqp', 0, optTransforme))
-      //     malusArmure += ficheAttributeAsInt(personnage, 'bouclier_malus', 0, optTransforme);
-      personnage.malusArmures = malusArmure;
-    } else malusArmure = personnage.malusArmure;
+    if (perso.malusArmure === undefined) {
+      if (!attributeAsBool(perso, 'armureSacree')) {
+      if (ficheAttributeAsInt(perso, 'armure_eqp', 0, optTransforme))
+        malusArmure += ficheAttributeAsInt(perso, 'armure_malus', 0, optTransforme);
+      //    if (ficheAttributeAsInt(perso, 'bouclier_eqp', 0, optTransforme))
+      //     malusArmure += ficheAttributeAsInt(perso, 'bouclier_malus', 0, optTransforme);
+      }
+      perso.malusArmures = malusArmure;
+    } else malusArmure = perso.malusArmure;
     if (expliquer && malusArmure > 0) {
       expliquer("Armure : -" + malusArmure + msg);
     }
@@ -24117,7 +24194,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (description) expliquer('<span title="' + description + '">' + nom + '</span> : ' + res);
   }
 
-  function bonusEvolutif(perso, competence, expliquer) {
+  //Si nomStrict est false, alors on va chercher tous les bonus pour la compétence
+  function bonusEvolutif(perso, competence, expliquer, nomStrict=true) {
     let p = predicatesNamed(perso, 'bonusTestEvolutif_' + competence);
     let res = 0;
     p.forEach(function(voie) {
@@ -24142,12 +24220,18 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     });
-    if (res < 7 && competence == 'vigilance') {
-      let ecl = bonusEvolutif(perso, 'eclaireur');
-      if (ecl > res) {
-        res = ecl;
-        competence = 'eclaireur';
+    if (res < 7 && !nomStrict) {
+    let comp = competence.toLowerCase();
+    descriptionBonus.Evolutif.forEach(function(db) {
+      let c = db.competences;
+      if (c && c.includes(comp)) {
+        let be = bonusEvolutif(perso, db.nom);
+        if (be > res) {
+          res = be;
+          competence = db.nom;
+        }
       }
+    });
     }
     if (res > 0 && expliquer) {
       expliquerBonus(perso, 'Evolutif', competence, res, expliquer);
@@ -24156,12 +24240,12 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //renvoie un bonus, mais peut aussi modifier les champs deBonus et deMalus des options
-  function bonusAuxCompetences(perso, comp, expliquer, options = {}) {
-    let bonus = predicateAsInt(perso, 'bonusTest_' + comp, 0);
+  function bonusAuxCompetences(perso, competence, expliquer, options = {}) {
+    let bonus = predicateAsInt(perso, 'bonusTest_' + competence, 0);
     let expl_comp = bonus !== 0;
-    let bonus_evol = bonusEvolutif(perso, comp, expliquer);
-    let bonus_plus = predicateAsInt(perso, 'bonusTestPeuple_' + comp, 0, 3);
-    bonus_plus += predicateAsInt(perso, 'bonusTestPrestige_' + comp, 0, 5);
+    let bonus_evol = bonusEvolutif(perso, competence, expliquer, false);
+    let bonus_plus = predicateAsInt(perso, 'bonusTestPeuple_' + competence, 0, 3);
+    bonus_plus += predicateAsInt(perso, 'bonusTestPrestige_' + competence, 0, 5);
     bonus += bonus_evol + bonus_plus;
     if (bonus > 15) bonus = 15;
     if (bonus && (expl_comp || bonus_plus)) {
@@ -24169,8 +24253,8 @@ var COFantasy2 = COFantasy2 || function() {
       if (bonus_evol) msg += "total ";
       expliquer(msg + ": " + ((bonus < 0) ? "-" : "+") + bonus);
     }
-    //TODO: revoir cette liste
-    switch (comp.toLowerCase()) {
+    let comp = competence.toLowerCase();
+    switch (comp) {
       case 'acrobatie':
       case 'acrobaties':
         {
@@ -24329,7 +24413,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (expertiseSpecialisee && typeof expertiseSpecialisee == 'string') {
       expertiseSpecialisee = expertiseSpecialisee.toLowerCase();
       if (expertiseSpecialisee == comp) {
-        expliquer("Expertise : +10 aux jet de " + comp);
+        expliquer("Expertise : +10 aux jet de " + competence);
         bonus += 10;
       }
     }
@@ -24566,7 +24650,6 @@ var COFantasy2 = COFantasy2 || function() {
     let bonusCompetence;
     if (options && options.competence) {
       bonus += bonusAuxCompetences(perso, options.competence, expliquer, options);
-      //TODO: implementer avec la nouvelle fiche
     }
     if (bonusCompetence === undefined) {
       if (carac == 'AGI') {
@@ -24927,32 +25010,34 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   // Meilleure carac parmis 2 pour un save.
-  function meilleureCarac(carac1, carac2, personnage, seuil) {
+  function meilleureCarac(carac1, carac2, perso, seuil) {
     let sansEsprit;
     if (carac1 == 'VOL' || carac1 == 'INT' || carac1 == 'CHA') {
-      sansEsprit = predicateAsBool(personnage, 'sansEsprit') ||
-        predicateAsBool(personnage, 'vegetatif');
+      sansEsprit = predicateAsBool(perso, 'sansEsprit') ||
+        predicateAsBool(perso, 'vegetatif');
       if (sansEsprit) return carac1;
     }
     if (sansEsprit === undefined &&
       (carac2 == 'VOL' || carac2 == 'INT' || carac2 == 'CHA')) {
-      sansEsprit = predicateAsBool(personnage, 'sansEsprit') ||
-        predicateAsBool(personnage, 'vegetatif');
+      sansEsprit = predicateAsBool(perso, 'sansEsprit') ||
+        predicateAsBool(perso, 'vegetatif');
       if (sansEsprit) return carac2;
     }
     const options = {
       cacheBonusToutesCaracs: {}
     };
-    let bonus1 = bonusTestCarac(carac1, personnage, options);
+    let bonus1 = bonusTestCarac(carac1, perso, options);
     if (carac1 == 'AGI') {
-      bonus1 += predicateAsInt(personnage, 'esquive', 0);
+      bonus1 += predicateAsInt(perso, 'esquive', 0);
+  bonus1 += bonusAuxCompetences(perso, 'esquive', function(m){});
     }
-    let bonus2 = bonusTestCarac(carac2, personnage, options);
+    let bonus2 = bonusTestCarac(carac2, perso, options);
     if (carac2 == 'AGI') {
-      bonus2 += predicateAsInt(personnage, 'esquive', 0);
+      bonus2 += predicateAsInt(perso, 'esquive', 0);
+  bonus2 += bonusAuxCompetences(perso, 'esquive', function(m){});
     }
-    let nbrDe1 = (caracHeroique(carac1, personnage) ? 2 : 1);
-    let nbrDe2 = (caracHeroique(carac2, personnage) ? 2 : 1);
+    let nbrDe1 = (caracHeroique(carac1, perso) ? 2 : 1);
+    let nbrDe2 = (caracHeroique(carac2, perso) ? 2 : 1);
     let proba1 = probaSucces(20, seuil - bonus1, nbrDe1);
     let proba2 = probaSucces(20, seuil - bonus2, nbrDe2);
     if (proba2 > proba1) return carac2;
@@ -25084,9 +25169,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (s.carac2) {
       carac = meilleureCarac(carac, s.carac2, target, seuil);
     }
-    if (carac == 'AGI') {
-      bonusPreds.push('esquive');
-    }
     if (options.sortilege) {
       bonusPreds.push('resistanceALaMagie');
     }
@@ -25109,6 +25191,7 @@ var COFantasy2 = COFantasy2 || function() {
     optionsTest.bonusAttrs = bonusAttrs;
     optionsTest.bonusPreds = bonusPreds;
     optionsTest.bonus = bonus;
+    if (carac == 'AGI') optionsTest.competence = 'esquive'; //Va aussi rajouter les prédicats
     let tr = testCaracteristique(target, carac, seuil, saveId, optionsTest, evt);
     let smsg = nomPerso(target) + " fait ";
     if (tr.explications.length === 0) {
