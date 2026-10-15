@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 15 oct. 2026,  04:35
+//Dernière modification : jeu. 15 oct. 2026,  05:05
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -33627,6 +33627,7 @@ var COFantasy2 = COFantasy2 || function() {
         d = ctx.max;
       }
     }
+    return d;
   }
 
   function integerOption(ctx, cmd, options, state, optionString, pageId) {
