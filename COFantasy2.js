@@ -1,4 +1,4 @@
-//Dernière modification : mar. 13 oct. 2026,  07:56
+//Dernière modification : jeu. 15 oct. 2026,  10:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -6208,7 +6208,7 @@ var COFantasy2 = COFantasy2 || function() {
             bonusAttaqueA(attaquant, weaponStats, evt, explications, options);
           if (rollAttack.chance) {
             attBonusCommun += rollAttack.chance.bonus;
-            explications.push("Point de chance dépensé => +"+rollAttack.chance.bonus+" en Attaque");
+            explications.push("Point de chance dépensé => +" + rollAttack.chance.bonus + " en Attaque");
           }
         } else { //calcul des options affectant les DM
           bonusDMA(attaquant, weaponStats, evt, explications, options);
@@ -6360,7 +6360,7 @@ var COFantasy2 = COFantasy2 || function() {
       evt = lastEvent();
     }
     if (evt === undefined) {
-      sendChat('', "Historique d'actions vide, pas d'action trouvée pour "+verbe);
+      sendChat('', "Historique d'actions vide, pas d'action trouvée pour " + verbe);
       return;
     }
     if (evt.type != 'Attaque') {
@@ -6779,7 +6779,7 @@ var COFantasy2 = COFantasy2 || function() {
       else if (attBonus < 0) msg += attBonus;
       if (attackRoll.chance) {
         totalEvitement += attackRoll.chance.bonus;
-        msg += "+"+attackRoll.chance.bonus+" (PC)";
+        msg += "+" + attackRoll.chance.bonus + " (PC)";
       }
       const optionsEvitement = {
         displayName: true,
@@ -11533,19 +11533,19 @@ var COFantasy2 = COFantasy2 || function() {
               if (predicateAsBool(perso, 'utilisationDeParchemins')) {
                 diffTest = -1;
               } else {
-              //Impossible de lire le parchemin
-              if (!options.testeRessources) expliquer("ne peut pas lire ce parchemin");
-              return true;
+                //Impossible de lire le parchemin
+                if (!options.testeRessources) expliquer("ne peut pas lire ce parchemin");
+                return true;
               }
             }
           }
         }
         if (diffTest && !options.testeRessources) {
-          if (diffTest < 0) diffTest = 10 + 2*options.parchemin.rang;
+          if (diffTest < 0) diffTest = 10 + 2 * options.parchemin.rang;
           else {
             diffTest = diffTest * 5;
             if (predicateAsBool(perso, 'utilisationDeParchemins')) {
-              let d2 = 10 + 2*options.parchemin.rang;
+              let d2 = 10 + 2 * options.parchemin.rang;
               if (d2 < diffTest) diffTest = d2;
             }
           }
@@ -21244,9 +21244,9 @@ var COFantasy2 = COFantasy2 || function() {
           setState(target, 'invisible', true, evt);
           break;
         case 'armureSacree':
-         if (!ficheAttributeAsInt(target, 'armure_eqp', 0) && ficheAttributeAsInt(target, 'armure', 0)) {
-           setFicheAttr(target, 'armure_eqp', 1, evt);
-         }
+          if (!ficheAttributeAsInt(target, 'armure_eqp', 0) && ficheAttributeAsInt(target, 'armure', 0)) {
+            setFicheAttr(target, 'armure_eqp', 1, evt);
+          }
           break;
         case 'aspectDuDemon':
           //On retire l'autre aspect du Nécromancien si il est présent
@@ -24093,10 +24093,10 @@ var COFantasy2 = COFantasy2 || function() {
     let malusArmure = 0;
     if (perso.malusArmure === undefined) {
       if (!attributeAsBool(perso, 'armureSacree')) {
-      if (ficheAttributeAsInt(perso, 'armure_eqp', 0, optTransforme))
-        malusArmure += ficheAttributeAsInt(perso, 'armure_malus', 0, optTransforme);
-      //    if (ficheAttributeAsInt(perso, 'bouclier_eqp', 0, optTransforme))
-      //     malusArmure += ficheAttributeAsInt(perso, 'bouclier_malus', 0, optTransforme);
+        if (ficheAttributeAsInt(perso, 'armure_eqp', 0, optTransforme))
+          malusArmure += ficheAttributeAsInt(perso, 'armure_malus', 0, optTransforme);
+        //    if (ficheAttributeAsInt(perso, 'bouclier_eqp', 0, optTransforme))
+        //     malusArmure += ficheAttributeAsInt(perso, 'bouclier_malus', 0, optTransforme);
       }
       perso.malusArmures = malusArmure;
     } else malusArmure = perso.malusArmure;
@@ -24195,7 +24195,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //Si nomStrict est false, alors on va chercher tous les bonus pour la compétence
-  function bonusEvolutif(perso, competence, expliquer, nomStrict=true) {
+  function bonusEvolutif(perso, competence, expliquer, nomStrict = true) {
     let p = predicatesNamed(perso, 'bonusTestEvolutif_' + competence);
     let res = 0;
     p.forEach(function(voie) {
@@ -24221,17 +24221,18 @@ var COFantasy2 = COFantasy2 || function() {
       }
     });
     if (res < 7 && !nomStrict) {
-    let comp = competence.toLowerCase();
-    descriptionBonus.Evolutif.forEach(function(db) {
-      let c = db.competences;
-      if (c && c.includes(comp)) {
-        let be = bonusEvolutif(perso, db.nom);
-        if (be > res) {
-          res = be;
-          competence = db.nom;
+      let comp = competence.toLowerCase();
+      for (let n in descriptionBonus.Evolutif) {
+        let db = descriptionBonus.Evolutif[n];
+        let c = db.competences;
+        if (c && c.includes(comp)) {
+          let be = bonusEvolutif(perso, db.nom);
+          if (be > res) {
+            res = be;
+            competence = db.nom;
+          }
         }
       }
-    });
     }
     if (res > 0 && expliquer) {
       expliquerBonus(perso, 'Evolutif', competence, res, expliquer);
@@ -25029,12 +25030,12 @@ var COFantasy2 = COFantasy2 || function() {
     let bonus1 = bonusTestCarac(carac1, perso, options);
     if (carac1 == 'AGI') {
       bonus1 += predicateAsInt(perso, 'esquive', 0);
-  bonus1 += bonusAuxCompetences(perso, 'esquive', function(m){});
+      bonus1 += bonusAuxCompetences(perso, 'esquive', function(m) {});
     }
     let bonus2 = bonusTestCarac(carac2, perso, options);
     if (carac2 == 'AGI') {
       bonus2 += predicateAsInt(perso, 'esquive', 0);
-  bonus2 += bonusAuxCompetences(perso, 'esquive', function(m){});
+      bonus2 += bonusAuxCompetences(perso, 'esquive', function(m) {});
     }
     let nbrDe1 = (caracHeroique(carac1, perso) ? 2 : 1);
     let nbrDe2 = (caracHeroique(carac2, perso) ? 2 : 1);
@@ -31415,7 +31416,7 @@ var COFantasy2 = COFantasy2 || function() {
       addLineToFramedDisplay(display, msgRate);
     }
     let opt = {
-      maxVal: tempsInconscient
+      maxVal: tempsInconscient * 10 //on compte le temps en tours
     };
     setTokenAttr(cible, 'inconscientApresPremiersSoins', soins, evt, opt);
     sendFramedDisplay(display);
