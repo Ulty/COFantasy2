@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 15 oct. 2026,  10:53
+//Dernière modification : jeu. 15 oct. 2026,  04:35
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -6001,7 +6001,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
       explications.push(msg);
     }
-    if (!options.auto && predicateAsBool(attaquant, 'deBonusContreSurpris') && cibles.forAll(function(target) {
+    if (!options.auto && predicateAsBool(attaquant, 'deBonusContreSurpris') && cibles.every(function(target) {
         return getState(target, 'surpris');
       })) {
       explications.push("Dé bonus contre adversaire surpris");
@@ -14247,11 +14247,12 @@ var COFantasy2 = COFantasy2 || function() {
       let actions = [];
       if (persoEstPNJ(perso)) {
         let capas = extractRepeating(perso, 'npcrolls');
-        let opt = {
-          pnj: capas
-        };
         for (const idx in capas) {
-          let nom = capas[idx]['npcroll-name'];
+          let cidx = capas[idx];
+          let nom = cidx['npcroll-name'];
+          let opt = {
+            pnj: cidx,
+          };
           predicatsDeCapacite(perso, nom, 0, 5, capacites, actions, {}, {}, opt);
         }
       } else {
