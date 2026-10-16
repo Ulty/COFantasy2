@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 15 oct. 2026,  05:05
+//Dernière modification : ven. 16 oct. 2026,  04:04
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4049,13 +4049,6 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (options.contact) {
-      if ((attributeAsBool(target, 'criDeGuerre') ||
-          attributeAsBool(target, 'criDuPredateur')) &&
-        modCarac(attaquant, 'force') <= modCarac(target, 'force')
-      ) {
-        attBonus -= 2;
-        explications.push("Effrayé => -2 en Attaque");
-      }
       let soutien = 'soutenuContre(' + target.token.id + ')';
       if (attributeAsBool(attaquant, soutien)) {
         let bonusSoutien = getIntValeurOfEffet(attaquant, soutien, 5);
@@ -4262,10 +4255,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (persoEstPNJ(attaquant) && options.attaqueDeGroupe === undefined) {
       options.attaqueDeGroupe = ficheAttributeAsInt(attaquant, 'attaque_de_groupe', 1);
     }
-    if (attributeAsBool(attaquant, 'criDuPredateur')) {
-      attBonus += 1;
-      explications.push("Cri du prédateur => +1 en attaque");
-    }
     if (attributeAsBool(attaquant, 'baroudHonneurActif')) {
       attBonus += 5;
       explications.push(nomPerso(attaquant) + " porte une dernière attaque et s'effondre");
@@ -4393,6 +4382,10 @@ var COFantasy2 = COFantasy2 || function() {
       if (!armeMaitrisee(attaquant, weaponStats)) {
         deMalus++;
         explications.push("Arme non maîtrisée => dé malus en Attaque");
+      }
+      if (options.contact && attributeAsBool(attaquant, 'effrayeParCriDeGuerre')) {
+        deMalus++;
+        explications.push("Effrayé"+eForFemale(attaquant)+" par le cri de guerre => dé malus en Attaque");
       }
     }
     let deBonus = options.deBonus;
@@ -5383,6 +5376,15 @@ var COFantasy2 = COFantasy2 || function() {
         let rendDecr; //attribute de rendement décroissant, si nécessaire
         let bonusDecr = 0;
         if (options.attaqueMagiqueOpposee) {
+          if (options.immuniseSiResiste && attributeAsBool(target, options.immuniseSiResiste)) {
+            target.message.push("a déjà résisté à cet effet");
+            touche = false;
+            d20roll = 3;
+            delete target.triche;
+            delete options.triche;
+            defense = 6 + attSkill + attBonus;
+            defenseTxt = 'résistance automatique';
+          } else {
           let deArgs = {
             dice: 20
           };
@@ -5416,6 +5418,7 @@ var COFantasy2 = COFantasy2 || function() {
             defense += bonusDecr;
             target.messages.push(nomPerso(target) + " est plus résistant" + eForFemale(target) + " à ce sort (+" + bonusDecr + ")");
             defenseTxt += ' +' + bonusDecr;
+          }
           }
         } else if (options.attaqueContactOpposee) {
           let testIdOpp = 'attaqueContactOpposee_' + target.token.id;
@@ -5684,6 +5687,8 @@ var COFantasy2 = COFantasy2 || function() {
             touche = true;
             evt.succes = true;
           } else {
+            if (options.immuniseSiResiste)
+        setTokenAttr(target, options.immuniseSiResiste, true, evt);
             if (target.colleASaProie) {
               let r = {
                 type: mainDmgType,
@@ -7132,6 +7137,9 @@ var COFantasy2 = COFantasy2 || function() {
     };
     optionsPeur.bonus = allieSansPeur;
     optionsPeur.bonus += predicateAsInt(target, 'courage', 0);
+    optionsPeur.bonus += bonusEvolutif(target, 'courage', function(msg) {
+      messages.push(msg);
+    }, false);
     let testId = 'peurOne_' + target.token.id;
     let tr = testCaracteristique(target, carac, difficulte, testId, optionsPeur, evt);
     let line = targetName + " fait " + tr.texte;
@@ -7285,6 +7293,13 @@ var COFantasy2 = COFantasy2 || function() {
     if (weaponStats.attCarBonus != '@{per}' && weaponStats.arc && predicateAsBool(attaquant, 'ajoutePERauxDMdArc')) {
       let bonus = modCarac(attaquant, 'per');
       if (bonus > 0) {
+        attDMBonusCommun += bonus;
+      }
+    }
+    if (weaponStats.portee > 0 && (weaponStats.dague || weaponStats.couteau)) {
+      let bonus = predicateAsInt(attaquant, 'bonusDMCouteauxLances', 0);
+      if (bonus > 0) {
+        explications.push("Doigts agiles => +"+bonus+" DM");
         attDMBonusCommun += bonus;
       }
     }
@@ -12024,6 +12039,11 @@ var COFantasy2 = COFantasy2 || function() {
         description: "réaliser des acrobaties, tenir en équilibre, faire des sauts, escalader",
         competences: ['escalade', 'sauter'],
       },
+      athlete: {
+        nom: "Athlète",
+        description: "course, saut, escalade",
+        competences: ['course', 'saut', 'escalade'],
+      },
       animaux: {
         nom: 'Influencer les animaux',
         description: "influencer un animal avec lequel on peut parler",
@@ -12050,9 +12070,19 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Prédicateur",
         description: "convaincre ou convertir un auditoire",
       },
+      courage: {
+        nom: "Courage",
+        description: "Résister à la peur",
+        carac: "VOL",
+      },
       discretion: {
         nom: "Discrétion",
         description: "discrétion, déguisement, cacher une arme sur soi",
+        competences: ['discretion'],
+      },
+      discretionBarbare: {
+        nom: "Discrétion",
+        description: "discrétion en milieu naturel",
         competences: ['discretion'],
       },
       deplacement: {
@@ -12074,9 +12104,18 @@ var COFantasy2 = COFantasy2 || function() {
         description: "Tests d'AGI destinés à esquiver",
         competences: ['esquive'],
       },
+      evaluation: {
+        nom: "Évaluation d'objets précieux",
+        description: "Évaluer la valeur de joyaux, bijous, etc.",
+        carac: "INT",
+      },
       injonction: {
         nom: "Persuasion de l'envoûteur",
         description: "persuasion et séduction",
+      },
+      intimidation: {
+        nom: "Intimidation",
+        description: "Intimider un adversaire par ses prouesses avec son arme",
       },
       legendes: {
         nom: "Rumeurs et légendes",
@@ -12098,6 +12137,11 @@ var COFantasy2 = COFantasy2 || function() {
       plantes: {
         nom: 'Plantes',
         description: "identifier les plantes et connaître leurs propriétés",
+      },
+      precisionManuelle: {
+        nom: "Précision manuelle",
+        description: "crocheter une serrure, désamorcer un piège, pickpocket, ...",
+        competences: ['crochetage', 'desamorcer'],
       },
       savoirsSombres: {
         nom: 'Savoirs sombres',
@@ -12590,7 +12634,25 @@ var COFantasy2 = COFantasy2 || function() {
       Restriction_bonusTestEvolutif_eclaireur: 'milieuNaturel',
       bonusTestEvolutif_pistageNaturel: true,
       Restriction_bonusTestEvolutif_pistageNaturel: 'milieuNaturel',
-      DRAuLieuDePC: 'PARAM.PC',
+      predSelonParam: {
+        fieldParam: 'choix',
+        defaut: {
+          //Ne rien changer par défaut
+        },
+        'PC': {
+        },
+        'DR': {
+          buffsSurFiche: [{
+        nom: 'Éclaireur bonus DR',
+        attrib: 'dr',
+        value: '1',
+      }, {
+        nom: 'Éclaireur malus PC',
+        attrib: 'pc',
+        value: '-1',
+      }],
+        },
+      },
     },
     'attaque eclair': {
       action: {
@@ -12644,6 +12706,24 @@ var COFantasy2 = COFantasy2 || function() {
         value: 'SELONRANG(1,1,2,2,3)'
       }],
     },
+    //Voie du roublard
+    'doigts agiles': {
+      bonusTestEvolutif_precisionManuelle: true,
+      bonusTestEvolutif_evaluation: true,
+      bonusDMCouteauxLances: 'SELONRANG(1,1,2,2,3)',
+      Restriction_bonusDMCouteauxLances: 'voleur',
+    },
+    //Voie du spadassin
+    'attaque en finesse': {
+      bonusTestEvolutif_intimidation: true,
+      armesLegeresAvecAGI: true,
+      buffsSurFiche: [{
+        nom: "Attaque en finesse",
+        attrib: 'init',
+        limiteArmure: 'voleur',
+        value: '[AGI]',
+      }],
+    },
     //Voies de barbare
     //Voie de la brute
     'argument de taille': {
@@ -12658,6 +12738,16 @@ var COFantasy2 = COFantasy2 || function() {
     'tour de force': {
       barbareEnChemiseDeMailles: true,
       //TODO: donner la possibilité de dépenser 1d4E PV pour un bonus de +10 en cas de jet de force, avant de faire le jet
+    },
+    //Voie du pagne
+    'vigueur': {
+      bonusTestEvolutif_athlete: true,
+      buffsSurFiche: [{
+        nom: 'Vigueur',
+        attrib: 'pv',
+        limiteArmure: 'barbare',
+        value: 'RANG',
+      }],
     },
     //Voie du pourfendeur
     'reflexes eclair': {
@@ -12684,6 +12774,29 @@ var COFantasy2 = COFantasy2 || function() {
         pasAuContactAdversaire: true,
         limiteArmure: 'barbare',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deplaceDe 5 10 --deBonus --plus 1d4E',
+      },
+    },
+    //Voie du primitif
+    'proche de la nature': {
+      bonusTestEvolutif_survieRodeur: true,
+      Restriction_bonusTestEvolutif_survieRodeur: 'milieuNaturel',
+      bonusTestEvolutif_discretionBarbare: true,
+      Restriction_bonusTestEvolutif_discretionBarbare: 'milieuNaturel',
+      buffsSurFiche: [{
+        nom: 'Proche de la nature',
+        attrib: 'pv',
+        limiteArmure: 'barbare',
+        value: 'RANG',
+      }],
+    },
+    //Voie de la rage
+    'cri de guerre': {
+      bonusTestEvolutif_courage: true,
+      action: {
+        nom: "Cri de guerre",
+        type: 'G',
+        combat: true,
+        cmd: '!cof2-attaque @{selected|token_id}  @{selected|token_id} Cri de guerre --explosion --portee 10 --saufAllies --auto --pasDeDmg --limiteParCombat 1 criDeGuerre --conditionAttaque moins for --effet effrayeParCriDeGuerre 1 --message pousse un cri de guerre',
       },
     },
     //Voies de chevalier ////////////////////////////////////////////
@@ -12880,7 +12993,7 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-effet intangible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
       },
     },
-    //Voie de l'envouteur
+    //Voie de l'envoûteur
     injonction: {
       bonusTestEvolutif_injonction: true,
       profil: 'ensorceleur',
@@ -12889,7 +13002,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 1,
         limiteArmure: 'ensorceleur',
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --immuniseSiResiste limiteParJour_injonction"
       },
     },
     sommeil: {
@@ -12909,7 +13022,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         type: 'A',
         mana: 3,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]] --immuniseSiResiste limiteParJour_confusion"
       },
     },
     'amitie': {
@@ -12919,7 +13032,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         typeAction: 'L',
         mana: 4,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --controleMental --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]]"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --controleMental --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]] --immuniseSiResiste limiteParJour amitie"
       },
     },
     'domination': {
@@ -12929,7 +13042,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         typeAction: 'A',
         mana: 5,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome --immuniseSiResiste limiteParJour domination",
       },
     },
     //Voie des illusions
@@ -13402,7 +13515,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         dm: true,
         combat: true,
-        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --plus @{selected|CHA} --chatimentDivin SELONRANG(1,1,1,1,2)',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --plus @{selected|CHA} --chatimentDivin SELONRANG(1,1,1,1,2) --message Châtiment divin !',
       },
     },
     //Voie de la prière
@@ -13848,25 +13961,25 @@ var COFantasy2 = COFantasy2 || function() {
       log("Prédicats pour " + capacite + " inconnus ou pas encore entrés");
       return;
     }
-    let param, rmax;
+    let paramRaw, rmax;
     if (options.pnj) {
-      param = options.pnj['npcroll-param'];
+      paramRaw = options.pnj['npcroll-param'];
       rmax = 5;
     } else {
-      param = ficheAttribute(perso, 'v' + numVoie + 'r' + rang + '_param', '');
+      paramRaw = ficheAttribute(perso, 'v' + numVoie + 'r' + rang + '_param', '');
       rmax = rangDansLaVoie(perso, numVoie);
     }
-    let params = predicateOfRaw(param);
-    params.parametreTotal = param;
+    let params = predicateOfRaw(paramRaw);
+    params.parametreTotal = paramRaw;
     let warnParam = true;
     preds = deepCopy(preds);
     delete preds.capaciteAmbigue;
     delete preds.profil;
     let psp = preds.predSelonParam;
     if (psp) {
-      let choice = param;
+      let choice = params.parametreTotal;
       let field = psp.fieldParam;
-      if (field) choice = param[field];
+      if (field) choice = params[field];
       let p = psp[choice] || psp.defaut;
       if (p) {
         for (let f in p) {
@@ -13903,19 +14016,6 @@ var COFantasy2 = COFantasy2 || function() {
         if (params.optAction) act.cmd += ' ' + params.optAction;
       }
       delete preds.actions;
-    }
-    //Les bonus permanents qui ont sur la fiche
-    if (preds.DRAuLieuDePC && preds.DRAuLieuDePC.trim().toLowerCase() == 'dr') {
-      preds.buffsSurFiche = [{
-        nom: 'Éclaireur bonus DR',
-        attrib: 'dr',
-        value: '1',
-      }, {
-        nom: 'Éclaireur malus PC',
-        attrib: 'pc',
-        value: '-1',
-      }, ];
-      delete preds.DRAuLieuDePC;
     }
     if (preds.plusParVoieDeRang) {
       replaceSpecialInField(preds, 'plusParVoieDeRang', numVoie, rmax, params);
@@ -20025,6 +20125,12 @@ var COFantasy2 = COFantasy2 || function() {
       dm: true,
       visible: true
     },
+    chargeFantastique: {
+      activation: "participe à la charge fantastique !",
+      actif: "charge fantastique",
+      fin: "fin de la charge",
+      dureeEnTours: true,
+    },
     confusion: {
       activation: "devient désorienté",
       activationF: "devient désorientée",
@@ -20052,12 +20158,6 @@ var COFantasy2 = COFantasy2 || function() {
       dureeEnTours: true,
       visible: true,
     },
-    chargeFantastique: {
-      activation: "participe à la charge fantastique !",
-      actif: "charge fantastique",
-      fin: "fin de la charge",
-      dureeEnTours: true,
-    },
     dotGen: {
       activation: "subit un effet",
       actif: "subit régulièrement des dégâts",
@@ -20077,6 +20177,15 @@ var COFantasy2 = COFantasy2 || function() {
       generic: true,
       prejudiciable: true,
       plusieurs: true,
+    },
+    effrayeParCriDeGuerre: {
+      activation: "est effrayé par le cri de guerre",
+      activationF: "est effrayée par le cri de guerre",
+      actif: "est effrayé par le cri de guerre",
+      actifF: "est effrayée par le cri de guerre",
+      fin: "retrouve du courage",
+      dureeEnTour: true,
+      prejudiciable: true,
     },
     flecheVivante: {
       activation: "la flèche prend racine dans la plaie",
@@ -28396,6 +28505,7 @@ var COFantasy2 = COFantasy2 || function() {
     identifierArme(weaponStats, pred, 'arcCourt', /\barc court\b/i);
     identifierArme(weaponStats, pred, 'arbalete', /\barbal[eè]te\b/i);
     identifierArme(weaponStats, pred, 'baton', /\bb[aâ]ton\b/i);
+    identifierArme(weaponStats, pred, 'couteau', /\bcouteau\b/i);
     identifierArme(weaponStats, pred, 'dague', /\bdague\b/i);
     identifierArme(weaponStats, pred, 'hache', /\bhache\b/i);
     identifierArme(weaponStats, pred, 'hachette', /\bhachette\b/i);
@@ -28493,6 +28603,7 @@ var COFantasy2 = COFantasy2 || function() {
     barde: {
       uneMain: true,
       dague: true,
+      couteau: true,
     },
     rodeur: {
       contactUneMain: true,
@@ -34648,6 +34759,7 @@ var COFantasy2 = COFantasy2 || function() {
     imgAttackEchecCritique: wordDefaultOption,
     imgAttackSucces: wordDefaultOption,
     imgAttackSuccesCritique: wordDefaultOption,
+    immuniseSiResiste: wordDefaultOption,
     incrCritCoef: {
       fn: integerOption,
       default: 1,
@@ -34725,6 +34837,10 @@ var COFantasy2 = COFantasy2 || function() {
     noSelect: boolDefaultOption,
     optionEffet: {
       fn: effetOptionOption
+    },
+    ouvertureMortelle: {
+      fn: booleanOption,
+      local: true
     },
     parchemin: {
       fn: parcheminOption
@@ -34918,10 +35034,6 @@ var COFantasy2 = COFantasy2 || function() {
     maxDmg: {
       fn: booleanOption,
       local: true,
-    },
-    ouvertureMortelle: {
-      fn: booleanOption,
-      local: true
     },
   };
 

@@ -772,6 +772,7 @@ tr {line-height: 25px;}
                     <li><code>--<i>type</i></code> : il est possible d'associer un type à l'effet. L'utilisation la plus courante est le type <code>poison</code> ou <code>maladie</code>, qui vont permettre de tenir compte des bonus ou immunités contre les effets de ce type.</li>
                     <li><code>--montreActions</code> : affiche les actions du tours de la cible après avoir appliqué l'effet. Utile si les actions du tours dépendent de cet effet, pour afficher une liste à jour.</li>
                     <li><code>--degainer <i>L</i></code> : le lanceur dégaine l'arme de label <i>L</i>.</li>
+                    <li><code>--valeurSiNCAuMoins <i>n</i></code> : remplace la valeur de l'effet si le NC de la cible est supérieur ou égal à <i>n</i>.</li>
                   </ul>
                   <p> Il existe un effet temporaire générique sans message, pour avoir des timers associés à des personnages : <code>effetTempGenerique</code>. Vous pouvez décider du message à la création avec l'option <code>--activation</code>, du message de statut avec <code>--actif</code> et du message de fin avec <code>--fin</code>.</p>
                   <p><code>!cof-boire-alcool</code> et <code>!cof-desaouler</code> permettent de faire varier le niveau d'ébriété. Par exemple, pour tester si le niveau d'ébriété augmente après avoir bu un certain nombre de verres, on peut utiliser la macro <code>!cof-boire-alcool --save CON [[10+?{Nombre de verres}]]</code>.
@@ -1140,10 +1141,22 @@ tr {line-height: 25px;}
                 <ol>
                   <li><strong>Arguments de taille :</strong> le script ajoute un buff pour les PV, et ajoute le bonus aux jets des alliés, mais je ne suis pas encore très satisfait de la façon dont on peut proposer ces jets. Si quelqu'un a des idées...</li>
                 </ol>
+                <h4 class="text-secondary">Voie du pagne</h4>
+                <ol>
+                  <li><strong>Vigueur :</strong> le script ajoute un buff pour les PV, et la competence évolutive.</li>
+                </ol>
                 <h4 class="text-secondary">Voie du pourfendeur</h4>
                 <ol>
                   <li><strong>Réflexes éclairs :</strong> tout est pris en compte par le script.</li>
                   <li><strong>Charge :</strong> le script propose l'action quand le personnage n'est pas au contact d'un adversaire.</li>
+                </ol>
+                <h4 class="text-secondary">Voie du primitif</h4>
+                <ol>
+                  <li><strong>Proche de la nature :</strong> le script ajoute un buff pour les PV, et les competences évolutives. Suivant les discussions avec Kegron, le buff est de 1 par rang dans la voie.</li>
+                </ol>
+                <h4 class="text-secondary">Voie de la rage</h4>
+                <ol>
+                  <li><strong>Cri de guerre :</strong> pris en charge par le script.</li>
                 </ol>
               </div>
                 <h3 class="text-info" id="barde">Barde</h3>
@@ -1377,7 +1390,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie du traqueur</h4>
                 <ol>
-                  <li><strong>Éclaireur :</strong> ajoute automatiquement les compétences évolutives (y compris le bonus en cas de test de surprise si le milieu est naturel). Pour remplacer les bonus de PC par un bonus de DR, ajouter <code>PC:DR</code> dans les paramètres de la compétence.</li>
+                  <li><strong>Éclaireur :</strong> ajoute automatiquement les compétences évolutives (y compris le bonus en cas de test de surprise si le milieu est naturel). Pour remplacer les bonus de PC par un bonus de DR, ajouter <code>choix:DR</code> dans les paramètres de la compétence.</li>
                   <li><strong>Attaque éclair :</strong> le script ajoute l'action dans la liste du tour.</li>
                 </ol>
                 <h4 class="text-secondary">Voie du combat à deux armes</h4>
@@ -1410,6 +1423,14 @@ tr {line-height: 25px;}
                 <h4 class="text-secondary">Voie du déplacement</h4>
                 <ol>
                   <li><strong>Agile :</strong> le script ajoute la compétence évolutive, ainsi que les bonus de DEF et d'init sur la fiche.</li>
+                </ol>
+                <h4 class="text-secondary">Voie du roublard</h4>
+                <ol>
+                  <li><strong>Doigts agiles :</strong> le script ajoute les compétences évolutives et le bonus aux DM.</li>
+                </ol>
+                <h4 class="text-secondary">Voie du spadassin</h4>
+                <ol>
+                  <li><strong>Attaque en finesse :</strong> le script ajoute la compétence évolutive, le bonus en initiative et choisit le meilleur entre AGI et FOR pour les armes légères.</li>
                 </ol>
               </div>
               <h2 class="text-primary" id="prestige">5. Voies de prestige</h2>
