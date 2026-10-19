@@ -1,4 +1,4 @@
-//Dernière modification : lun. 19 oct. 2026,  05:47
+//Dernière modification : lun. 19 oct. 2026,  05:51
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -15933,10 +15933,15 @@ var COFantasy2 = COFantasy2 || function() {
       line += "<span title=\"Pas de malus avec attaque parfaite\">?</span>";
     }
     line += DIFF_TAILLE + "<br/>";
+    //Aveugler
+    choix = "?{Aveugler" + choix_contact_finesse + choix_arme + choix_distance + choix_magie + "}";
+    effet = " --effet aveugle 1 --bonusAttaque -5";
+    tooltip = "Cible aveuglée";
+    bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'aveugler', "Aveugler", tooltip);
+    line += bt + " (-5)<br/>";
     addLineToFramedDisplay(display, line);
     line = '';
     line += "Demander au MJ pour les man&oelig;uvres <ul>";
-    line += "<li><span title=\"cible aveuglée\">Aveugler</span> (-5)</li>";
     line += "<li><span title=\"cible renversée.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible\">Renverser</span> <span title=\"-10 contre un quadrupède\">(-5)</span>" + DIFF_TAILLE + "</li>";
     line += "<li><span title=\"Cible étourdie.&#013;Si surpris et NC<" + niveau + ", test de CON ou assomée 1d6 min\">Étourdir</span> (-10)" + DIFF_TAILLE + "</li>";
     line += "</ul>";
