@@ -1,4 +1,4 @@
-//Dernière modification : lun. 19 oct. 2026,  12:31
+//Dernière modification : lun. 19 oct. 2026,  04:19
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1990,6 +1990,7 @@ var COFantasy2 = COFantasy2 || function() {
     'saveEffet': saveEffetAvecRedo,
     'saveState': saveStateAvecRedo,
     'soin': soinAvecRedo,
+    'testOppose': testOpposeAvecRedo,
     'premiers soins': premiersSoinsAvecRedo,
     'Recherche de nourriture': natureNourriciereAvecRedo,
     'Tour suivant': tourSuivantAvecRedo,
@@ -7189,6 +7190,106 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function appliquerEffetsParActeur(acteur, target, effets, expliquer, pageId, evt, options = {}) {
+    if (!effets) return;
+    effets.forEach(function(ef, index) {
+      let cibleEffet = target;
+      if (ef.surLanceur) cibleEffet = acteur;
+      if (ef.finEffet) {
+        if (!attributeAsBool(cibleEffet, ef.effet)) {
+          let etat = effetEtatTemp(ef.effet);
+          if (!etat) return;
+          if (getState(cibleEffet, etat)) {
+            setState(cibleEffet, etat, false, evt);
+            expliquerPerso(cibleEffet, messageFin(cibleEffet, ef.message));
+          }
+          return;
+        }
+        let feOptions = {
+          print: function(msg) {
+            expliquerPerso(cibleEffet, msg);
+          }
+        };
+        let f = finDEffetPerso(cibleEffet, ef.effet, ef.message, pageId, evt, feOptions);
+        if (f && f.newToken) cibleEffet.token = f.newToken;
+        return;
+      }
+      if (ef.save) {
+        if (ef.gober) {
+          let rollIdGober = 'gober_' + target.token.id;
+          let explications = target.messages || [];
+          let {
+            resultat
+          } = testOppose(rollIdGober, target, 'FOR', options, acteur, 'FOR', options,
+            explications, evt);
+          if (!target.messages) {
+            explications.forEach(function(msg) {
+              sendPerso(target, msg);
+            });
+          }
+          if (resultat == 2) {
+            expliquerPerso(target, " est entièrement avalé par " + nomPerso(acteur));
+            setTokenAttr(acteur, 'aGobe', target.token.id, evt);
+            setTokenAttr(target, 'estGobePar', acteur.token.id, evt);
+            moveTokenWithUndo(target.token, acteur.token.get('left'), acteur.token.get('top'), evt);
+          } else {
+            if (resultat === 0) diminueMalediction(acteur, evt);
+            expliquerPerso(target, " n'est pas avalé.");
+          }
+        } else {
+          if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, acteur, options)) {
+            if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
+              expliquerPerso(cibleEffet, " ne semble pas affecté par " + stringOfType(ef.typeDmg));
+              cibleEffet['msgImmunite_' + ef.typeDmg] = true;
+            }
+            return;
+          }
+          let msgPour = " pour ";
+          if (ef.msgSave) msgPour += ef.msgSave;
+          else msgPour += "résister à un effet";
+          let msgRate = ", " + nomPerso(cibleEffet) + " ";
+          if (ef.message) {
+            msgRate += messageActivation(cibleEffet, ef.message, ef.effet);
+            if (ef.message.dureeEnTours && stateCOF.options.affichage.val.duree_effets.val) msgRate += " (" + ef.valeur + " tours)";
+          }
+          ef.pasDeMessageDActivation = true;
+          let saveOpts = {
+            msgPour: msgPour,
+            msgRate: msgRate,
+            attaquant: acteur,
+            sortilege: options.sortilege,
+            type: ef.typeDmg,
+          };
+          ef.save.etat = effetEtatTemp(ef.effet);
+          let rollId = 'effet_' + ef.effet + index + '_' + cibleEffet.token.id;
+          let duree;
+          if (ef.message.dureeEnTours) duree = ef.arg;
+          let reussite = save(ef.save, cibleEffet, rollId, expliquer, saveOpts, evt);
+          if (reussite && duree && ef.save.demiDuree) {
+            reussite = false;
+            duree = Math.ceil(duree / 2);
+            ef = deepCopy(ef);
+            ef.arg = duree;
+            if (stateCOF.options.affichage.val.duree_effets.val) expliquer("La durée est réduite à " + duree + " tours");
+          }
+          if (!reussite) {
+            setEffetFrom(acteur, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
+          }
+        }
+        return;
+      }
+      //Pas de save
+      if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, acteur, options)) {
+        if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
+          expliquerPerso(cibleEffet, " ne semble pas affecté par " + stringOfType(ef.typeDmg));
+          cibleEffet['msgImmunite_' + ef.typeDmg] = true;
+        }
+        return;
+      }
+      setEffetFrom(acteur, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
+    });
+  }
+
   function attackDealDmg(args, attaquant, display, explications, evt, options) {
     let {
       cibles,
@@ -7716,7 +7817,6 @@ var COFantasy2 = COFantasy2 || function() {
           dmSpec.type = dmSpec.type || 'normal';
           if (dmSpec.type != mainDmgType || dmSpec.nbDe) {
             if (options.maxDmg || options.runeDePuissance) dmSpec.maxResult = true;
-
             return true;
           }
           // Même type et valeur constante -> va dans les mainDmgRollDice, qui est multiplié en cas de critique 
@@ -7867,53 +7967,16 @@ var COFantasy2 = COFantasy2 || function() {
               }
             });
           }
-          let savesEffets = 0;
-          // Ajoute les effets sans save à la cible
+          // Ajoute les effets à la cible
           let effets = options.effets;
           if (target.effets) {
             if (effets) effets = effets.concat(target.effets);
             else effets = target.effets;
           }
-          if (effets) {
-            effets.forEach(function(ef) {
-              let cibleEffet = target;
-              if (ef.surLanceur) cibleEffet = attaquant;
-              if (ef.finEffet) {
-                if (!attributeAsBool(cibleEffet, ef.effet)) {
-                  let etat = effetEtatTemp(ef.effet);
-                  if (!etat) return;
-                  if (getState(cibleEffet, etat)) {
-                    setState(cibleEffet, etat, false, evt);
-                    cibleEffet.messages.push(nomPerso(cibleEffet) + ' ' + messageFin(cibleEffet, ef.message));
-                  }
-                  return;
-                }
-                let feOptions = {
-                  print: function(msg) {
-                    cibleEffet.messages.push(nomPerso(cibleEffet) + ' ' + msg);
-                  }
-                };
-                let f = finDEffetPerso(cibleEffet, ef.effet, ef.message, pageId, evt, feOptions);
-                if (f && f.newToken) cibleEffet.token = f.newToken;
-                return;
-              }
-              if (ef.save) {
-                savesEffets++;
-                return; //on le fera plus tard
-              }
-              if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, attaquant, options)) {
-                if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
-                  cibleEffet.messages.push(nomPerso(cibleEffet) + " ne semble pas affecté par " + stringOfType(ef.typeDmg));
-                  cibleEffet['msgImmunite_' + ef.typeDmg] = true;
-                }
-                return;
-              }
-              setEffetFrom(attaquant, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
-            });
-          }
           let expliquer = function(msg) {
             target.messages.push(msg);
           };
+          appliquerEffetsParActeur(attaquant, target, effets, expliquer, pageId, evt, options);
           // Peut faire peur à la cible
           if (options.peur) {
             peurOneToken(target, options.peur.seuil, options.peur.duree, {}, target.messages, evt);
@@ -7937,70 +8000,6 @@ var COFantasy2 = COFantasy2 || function() {
               target.dmgCoef = (target.dmgCoef || 0) + 1;
               target.touche++;
             }
-          }
-          if (effets && savesEffets > 0) {
-            // Ajoute les effets avec save à la cible
-            effets.forEach(function(ef, index) {
-              if (ef.save) {
-                if (ef.gober) {
-                  let rollIdGober = 'gober_' + target.token.id;
-                  let {
-                    resultat
-                  } = testOppose(rollIdGober, target, 'FOR', options, attaquant, 'FOR', options,
-                    target.messages, evt);
-                  if (resultat == 2) {
-                    target.messages.push(nomPerso(target) + " est entièrement avalé par " + attackerTokName);
-                    setTokenAttr(attaquant, 'aGobe', target.token.id, evt);
-                    setTokenAttr(target, 'estGobePar', attaquant.token.id, evt);
-                    moveTokenWithUndo(target.token, attaquant.token.get('left'), attaquant.token.get('top'), evt);
-                  } else {
-                    if (resultat === 0) diminueMalediction(attaquant, evt);
-                    target.messages.push(nomPerso(target) + " n'est pas avalé.");
-                  }
-                } else {
-                  let cibleEffet = target;
-                  if (ef.surLanceur) cibleEffet = attaquant;
-                  if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, attaquant, options)) {
-                    if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
-                      cibleEffet.messages.push(nomPerso(cibleEffet) + " ne semble pas affecté par " + stringOfType(ef.typeDmg));
-                      cibleEffet['msgImmunite_' + ef.typeDmg] = true;
-                    }
-                    return;
-                  }
-                  let msgPour = " pour ";
-                  if (ef.msgSave) msgPour += ef.msgSave;
-                  else msgPour += "résister à un effet";
-                  let msgRate = ", " + nomPerso(cibleEffet) + " ";
-                  if (ef.message) {
-                    msgRate += messageActivation(cibleEffet, ef.message, ef.effet);
-                    if (ef.message.dureeEnTours && stateCOF.options.affichage.val.duree_effets.val) msgRate += " (" + ef.valeur + " tours)";
-                  }
-                  ef.pasDeMessageDActivation = true;
-                  let saveOpts = {
-                    msgPour: msgPour,
-                    msgRate: msgRate,
-                    attaquant: attaquant,
-                    sortilege: options.sortilege,
-                    type: ef.typeDmg,
-                  };
-                  ef.save.etat = effetEtatTemp(ef.effet);
-                  let rollId = 'effet_' + ef.effet + index + '_' + cibleEffet.token.id;
-                  let duree;
-                  if (ef.message.dureeEnTours) duree = ef.arg;
-                  let reussite = save(ef.save, cibleEffet, rollId, expliquer, saveOpts, evt);
-                  if (reussite && duree && ef.save.demiDuree) {
-                    reussite = false;
-                    duree = Math.ceil(duree / 2);
-                    ef = deepCopy(ef);
-                    ef.arg = duree;
-                    if (stateCOF.options.affichage.val.duree_effets.val) expliquer("La durée est réduite à " + duree + " tours");
-                  }
-                  if (!reussite) {
-                    setEffetFrom(attaquant, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
-                  }
-                }
-              }
-            });
           }
           if (etats && saves > 0) {
             etats.forEach(function(ce, index) {
@@ -15872,10 +15871,16 @@ var COFantasy2 = COFantasy2 || function() {
       bt = boutonSimple(command, picto + " Repousser", " title=\"cible recule de " + distance_recul + " m, si acculée, malus en DEF.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible\";" + style);
       line += bt + DIFF_TAILLE + " (+ mvt de " + vitesse + "m. max)<br/>";
     }
+    //Bloquer
+    choix = "manoeuvre --toucher " + attaquePerso(perso, 'atkcac');
+    effet = " --effet immobilise 1 --effetSurLanceur bloque 2 0 --valeur @{target|token_id} --bonusAttaque -5 --bonusCategorieDeTaille";
+      command = base_command + choix + optionsManoeuvre('bloquer') + effet;
+    bt = boutonSimple(command, picto + " Bloquer", " title=\"cible immobilisée.&#013;si NC<" + niveau + ", peut maintenir avec test opposé de FOR\";" + style);
+    command = base_command + choix + optionsManoeuvre('bloquer') + effet;
+    line += bt + " (-5)" + DIFF_TAILLE + "<br/>";
     addLineToFramedDisplay(display, line);
     line = '';
     line += "Demander au MJ pour les man&oelig;uvres <ul>";
-    line += "<li><span title=\"cible immobilisée.&#013;si NC<" + niveau + ", peut maintenir avec test opposé de FOR\">Bloquer</span> (-5)" + DIFF_TAILLE + "</li>";
     line += "<li><span title=\"Si la cible veut récupérer son arme avant tout le monde, doit sacrifier son tour.\">Désarmer</span> (-5)" + DIFF_TAILLE + "</li>";
     line += "<li><span title=\"cible aveuglée\">Aveugler</span> (-5)</li>";
     line += "<li><span title=\"cible renversée.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible\">Renverser</span> <span title=\"-10 contre un quadrupède\">(-5)</span>" + DIFF_TAILLE + "</li>";
@@ -16590,6 +16595,16 @@ var COFantasy2 = COFantasy2 || function() {
             if (!msgPour) msgPour = "Test pour se débarasser de " + etat;
             let cmd = "cof2-effet " + etat + ' fin --save AGIINT 10 --limiteParTour 1 instinctDeSurviePNJ --select ' + perso.token.id;
             ligne += boutonSimple(cmd, msgPour) + '(G)<br/>';
+          }
+        }
+        if (typeActionPossible(perso, 'L')) {
+          //maintenir un adversaire bloqué
+          if (attributeAsBool(perso, 'bloque')) {
+            let cible = persoOfId(getValeurOfEffet(perso, 'bloque'));
+            if (cible && niveauPerso(cible) < niveauPerso(perso) && !getState(cible, 'mort')) {
+              let cmd = "!cof2-test-oppose "+perso.token.id+" FOR "+cible.token.id+" --effet immobilise 1 --effetSurLanceur bloque 2 --typeAction L";
+              ligne += boutonSimple(cmd, "Maintenir la prise") + " sur "+nomPerso(cible)+' (L)<br/>';
+            }
           }
         }
         if (typeActionPossible(perso, 'M')) {
@@ -20198,6 +20213,14 @@ var COFantasy2 = COFantasy2 || function() {
       customStatusMarker: 'cof-asphyxie',
       dm: true,
       visible: true
+    },
+    bloque: {
+      //Valeur courante: l'id du token qui est bloqué
+      activation: "immobilise son adversaire",
+      actif: "immobilise son adversaire",
+      fin: "relâche son adversaire",
+      dureeEnTours: true,
+      visible: true,
     },
     chargeFantastique: {
       activation: "participe à la charge fantastique !",
@@ -25060,6 +25083,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  //!cof2-save-state etat carac (seuil ou tid)
   function commandeSaveState(cmd, playerId, pageId, options) {
     if (!cof_states[cmd[1]]) {
       error("Le premier argument de !cof2-save-state n'est pas un état connu", cmd);
@@ -26030,8 +26054,7 @@ var COFantasy2 = COFantasy2 || function() {
     sendFramedDisplay(display);
   }
 
-  //asynchrone
-  //callback(resultat, crit, roll1, roll2):
+  // renvoie {resultat, crit, roll1, roll2}
   // resultat peut être 0, 1 ou 2 : 0 = match null, 1 le perso 1 gagne, 2 le perso 2 gagne.
   // crit peut être 1 si un des deux perso a fait une réussite critique et pas l'autre, -1 si un des personnage a fait un échec critique et pas l'autre, et 0 sinon
   function testOppose(rollId, perso1, carac1, options1, perso2, carac2, options2, explications, evt) {
@@ -26042,29 +26065,29 @@ var COFantasy2 = COFantasy2 || function() {
     let rollId2 = rollId + '_roll2';
     let rt1 = jetCaracteristique(perso1, carac1, options1, rollId1, evt);
     let rt2 = jetCaracteristique(perso2, carac2, options2, rollId2, evt);
-    let reussite;
+    let resultat;
     let crit = 0;
-    if (rt1.total > rt2.total) reussite = 1;
-    else if (rt2.total > rt1.total) reussite = 2;
-    else reussite = 0;
+    if (rt1.total > rt2.total) resultat = 1;
+    else if (rt2.total > rt1.total) resultat = 2;
+    else resultat = 0;
     if (rt1.echecCritique) {
       if (!rt2.echecCritique) {
-        reussite = 2;
+        resultat = 2;
         crit = -1;
       }
     } else if (rt2.echecCritique) {
-      reussite = 1;
+      resultat = 1;
       crit = -1;
     } else if (rt1.critique) {
       if (!rt2.critique) {
-        reussite = 1;
+        resultat = 1;
         crit = 1;
       }
     } else if (rt2.critique) {
-      reussite = 2;
+      resultat = 2;
       crit = 1;
     }
-    switch (reussite) {
+    switch (resultat) {
       case 1:
         diminueMalediction(perso2, evt);
         break;
@@ -26073,7 +26096,7 @@ var COFantasy2 = COFantasy2 || function() {
         break;
     }
     let texte1 = "Jet " + deCarac(carac1) + " de " + nom1 + " : " + rt1.texte;
-    if (reussite == 2) {
+    if (resultat == 2) {
       if (
         attributeAsBool(perso1, 'runeForgesort_énergie') &&
         attributeAsInt(perso1, 'attributDeCombat_runeForgesort_énergie', 1) > 0) {
@@ -26104,7 +26127,7 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push(m);
     });
     let texte2 = "Jet " + deCarac(carac2) + " de " + nom2 + " : " + rt2.texte;
-    if (reussite == 1) {
+    if (resultat == 1) {
       if (
         attributeAsBool(perso2, 'runeForgesort_énergie') &&
         attributeAsInt(perso2, 'attributDeCombat_runeForgesort_énergie', 1) > 0) {
@@ -26135,11 +26158,97 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push(m);
     });
     return {
-      reussite,
+      resultat,
       crit,
       roll1: rt1.roll,
       roll2: rt2.roll
     };
+  }
+
+  //!cof2-test-oppose perso1 carac perso2 [carac2]
+  function commandeTestOppose(cmd, playerId, pageId, options, perso1) {
+    let c1 = parseCarac(cmd[2]);
+    if (c1 === undefined) {
+      sendPlayer("Le second argument de !cof2-test-oppose n'est pas une caractéristique: " + cmd[2], playerId);
+      return;
+    }
+    let perso2 = persoOfId(cmd[3], cmd[3], pageId);
+    if (!perso2) {
+      sendPlayer("Le troisième argument de !cof2-test-oppose n'est pas un token valide", playerId);
+      return;
+    }
+    let c2;
+    if (cmd.length > 4) {
+      c2 = parseCarac(cmd[4]);
+    }
+    if (!c2) c2 = c1;
+    let carac1 = c1.carac;
+    let carac2 = c2.carac;
+    if (c1.carac2) carac1 = meilleureCarac(carac1, c1.carac2, perso1, 10 + carac2);
+    if (c2.carac2) {
+      carac2 = meilleureCarac(carac2, c2.carac2, perso2, 10 + carac1);
+      if (carac2 == c2.carac2 && c1.carac2) carac1 = meilleureCarac(carac1, c1.carac2, perso1, 10 + carac2);
+    }
+    let args = {
+      perso1,
+      carac1,
+      perso2,
+      carac2,
+      options,
+      playerId,
+      pageId
+    };
+    testOpposeAvecRedo(args);
+  }
+
+  function testOpposeAvecRedo(args) {
+    let {
+      perso1,
+      carac1,
+      perso2,
+      carac2,
+      options,
+      playerId,
+      pageId
+    } = args;
+    const evt = evtAvecRedo('testOppose', args);
+    options = deepCopy(options); //pour la chance etc.
+    if (limiteRessources(perso1, options, 'testOppose', 'test opposé', evt)) return;
+    let rollId = 'testOppose';
+    let explications = [];
+    let opt = {};
+    let tr = testOppose(rollId, perso1, carac1, opt, perso2, carac2, opt, explications, evt);
+    let titre = options.titre;
+    if (!titre) {
+      titre = "Test opposé de " + carac1;
+      if (carac1 != carac2) titre += " contre " + carac2;
+    }
+    let display = startFramedDisplay(playerId, titre, perso1, {
+      perso2
+    });
+    explications.forEach(function(msg) {
+      addLineToFramedDisplay(display, msg);
+    });
+    if (tr.resultat == 1) {
+      addLineToFramedDisplay(display, nomPerso(perso1) + " réussit son action");
+      perso1.messages = [];
+      perso2.messages = [];
+      let expliquer = function(msg) {
+        perso2.messages.push(msg);
+      };
+      appliquerEffetsParActeur(perso1, perso2, options.effets, expliquer, pageId, evt, options);
+      perso1.messages.forEach(function(msg) {
+        addLineToFramedDisplay(display, msg);
+      });
+      perso2.messages.forEach(function(msg) {
+        addLineToFramedDisplay(display, msg);
+      });
+    } else if (tr.resultat == 2) {
+      addLineToFramedDisplay(display, "L'action échoue");
+    } else {
+      addLineToFramedDisplay(display, "L'action échoue de justesse");
+    }
+    sendFramedDisplay(display);
   }
 
   function commandeMontrerResultatsJet(cmd, playerId, pageId, options) {
@@ -37103,6 +37212,11 @@ var COFantasy2 = COFantasy2 || function() {
     'terminer-mvt': {
       fn: commandeTerminerMvt,
       minArgs: 1,
+      acteur: 1
+    },
+    'test-oppose': {
+      fn: commandeTestOppose,
+      minArgs: 3,
       acteur: 1
     },
     'torche': {
