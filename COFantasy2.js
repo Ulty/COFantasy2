@@ -1,4 +1,4 @@
-//Dernière modification : ven. 16 oct. 2026,  04:04
+//Dernière modification : lun. 19 oct. 2026,  12:31
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3517,33 +3517,32 @@ var COFantasy2 = COFantasy2 || function() {
     return attBonus;
   }
 
+  function normaliseArme(ap) {
+    let arme = ap.trim().toLowerCase();
+    switch (arme) {
+      case 'épée':
+      case 'épées':
+      case 'epee':
+        return 'epee';
+      case 'haches':
+        return 'hache';
+      case 'masses':
+        return 'masse';
+      case 'lances':
+        return 'lance';
+      case 'arme de jet':
+      case 'armes de jet':
+        return 'armeDeJet';
+    }
+    return arme;
+  }
+
   function bonusArmeDePredilection(perso, weaponStats, options = {}) {
     if (!weaponStats || !weaponStats.arme) return;
     let armesDePredilection = predicatesNamed(perso, 'armeDePredilection');
     let res = 0;
     armesDePredilection.forEach(function(ap) {
-      let arme = ap.trim().toLowerCase();
-      //On commence par normaliser le type d'arme
-      switch (arme) {
-        case 'épée':
-        case 'épées':
-        case 'epee':
-          arme = 'epee';
-          break;
-        case 'haches':
-          arme = 'hache';
-          break;
-        case 'masses':
-          arme = 'masse';
-          break;
-        case 'lances':
-          arme = 'lance';
-          break;
-        case 'arme de jet':
-        case 'armes de jet':
-          arme = 'armeDeJet';
-          break;
-      }
+      let arme = normaliseArme(ap);
       let actif;
       switch (arme) {
         case 'arc':
@@ -4385,7 +4384,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (options.contact && attributeAsBool(attaquant, 'effrayeParCriDeGuerre')) {
         deMalus++;
-        explications.push("Effrayé"+eForFemale(attaquant)+" par le cri de guerre => dé malus en Attaque");
+        explications.push("Effrayé" + eForFemale(attaquant) + " par le cri de guerre => dé malus en Attaque");
       }
     }
     let deBonus = options.deBonus;
@@ -5385,40 +5384,40 @@ var COFantasy2 = COFantasy2 || function() {
             defense = 6 + attSkill + attBonus;
             defenseTxt = 'résistance automatique';
           } else {
-          let deArgs = {
-            dice: 20
-          };
-          deMalusBonusPerso(target, target.messages, options, true, deArgs);
-          let testIdOpp = 'attaqueMagiqueOpposee_' + target.token.id;
-          let r20def = rollDePlus(deArgs, testIdOpp, evt);
-          let attSkillTarget = attaquePerso(target, 'atkmag');
-          let optTarget = {
-            pasDeDmg: true,
-            ignoreObstacles: true,
-          };
-          let attBonusTarget = bonusAttaqueA(target, undefined, evt, target.messages, optTarget);
-          attBonusTarget += bonusAttaqueD(target, attaquant, weaponStats.portee, pageId, evt, target.messages, optTarget);
-          if (attributeAsBool(target, 'optionTactiqueDefenseTotale')) {
-            attBonusTarget += 5;
-            target.messages.push("Défense totale => +5 au jet");
-          } else if (attributeAsBool(target, 'optionTactiqueDefensePartielle')) {
-            attBonusTarget += 3;
-            target.messages.push("Défense partielle => +3 au jet");
-          }
-          defense = r20def.total + attSkillTarget + attBonusTarget;
-          defenseTxt = r20def.display;
-          if (attSkillTarget > 0) defenseTxt += ' +' + attSkillTarget;
-          if (attBonusTarget > 0) defenseTxt += ' +' + attBonusTarget;
-          else if (attBonusTarget < 0) defenseTxt += ' ' + attBonusTarget;
-          rendDecr = 'attributDeCombat_rendementDecroissant_' + weaponName;
-          bonusDecr = attributeAsInt(target, rendDecr, 0);
-          if (bonusDecr <= 0) {
-            bonusDecr = 0;
-          } else {
-            defense += bonusDecr;
-            target.messages.push(nomPerso(target) + " est plus résistant" + eForFemale(target) + " à ce sort (+" + bonusDecr + ")");
-            defenseTxt += ' +' + bonusDecr;
-          }
+            let deArgs = {
+              dice: 20
+            };
+            deMalusBonusPerso(target, target.messages, options, true, deArgs);
+            let testIdOpp = 'attaqueMagiqueOpposee_' + target.token.id;
+            let r20def = rollDePlus(deArgs, testIdOpp, evt);
+            let attSkillTarget = attaquePerso(target, 'atkmag');
+            let optTarget = {
+              pasDeDmg: true,
+              ignoreObstacles: true,
+            };
+            let attBonusTarget = bonusAttaqueA(target, undefined, evt, target.messages, optTarget);
+            attBonusTarget += bonusAttaqueD(target, attaquant, weaponStats.portee, pageId, evt, target.messages, optTarget);
+            if (attributeAsBool(target, 'optionTactiqueDefenseTotale')) {
+              attBonusTarget += 5;
+              target.messages.push("Défense totale => +5 au jet");
+            } else if (attributeAsBool(target, 'optionTactiqueDefensePartielle')) {
+              attBonusTarget += 3;
+              target.messages.push("Défense partielle => +3 au jet");
+            }
+            defense = r20def.total + attSkillTarget + attBonusTarget;
+            defenseTxt = r20def.display;
+            if (attSkillTarget > 0) defenseTxt += ' +' + attSkillTarget;
+            if (attBonusTarget > 0) defenseTxt += ' +' + attBonusTarget;
+            else if (attBonusTarget < 0) defenseTxt += ' ' + attBonusTarget;
+            rendDecr = 'attributDeCombat_rendementDecroissant_' + weaponName;
+            bonusDecr = attributeAsInt(target, rendDecr, 0);
+            if (bonusDecr <= 0) {
+              bonusDecr = 0;
+            } else {
+              defense += bonusDecr;
+              target.messages.push(nomPerso(target) + " est plus résistant" + eForFemale(target) + " à ce sort (+" + bonusDecr + ")");
+              defenseTxt += ' +' + bonusDecr;
+            }
           }
         } else if (options.attaqueContactOpposee) {
           let testIdOpp = 'attaqueContactOpposee_' + target.token.id;
@@ -5688,7 +5687,7 @@ var COFantasy2 = COFantasy2 || function() {
             evt.succes = true;
           } else {
             if (options.immuniseSiResiste)
-        setTokenAttr(target, options.immuniseSiResiste, true, evt);
+              setTokenAttr(target, options.immuniseSiResiste, true, evt);
             if (target.colleASaProie) {
               let r = {
                 type: mainDmgType,
@@ -7299,7 +7298,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (weaponStats.portee > 0 && (weaponStats.dague || weaponStats.couteau)) {
       let bonus = predicateAsInt(attaquant, 'bonusDMCouteauxLances', 0);
       if (bonus > 0) {
-        explications.push("Doigts agiles => +"+bonus+" DM");
+        explications.push("Doigts agiles => +" + bonus + " DM");
         attDMBonusCommun += bonus;
       }
     }
@@ -10749,41 +10748,41 @@ var COFantasy2 = COFantasy2 || function() {
       case 'FORCE':
       case 'for':
       case 'FOR':
-        return 'for';
+        return 'FOR';
       case 'agilite':
       case 'agilité':
       case 'AGILITE':
       case 'AGILITÉ':
       case 'agi':
       case 'AGI':
-        return 'agi';
+        return 'AGI';
       case 'constitution':
       case 'CONSTITUTION':
       case 'con':
       case 'CON':
-        return 'con';
+        return 'CON';
       case 'intelligence':
       case 'INTELLIGENCE':
       case 'int':
       case 'INT':
-        return 'int';
+        return 'INT';
       case 'volonte':
       case 'volonté':
       case 'VOLONTE':
       case 'VOLONTÉ':
       case 'vol':
       case 'VOL':
-        return 'vol';
+        return 'VOL';
       case 'charisme':
       case 'CHARISME':
       case 'cha':
       case 'CHA':
-        return 'cha';
+        return 'CHA';
       case 'perception':
       case 'PERCEPTION':
       case 'per':
       case 'PER':
-        return 'per';
+        return 'PER';
       default:
         return '';
     }
@@ -12282,6 +12281,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  - bouclier : le personnage doit porter un bouclier pour faire l'action
   //  - armeDeContact : le personnage soit tenir une arme de contact en main
   //  - armeEnMain : le personnage soit porter une arme en main du type spécifié
+  //  - predicatArmeEnMain: comme armeEnMain, mais la valeur est un prédicat qui contient ce que le perso peut porter
   //  - pasAuContactAdversaire
   //  - limiteArmure: limitation d'armure
   //  - aPrtirDeRang: action disponible seulement à partir d'un certain rang dans la voie
@@ -12439,6 +12439,14 @@ var COFantasy2 = COFantasy2 || function() {
     'plus vite que son ombre': {
       plusViteQueSonOmbre: true,
     },
+    'agilite heroique': {
+      AGI_heroique: true,
+      buffsSurFiche: [{
+        nom: 'Agilité héroïque',
+        attrib: 'agi',
+        value: '1',
+      }]
+    },
     //Voie de la précision
     'joli coup': {
       reduitCouvertureCible: true,
@@ -12517,6 +12525,15 @@ var COFantasy2 = COFantasy2 || function() {
     'charmant': {
       bonusTestEvolutif_charmer: true,
       depenserPCPourAllies: true,
+    },
+    'charisme heroique': {
+      capaciteAmbigue: true, //Il y a une capacité de même nom pour le barde, qui impacte en plus de PM,
+      CHA_heroique: true,
+      buffsSurFiche: [{
+        nom: 'Charisme héroïque',
+        attrib: 'cha',
+        value: '1',
+      }]
     },
     //Voie du vagabond
     'rumeurs et legendes': {
@@ -12639,18 +12656,17 @@ var COFantasy2 = COFantasy2 || function() {
         defaut: {
           //Ne rien changer par défaut
         },
-        'PC': {
-        },
+        'PC': {},
         'DR': {
           buffsSurFiche: [{
-        nom: 'Éclaireur bonus DR',
-        attrib: 'dr',
-        value: '1',
-      }, {
-        nom: 'Éclaireur malus PC',
-        attrib: 'pc',
-        value: '-1',
-      }],
+            nom: 'Éclaireur bonus DR',
+            attrib: 'dr',
+            value: '1',
+          }, {
+            nom: 'Éclaireur malus PC',
+            attrib: 'pc',
+            value: '-1',
+          }],
         },
       },
     },
@@ -12664,6 +12680,14 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'SELONRANG(L,L,L,L,A)',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaqueCarac AGI --plus AGI"
       },
+    },
+    'perception heroique traqueur': {
+      PER_heroique: true,
+      buffsSurFiche: [{
+        nom: 'Perception héroïque',
+        attrib: 'per',
+        value: '1',
+      }]
     },
     //Voie du combat à deux armes
     'attaque a suivre': {
@@ -12739,6 +12763,14 @@ var COFantasy2 = COFantasy2 || function() {
       barbareEnChemiseDeMailles: true,
       //TODO: donner la possibilité de dépenser 1d4E PV pour un bonus de +10 en cas de jet de force, avant de faire le jet
     },
+    'force heroique': {
+      FOR_heroique: true,
+      buffsSurFiche: [{
+        nom: 'Force héroïque',
+        attrib: 'for',
+        value: '1',
+      }]
+    },
     //Voie du pagne
     'vigueur': {
       bonusTestEvolutif_athlete: true,
@@ -12796,10 +12828,13 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Cri de guerre",
         type: 'G',
         combat: true,
+        limiteArmure: 'barbare',
         cmd: '!cof2-attaque @{selected|token_id}  @{selected|token_id} Cri de guerre --explosion --portee 10 --saufAllies --auto --pasDeDmg --limiteParCombat 1 criDeGuerre --conditionAttaque moins for --effet effrayeParCriDeGuerre 1 --message pousse un cri de guerre',
       },
     },
     //Voies de chevalier ////////////////////////////////////////////
+    //Voie du cavalier
+    'fidele monture': {},
     //Voie du meneur d'hommes
     'sans peur': {
       sansPeur: true,
@@ -12879,6 +12914,19 @@ var COFantasy2 = COFantasy2 || function() {
         def: 1,
       },
     },
+    'attaque parfaite': {
+      //TODO: implémenter la manoeuvre de désarmement, voir la fn commandeManoeuvres
+      desarmerAttaqueParfaite: true,
+      action: [{
+        nom: "Attaque parfaite",
+        limiteArmure: 'guerrier',
+        combat: true,
+        dm: true,
+        type: 'L',
+        predicatArmeEnMain: 'armeDePredilection',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --deBonus --plus 1d4E --message Attaque parfaite !"
+      }],
+    },
     //Voie de la résistance
     'robustesse': {
       bonusTestEvolutif_robustesse: true,
@@ -12909,6 +12957,14 @@ var COFantasy2 = COFantasy2 || function() {
           armureLourde: true,
         },
       },
+    },
+    'constitution heroique': {
+      CON_heroique: true,
+      buffsSurFiche: [{
+        nom: 'Constitution héroïque',
+        attrib: 'con',
+        value: '1',
+      }]
     },
     //Voie du soldat
     'teigneux': {
@@ -12961,7 +13017,7 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         type: 'A',
         seulementSiAttributBool: 'sousTension',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Décharge électrique --toucher @{selected|atkmag} --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Décharge électrique --toucher @{selected|atkmag} --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
       }],
     },
     'telekinesie': {
@@ -13486,6 +13542,16 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'druide',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --effet flecheVivante 1 --valeur 3d4E',
       },
+    },
+    //Voies de moine
+    //Voie de la méditation
+    'volonte heroique': {
+      VOL_heroique: true,
+      buffsSurFiche: [{
+        nom: 'Volonté héroïque',
+        attrib: 'vol',
+        value: '1',
+      }]
     },
     //Voies de prêtre ////////////////////////////////////////////
     //Voie de la foi
@@ -16271,10 +16337,18 @@ var COFantasy2 = COFantasy2 || function() {
     if (action.inutileSiAttributBool && attributeAsBool(perso, action.inutileSiAttributBool)) return ligne;
     if (action.seulementSiAttributBool && !attributeAsBool(perso, action.seulementSiAttributBool)) return ligne;
     if (action.bouclier && !persoEstPNJ(perso) && !ficheAttributeAsBool(perso, 'bouclier_eqp', false)) return ligne;
-    if (action.armeEnMain || action.armeDeContact) {
+    if (action.armeEnMain || action.armeDeContact || action.predicatArmeEnMain) {
       let armeEnMain = armesEnMain(perso);
       if (!armeEnMain) return ligne;
       if (action.armeEnMain && !armeEnMain[action.armeEnMain]) return ligne;
+      if (action.predicatArmeEnMain) {
+        let armesSpec = predicatesNamed(perso, action.predicatArmeEnMain);
+        let good = armesSpec.find(function(as) {
+          let spec = normaliseArme(as);
+          return armeEnMain[spec];
+        });
+        if (!good) return ligne;
+      }
       if (action.armeDeContact && armeEnMain.portee && !armeEnMain.modificateurs.includes('armeDeContact')) return ligne;
     }
     if (action.pasAuContactAdversaire && ennemisAuContact(perso, perso.token.get('pageid')).length > 0) return ligne;
@@ -24858,7 +24932,9 @@ var COFantasy2 = COFantasy2 || function() {
     return de;
   }
 
+  //carac doit être FOR, AGI, CON, INT, CHA, PER ou VOL
   function caracHeroique(carac, perso) {
+    if (predicateAsBool(perso, carac + '_heroique')) return true;
     let typeJet = ficheAttribute(perso, carac + '_sup', 'N', optTransforme);
     switch (typeJet) {
       case 'N':
