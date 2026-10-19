@@ -1,4 +1,4 @@
-//Dernière modification : lun. 19 oct. 2026,  04:19
+//Dernière modification : lun. 19 oct. 2026,  05:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4179,12 +4179,20 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.bonusCategorieDeTaille) {
       let diff = (taillePerso(attaquant) - taillePerso(target)) * 5;
-      attBonus += diff;
       if (diff > 0) {
         explications.push("Attaquant plus grand que " + nomPerso(target) + " => +" + diff + " en attaque");
       } else if (diff < 0) {
-        explications.push("Attaquant moins grand que " + nomPerso(target) + " => " + diff + " en attaque");
+        //Pas de malus de taille en cas d'attaque parfaite
+        if (options.manoeuvre == 'desarmer' &&
+          predicateAsBool(attaquant, 'desarmerAttaqueParfaite') &&
+          bonusArmeDePredilection(attaquant, attaquant.arme) &&
+          niveauPerso(target) < predicateAsInt(attaquant, 'specialisationGuerrier')) {
+          diff = 0;
+        } else {
+          explications.push("Attaquant moins grand que " + nomPerso(target) + " => " + diff + " en attaque");
+        }
       }
+      attBonus += diff;
     }
     return attBonus;
   }
@@ -6172,6 +6180,17 @@ var COFantasy2 = COFantasy2 || function() {
     if (diceOptions.deMalus !== true && cibles.length === 1 && options.arme && (options.distance || !weaponStats.dague) && attributeAsBool(cibles[0], 'colleASaProie')) {
       ajouteDeMalus(diceOptions);
     }
+    if (options.manoeuvre == 'desarmer' &&
+      cibles.length == 1 &&
+      predicateAsBool(attaquant, 'desarmerAttaqueParfaite') &&
+      bonusArmeDePredilection(attaquant, weaponStats) &&
+      niveauPerso(cibles[0]) < predicateAsInt(attaquant, 'specialisationGuerrier')) {
+      let target = cibles[0];
+      ajouteDeBonus(diceOptions);
+      explications.push("Attaque parfaite pour désarmer => dé bonus");
+      target.bonusAttaque = target.bonusAttaque || 0;
+      target.bonusAttaque += 5;
+    }
     if (cibles.length === 1 && options.distance && !options.sortilege && attributeAsBool(cibles[0], 'manteauDOmbre')) {
       explications.push("Cible dans l'ombre => dé malus en attaque");
       ajouteDeMalus(diceOptions);
@@ -7910,6 +7929,24 @@ var COFantasy2 = COFantasy2 || function() {
           }
           if (options.fxCible && !options.aoe) {
             spawnFx(target.token.get('left'), target.token.get('top'), options.fxCible, pageId);
+          }
+          if (options.manoeuvre == 'desarmer') {
+            let arme = armesEnMain(target);
+            if (arme) {
+              let opt = {
+                seulementDroite: true
+              };
+              degainerArme(target, 0, evt, opt);
+              target.messages.push(nomPerso(target) + " laisse tomber son arme (" + arme.name + ")");
+              lacherArme(target, arme, evt);
+            } else if (target.armeGauche) {
+              let opt = {
+                gauche: true
+              };
+              degainerArme(target, 0, evt, opt);
+              target.messages.push(nomPerso(target) + " laisse tomber son arme (" + target.armegauche.name + ")");
+              lacherArme(target, target.armeGauche, evt);
+            }
           }
           // Compte le nombre de saves pour la synchronisation
           // (On ne compte pas les psave, gérés dans dealDamage)
@@ -12914,9 +12951,8 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     'attaque parfaite': {
-      //TODO: implémenter la manoeuvre de désarmement, voir la fn commandeManoeuvres
       desarmerAttaqueParfaite: true,
-      action: [{
+      action: {
         nom: "Attaque parfaite",
         limiteArmure: 'guerrier',
         combat: true,
@@ -12924,7 +12960,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         predicatArmeEnMain: 'armeDePredilection',
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --deBonus --plus 1d4E --message Attaque parfaite !"
-      }],
+      },
     },
     //Voie de la résistance
     'robustesse': {
@@ -15810,6 +15846,12 @@ var COFantasy2 = COFantasy2 || function() {
     return " --manoeuvre " + m + " --pasDeDmg --attaqueContactOpposee --typeAction L";
   }
 
+  function boutonManoeuvre(picto, style, base_command, choix, effet, manoeuvre, nom, titre) {
+    let command = base_command + choix + optionsManoeuvre(manoeuvre) + effet;
+    let bt = boutonSimple(command, picto + ' ' + nom, ' title="' + titre + '";' + style);
+    return bt;
+  }
+
   function commandeManoeuvres(cmd, playerId, pageId, options, perso) {
     let opt_display = {
       chuchote: true
@@ -15853,35 +15895,47 @@ var COFantasy2 = COFantasy2 || function() {
     //Distraire
     let choix = "?{Distraction" + choix_contact_finesse + choix_arme + choix_distance + choix_magie + "}";
     let effet = " --effet distrait 1 --bonusAttaqueCarac AGI";
-    let command = base_command + choix + optionsManoeuvre('distraire') + effet;
-    let bt = boutonSimple(command, picto + " Distraire", " title=\"-10 aux tests de PER et -5 en DEF\";" + style);
+    let tooltip = "-10 aux tests de PER et -5 en DEF";
+    let bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'distraire', "Distraire", tooltip);
     line += bt + " (+CHA) <br/>";
     //Gêner
     choix = "?{Gêne" + choix_contact_finesse + choix_arme + choix_distance + choix_magie + "}";
     effet = " --effet ?{Type de gêne|Limiter les actions,ralenti|Gêner les attaques,geneEnAttaque} 1";
-    command = base_command + choix + optionsManoeuvre('gener') + effet;
-    bt = boutonSimple(command, picto + " Gêner", " title=\"cible ralentie ou -5 en Attaque\";" + style);
+    tooltip = "cible ralentie ou -5 en Attaque";
+    bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'gener', "Gêner", tooltip);
     line += bt + "<br/>";
     //Repousser
     let distance_recul = modCarac(perso, 'for') + 3;
     if (distance_recul > 0) {
       choix = "manoeuvre --toucher " + attaquePerso(perso, 'atkcac');
       effet = " --repousseCible " + distance_recul + " m. --bonusCategorieDeTaille --deplaceDe " + vitesse;
-      command = base_command + choix + optionsManoeuvre('repousser') + effet;
-      bt = boutonSimple(command, picto + " Repousser", " title=\"cible recule de " + distance_recul + " m, si acculée, malus en DEF.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible\";" + style);
+      tooltip = "cible recule de " + distance_recul + " m, si acculée, malus en DEF.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible";
+      bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'repousser', "Repousser", tooltip);
       line += bt + DIFF_TAILLE + " (+ mvt de " + vitesse + "m. max)<br/>";
     }
     //Bloquer
-    choix = "manoeuvre --toucher " + attaquePerso(perso, 'atkcac');
+    choix = "Bloquer --toucher " + attaquePerso(perso, 'atkcac');
     effet = " --effet immobilise 1 --effetSurLanceur bloque 2 0 --valeur @{target|token_id} --bonusAttaque -5 --bonusCategorieDeTaille";
-      command = base_command + choix + optionsManoeuvre('bloquer') + effet;
-    bt = boutonSimple(command, picto + " Bloquer", " title=\"cible immobilisée.&#013;si NC<" + niveau + ", peut maintenir avec test opposé de FOR\";" + style);
-    command = base_command + choix + optionsManoeuvre('bloquer') + effet;
+    tooltip = "cible immobilisée.&#013;si NC<" + niveau + ", peut maintenir avec test opposé de FOR";
+    bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'bloquer', "Bloquer", tooltip);
     line += bt + " (-5)" + DIFF_TAILLE + "<br/>";
+    //Désarmer
+    choix = '-1'; //On désarme toujours avec l'arme en main
+    effet = " --bonusAttaque -5 --bonusCategorieDeTaille";
+    tooltip = "Si la cible veut récupérer son arme avant tout le monde, doit sacrifier son tour.";
+    let attaqueParfaitePossible = predicateAsBool(perso, 'desarmerAttaqueParfaite') && bonusArmeDePredilection(perso, arme);
+    if (attaqueParfaitePossible) {
+      tooltip += "&#013;pas de -5, et dé bonus en attaque si NC cible < " + predicateAsInt(perso, 'specialisationGuerrier');
+    }
+    bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'desarmer', "Désarmer", tooltip);
+    line += bt + " (-5)";
+    if (attaqueParfaitePossible) {
+      line += "<span title=\"Pas de malus avec attaque parfaite\">?</span>";
+    }
+    line += DIFF_TAILLE + "<br/>";
     addLineToFramedDisplay(display, line);
     line = '';
     line += "Demander au MJ pour les man&oelig;uvres <ul>";
-    line += "<li><span title=\"Si la cible veut récupérer son arme avant tout le monde, doit sacrifier son tour.\">Désarmer</span> (-5)" + DIFF_TAILLE + "</li>";
     line += "<li><span title=\"cible aveuglée\">Aveugler</span> (-5)</li>";
     line += "<li><span title=\"cible renversée.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible\">Renverser</span> <span title=\"-10 contre un quadrupède\">(-5)</span>" + DIFF_TAILLE + "</li>";
     line += "<li><span title=\"Cible étourdie.&#013;Si surpris et NC<" + niveau + ", test de CON ou assomée 1d6 min\">Étourdir</span> (-10)" + DIFF_TAILLE + "</li>";
@@ -16602,8 +16656,8 @@ var COFantasy2 = COFantasy2 || function() {
           if (attributeAsBool(perso, 'bloque')) {
             let cible = persoOfId(getValeurOfEffet(perso, 'bloque'));
             if (cible && niveauPerso(cible) < niveauPerso(perso) && !getState(cible, 'mort')) {
-              let cmd = "!cof2-test-oppose "+perso.token.id+" FOR "+cible.token.id+" --effet immobilise 1 --effetSurLanceur bloque 2 --typeAction L";
-              ligne += boutonSimple(cmd, "Maintenir la prise") + " sur "+nomPerso(cible)+' (L)<br/>';
+              let cmd = "!cof2-test-oppose " + perso.token.id + " FOR " + cible.token.id + " --effet immobilise 1 --effetSurLanceur bloque 2 --typeAction L";
+              ligne += boutonSimple(cmd, "Maintenir la prise") + " sur " + nomPerso(cible) + ' (L)<br/>';
             }
           }
         }
