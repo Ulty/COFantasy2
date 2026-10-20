@@ -1,4 +1,4 @@
-//Dernière modification : mar. 20 oct. 2026,  02:05
+//Dernière modification : mar. 20 oct. 2026,  04:36
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -8890,6 +8890,18 @@ var COFantasy2 = COFantasy2 || function() {
     });
     //Ajout des options de l'arme
     addWeaponStatsToOptions(attaquant, weaponStats, playerId, pageId, options);
+    if (options.ajouterBonusArme) {
+      let l = options.ajouterBonusArme;
+      let arme;
+      if (l == -1) arme = armesEnMain(attaquant);
+      else if (l == -2) {
+        armesEnMain(attaquant);
+        arme = attaquant.armeGauche;
+      } else arme = getWeaponStats(attaquant, l, true);
+      if (arme) {
+        addWeaponStatsToOptions(attaquant, arme, playerId, pageId, options);
+      }
+    }
     //Dans l'autre sens, options -> weaponStats
     if (options.toucher !== undefined) {
       weaponStats.attSkill = options.toucher;
@@ -13063,7 +13075,7 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         type: 'A',
         seulementSiAttributBool: 'sousTension',
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Décharge électrique --toucher @{selected|atkmag} --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Décharge électrique --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
       }],
     },
     'telekinesie': {
@@ -13236,7 +13248,7 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 3,
         element: 'feu',
         limiteArmure: 'magicien',
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Flèche de feu --sortilege --toucher @{selected|atkmag} --dm 3d4E+@{selected|int} --ELEMENT --portee 30 --fx custom Fleche_de_ELEMENT --effet enELEMENT",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Flèche de feu --sortilege --dm 3d4E+@{selected|int} --ELEMENT --portee 30 --fx custom Fleche_de_ELEMENT --effet enELEMENT",
       },
     },
     'explosion de feu': {
@@ -13336,7 +13348,7 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 1,
         limiteArmure: 'magicien',
         //TODO: ajouter effet de lumière sur la cible
-        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
       }],
     },
     'familier': { //TODO: faire perdre 1d4E PV si le familier meurt (et enlever le token quand il meurt)
@@ -13624,7 +13636,6 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'A',
         mana: 2,
-        limiteArmure: 'druide',
         cmd: 'cof2-soin 1d4E --cibleInconsciente --select @{target|token_id} --portee 0',
       }
     },
@@ -13640,7 +13651,26 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         dm: true,
         combat: true,
+        limiteArmure: 'pretre',
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --deBonus --plus @{selected|CHA} --chatimentDivin SELONRANG(1,1,1,1,2) --message Châtiment divin !',
+      },
+    },
+    'marteau de la foi': {
+      profil: 'pretre',
+      bonusMarteauDeLaFoi: -1,//car on ajoute le nombre de rangs 4
+      plusParVoieDeRang: {
+        predicat: 'bonusMarteauDeLaFoi',
+        profil: 'pretre',
+        rang: 4,
+        def: 0,
+      },
+      action: {
+        nom: "Marteau de la foi",
+        type: 'A',
+        dm: true,
+        combat: true,
+        mana: 4,
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Marteau de la foi --sortilege --dm 2d4E+@{selected|CHA} --plusPred bonusMarteauDeLaFoi --magique --portee 30 --ajouterBonusArme -1',
       },
     },
     //Voie de la prière
@@ -13796,7 +13826,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Vampirisation',
         dm: true,
         type: 'A',
-        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Vampirisation --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --seulementVivant --portee 30 --dm @{selected|demi_NC}d8 --drain',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Vampirisation --attaqueMagiqueOpposee --sortilege --seulementVivant --portee 30 --dm @{selected|demi_NC}d8 --drain',
       },
     },
     //Voie du PNJ récurrent
@@ -13918,7 +13948,7 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         type: 'A',
         seulementSiAttributBool: 'sousTension',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Décharge électrique --toucher @{selected|atkmag} --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
+        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Décharge électrique --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
       }, {
         nom: 'Télékinésie',
         sortilege: true,
@@ -13972,7 +14002,7 @@ var COFantasy2 = COFantasy2 || function() {
         entrerEnCombat: true,
         type: 'L',
         //TODO: ajouter effet de lumière sur la cible
-        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --toucher @{selected|atkmag} --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
       }, {
         nom: 'Invisibilité',
         type: 'A',
@@ -34870,6 +34900,11 @@ var COFantasy2 = COFantasy2 || function() {
     actionsDeCombat: boolDefaultOption,
     actionsAvantLeTour: boolDefaultOption,
     affute: boolDefaultOption,
+    ajouterBonusArme: {
+      fn: integerOption,
+      min: -1,
+      default: -1,
+    },
     allies: {
       fn: selectionOption
     },
@@ -35275,6 +35310,7 @@ var COFantasy2 = COFantasy2 || function() {
       min: 0,
     },
     special: stringDefaultOption,
+    succes: stringDefaultOption,
     sucerLeSang: {
       fn: integerOption,
       default: 7,
@@ -35359,7 +35395,6 @@ var COFantasy2 = COFantasy2 || function() {
       fn: booleanOption,
       local: true,
     },
-    succes: stringDefaultOption,
   };
 
   //Renseigne toujours options.playerId
