@@ -1,4 +1,4 @@
-//Dernière modification : mar. 20 oct. 2026,  01:53
+//Dernière modification : mar. 20 oct. 2026,  02:05
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13306,6 +13306,19 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-action lance un sort de chute ralentie sur INT_TARGETS_NAMES --portee 10 --noSelect --message chute beaucoup moins vite',
       },
     },
+    'dephasage': {
+      profil: 'magicien',
+      action: {
+        nom: 'Déphasage',
+        type: 'A',
+        mana: 3,
+        combat: true,
+        limiteArmure: 'magicien',
+        bufPersonnelNonCumulable: 'dephase',
+        //TODO: interdire en cas d'armure de pierre
+        cmd: "!cof2-effet dephase 1d4E+@{selected|INT} --select @{selected|token_id}"
+      },
+    },
     //Voie de la magie universelle
     'lumiere': {
       profil: 'magicien',
@@ -20336,10 +20349,10 @@ var COFantasy2 = COFantasy2 || function() {
       dm: true
     },
     asphyxie: {
+      dureeEnTours: true,
       activation: "commence à manquer d'air",
       actif: "étouffe",
       fin: "peut à nouveau respirer",
-      dureeEnTours: true,
       parTourFun: parTourAsphyxie,
       msgSave: "pouvoir respirer normalement",
       prejudiciable: true,
@@ -20350,20 +20363,21 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true
     },
     bloque: {
-      //Valeur courante: l'id du token qui est bloqué
+      //Valeur : l'id du token qui est bloqué
+      dureeEnTours: true,
       activation: "immobilise son adversaire",
       actif: "immobilise son adversaire",
       fin: "relâche son adversaire",
-      dureeEnTours: true,
       visible: true,
     },
     chargeFantastique: {
+      dureeEnTours: true,
       activation: "participe à la charge fantastique !",
       actif: "charge fantastique",
       fin: "fin de la charge",
-      dureeEnTours: true,
     },
     confusion: {
+      dureeEnTours: true,
       activation: "devient désorienté",
       activationF: "devient désorientée",
       actif: "est complètement désorienté",
@@ -20371,32 +20385,39 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "retrouve ses esprits",
       msgSave: "retrouver ses esprits",
       prejudiciable: true,
-      dureeEnTours: true,
       visible: true,
     },
     danseIrresistible: {
+      dureeEnTours: true,
       activation: "se met à danser",
       actif: "ne peut s'empêcher de danser",
       fin: "arrête de danser",
       msgSave: "résister à l'appel de la danse",
       prejudiciable: true,
+      visible: true,
+    },
+    dephase: {
       dureeEnTours: true,
+      activation: "semble devenir un peu flou",
+      actif: "est déphasé",
+      actifF: "est déphasée",
+      fin: "retrouve une image nette",
       visible: true,
     },
     distrait: {
+      dureeEnTours: true,
       activation: "est distrait",
       activationF: "est distraite",
       actif: "est distrait",
       actifF: "est distraite",
       fin: "",
-      dureeEnTours: true,
       visible: true,
     },
     dotGen: {
+      dureeEnTours: true,
       activation: "subit un effet",
       actif: "subit régulièrement des dégâts",
       fin: "ne subit plus ces effets de dégâts",
-      dureeEnTours: true,
       parTourFun: parTourDotGen,
       dm: true,
       prejudiciable: true,
@@ -30590,8 +30611,9 @@ var COFantasy2 = COFantasy2 || function() {
   function mitigate(target, dmgType, divide, zero, multiply, expliquer, options) {
     //TODO: revoir ces effets
     let div = 1;
-    if (!options.sortilege && attributeAsBool(target, 'flou')) {
+    if (!options.sortilege && attributeAsBool(target, 'dephase')) {
       div++;
+      expliquer(nomPerso(target) + " se désincarne par intermittence");
     }
     if (!options.energiePositive && dmgType != 'energie' && !options.spectral && predicateAsBool(target, 'creatureIntangible')) {
       div++;
