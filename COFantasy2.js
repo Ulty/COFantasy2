@@ -1,4 +1,4 @@
-//Dernière modification : mar. 20 oct. 2026,  12:20
+//Dernière modification : mar. 20 oct. 2026,  01:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12522,7 +12522,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Chant de réconfort",
         limiteArmure: 'barde',
         horsCombat: true,
-        typeAction: 'L',
+        type: 'L',
         mana: 2,
         cmd: "!cof2-soin SELONRANG(1,1,1,2,2)d4E --select @{selected|token_id} --allies --portee 10 --message chante pendant une demi-heure --titre Chant de réconfort",
       },
@@ -12535,7 +12535,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'barde',
         combat: true,
         dm: true,
-        typeAction: 'A',
+        type: 'A',
         mana: 3,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque sonore --sortilege --auto --dm 2d4E+@{selected|CHA} --portee 10 --cone 120 --psave CON [[10+@{selected|CHA}]]",
       },
@@ -12545,22 +12545,22 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Zone de silence",
         limiteArmure: 'barde',
-        typeAction: 'A',
+        type: 'A',
         mana: 4,
         //TODO: utiliser une zone d'effet, dont l'effet soit dynamique en fonction des mouvements
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --optionEffet dureeEnMinutes @{selected|CHA}",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --dureeEnMinutes @{selected|CHA}",
       },
     },
-    'danse irresisitible': {
+    'danse irresistible': {
       profil: 'barde',
       action: {
         nom: "Danse irrésisitible",
         limiteArmure: 'barde',
         combat: true,
         entrerEnCombat: true,
-        typeAction: 'A',
+        type: 'A',
         mana: 5,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 10 --effet danseIrresistible [[1d4E+@{selected|CHA}]] --optionEffet valeurSiNCAuMoins @{selected|niveau} 1",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Danse irrésisitible --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 10 --effet danseIrresistible [[1d4E+@{selected|CHA}]] --valeurSiNCAuMoins @{selected|niveau} 1",
       },
     },
     //Voie du saltimbanque
@@ -13132,7 +13132,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Amitié",
         limiteArmure: 'ensorceleur',
-        typeAction: 'L',
+        typeA: 'L',
         mana: 4,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --controleMental --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]] --immuniseSiResiste limiteParJour amitie"
       },
@@ -13142,9 +13142,9 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Domination",
         limiteArmure: 'ensorceleur',
-        typeAction: 'A',
+        type: 'A',
         mana: 5,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme --immuniseSiResiste limiteParJour domination",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme --dureeEnMinutes @{selected|CHA} --immuniseSiResiste limiteParJour domination",
       },
     },
     //Voie des illusions
@@ -13374,7 +13374,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Vol",
         limiteArmure: 'magicien',
-        typeAction: 'A',
+        type: 'A',
         mana: 4,
         cmd: '!cof2-effet enVol oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
       }
@@ -13384,7 +13384,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Téléportation",
         limiteArmure: 'magicien',
-        typeAction: 'L',
+        type: 'L',
         mana: 5,
         cmd: '!cof2-action se téléporte --messageMJ à moins de [[@{selected|niveau}*@{selected|INT}]] km dans un lieu en vue ou parfaitement connu',
       },
@@ -13724,7 +13724,7 @@ var COFantasy2 = COFantasy2 || function() {
       action: {
         nom: "Mettre son armure dSELONRANG(e bronze,e bronze,e bronze,e bronze,e bronze,'argent,'argent,'or)",
         bufPersonnelNonCumulable: 'armureSacree',
-        typeAction: 'M',
+        type: 'M',
         cmd: "!cof2-effet armureSacree SELONRANG(3,3,3,3,3,5,5,7)  --select @{selected|token_id} --message l'armure dSELONRANG(e bronze,e bronze,e bronze,e bronze,e bronze,'argent,'argent,'or) se déploie et recouvre le corps de @{selected|token_name}"
       },
     },
@@ -13839,25 +13839,25 @@ var COFantasy2 = COFantasy2 || function() {
       }, {
         nom: "Chant de réconfort",
         horsCombat: true,
-        typeAction: 'L',
+        type: 'L',
         cmd: "!cof2-soin SELONRANG(1,1,1,2,2)d4E --select @{selected|token_id} --allies --portee 10 --message chante pendant une demi-heure --titre Chant de réconfort",
       }, {
         nom: "Attaque sonore",
         combat: true,
         dm: true,
-        typeAction: 'A',
+        type: 'A',
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque sonore --sortilege --auto --dm 2d4E+@{selected|CHA} --portee 10 --cone 120 --psave CON [[10+@{selected|CHA}]]",
       }, {
         nom: "Zone de silence",
-        typeAction: 'A',
+        type: 'A',
         //TODO: utiliser une zone d'effet, dont l'effet soit dynamique en fonction des mouvements
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --optionEffet dureeEnMinutes @{selected|CHA}",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --dureeEnMinutes @{selected|CHA}",
       }, {
         nom: "Danse irrésisitible",
         combat: true,
         entrerEnCombat: true,
-        typeAction: 'A',
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 10 --effet danseIrresistible [[1d4E+@{selected|CHA}]] --optionEffet valeurSiNCAuMoins @{selected|niveau} 1",
+        type: 'A',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Danse irrésistible --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 10 --effet danseIrresistible [[1d4E+@{selected|CHA}]] --valeurSiNCAuMoins @{selected|niveau} 1",
       }],
     },
     "voie de l'envouteur": {
@@ -13877,12 +13877,12 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
       }, {
         nom: "Amitié",
-        typeAction: 'L',
+        type: 'L',
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --controleMental --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]]"
       }, {
         nom: "Domination",
-        typeAction: 'A',
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme",
+        type: 'A',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme --dureeEnMinutes @{selected|CHA}",
       }],
     },
     "voie de l'air": {
@@ -13971,11 +13971,11 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{target|token_id}',
       }, {
         nom: "Vol",
-        typeAction: 'A',
+        type: 'A',
         cmd: '!cof2-effet enVol oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
       }, {
         nom: "Téléportation",
-        typeAction: 'L',
+        type: 'L',
         cmd: '!cof2-action se téléporte --messageMJ à moins de [[@{selected|niveau}*@{selected|INT}]] km dans un lieu en vue ou parfaitement connu',
       }],
     },
@@ -20371,6 +20371,7 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "retrouve ses esprits",
       msgSave: "retrouver ses esprits",
       prejudiciable: true,
+      dureeEnTours: true,
       visible: true,
     },
     danseIrresistible: {
@@ -20379,6 +20380,7 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "arrête de danser",
       msgSave: "résister à l'appel de la danse",
       prejudiciable: true,
+      dureeEnTours: true,
       visible: true,
     },
     distrait: {
@@ -23627,10 +23629,10 @@ var COFantasy2 = COFantasy2 || function() {
             }
             selectedSet.add(obj.id);
           });
+          if (tokenCentre.get('bar1_max') == 0) { // jshint ignore:line
           if (options.fxCible) {
             spawnFx(tokenCentre.get('left'), tokenCentre.get('top'), options.fxCible, pageId);
           }
-          if (tokenCentre.get('bar1_max') == 0) { // jshint ignore:line
             //C'est juste un token utilisé pour définir le disque
             tokenCentre.remove(); //On l'enlève, normalement plus besoin
             delete options.fxCible;
@@ -27758,7 +27760,7 @@ var COFantasy2 = COFantasy2 || function() {
     tokens.forEach(function(token) {
       let perso = persoOfToken(token);
       if (!perso) return;
-      let tempDmg = parseInt(token.get('bar4_value'));
+      let tempDmg = toInt(token.get('bar4_value'), 0);
       if (tempDmg <= 0) return;
       let pvmax;
       if (isNaN(tempDmg)) {
@@ -28523,9 +28525,6 @@ var COFantasy2 = COFantasy2 || function() {
             }
             actions.extra = 'M';
         }
-      }
-      if (options.fxCible) {
-        spawnFx(cible.token.get('left'), cible.token.get('top'), options.fxCible, cible.token.get('pageid'));
       }
       effetsSpeciaux(options.acteur, cible, options);
       if (options.message) {
@@ -29791,10 +29790,6 @@ var COFantasy2 = COFantasy2 || function() {
     attrs = removeAllAttributes('attributDeCombat', evt, attrs);
     attrs = removeAllAttributes('effetsTemporairesLies', evt, attrs);
     attrs = removeAllAttributes('limiteParTour', evt, attrs);
-    // Autres attributs
-    if (combat.tour / 10 != Math.floor(combat.tour / 10)) {
-      augmenterLeTempsEnMinutes(1, attrs, evt, combat.pageId);
-    }
     recupererMunitions(attrs, evt);
     recupererArmesDeJet(attrs, evt);
     let tokens = findObjs({ // Les tokens sur la page du combat
@@ -31324,6 +31319,8 @@ var COFantasy2 = COFantasy2 || function() {
     let updateBar1;
     if (bar1 >= pvMax) bar1 = pvMax;
     else updateBar1 = true;
+    let dmgTemp = toInt(token.get('bar4_value'), 0);
+    let assomme = dmgTemp > 0 && dmgTemp >= bar1 && getState(perso, 'assomme');
     if (soins < 0) soins = 0;
     if (predicateAsBool(perso, 'vitaliteEpique')) soins *= 2;
     let nonSoignable = 0;
@@ -31409,9 +31406,9 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       }
+      if (assomme && dmgTemp < bar1) setState(perso, 'assomme', false, evt);
       // On  cherche si il y a des DM temporaires à soigner
       if (bar1 > pvMax) {
-        let dmgTemp = toInt(token.get('bar4_value'), 0);
         if (dmgTemp > 0) {
           let newDmgTemp = dmgTemp - bar1 + pvMax;
           if (newDmgTemp < 0) {
@@ -34077,26 +34074,16 @@ var COFantasy2 = COFantasy2 || function() {
     } else scope[op] = d;
   }
 
-  function twoIntegersOption(ctx, cmd, options, state, optionString, pageId) {
-    if (cmd.length < 3) {
-      if (!options.noError) {
-        error("Il faut deux arguments pour l'option " + cmd[0]);
-      }
-      return;
-    }
-    let d1 = parseIntOption(ctx, cmd, 1, options, optionString);
+  function parseTwoIntOption(ctx, cmd, i, options, optionString) {
+    let d1 = parseIntOption(ctx, cmd, i, options, optionString);
     if (d1 === undefined) return;
-    let d2 = parseIntOption(ctx, cmd, 2, options, optionString);
+    let d2 = parseIntOption(ctx, cmd, i + 1, options, optionString);
     if (d2 === undefined) return;
-    let scope = options;
-    if (ctx.local) scope = state.scope;
-    let op = ctx.optName || cmd[0];
     let val1 = ctx.val1 || 'val1';
     let val2 = ctx.val2 || 'val2';
     let res = {};
     res[val1] = d1;
     res[val2] = d2;
-    scope[op] = res;
   }
 
   function floatOption(ctx, cmd, options, state, optionString, pageId) {
@@ -34357,17 +34344,9 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let val = cmd[1];
     if (ctx.champEntier) {
-      val = parseInt(val);
-      if (isNaN(val)) {
-        if (!options.noError)
-          error("L'argument de " + cmd[0] + " doit être un entier", cmd);
-        return;
-      }
-      if (ctx.min !== undefined && val < ctx.min) {
-        if (!options.noError)
-          error("L'argument de " + cmd[0] + " doit être supérieur à " + ctx.fin, cmd);
-        val = ctx.min;
-      }
+      val = parseIntOption(ctx, cmd, 1, options, optionString);
+    } else if (ctx.champDeuxEntiers) {
+      val = parseTwoIntOption(ctx, cmd, 1, options, optionString);
     } else if (options.acteur) val = (val + '').replace(/(\d+)d4[°eE]/g, '$1d' + deEvolutif(options.acteur));
     effet[cmd[0]] = val;
     if (ctx.champMax && cmd.length > 2) {
@@ -34851,6 +34830,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - fin : indique une fin d'effet (effetOption)
   // - champMax : champ à remplir en deuxième argument si présent (effetSubOption)
   // - champEntier : sous-option entière (effetSubOption)
+  // - champDeuxEntiers : sous-option entière (effetSubOption)
   // - saveField : le champ de save à utiliser (saveDMOption)
   // - array : l'option est un tableau (wordOption, stringOption)
   const optionTable = {
@@ -35003,13 +34983,9 @@ var COFantasy2 = COFantasy2 || function() {
       fn: diceOption,
     },
     dureeEnMinutes: {
-      fn: integerOption,
+      fn: effetSubOption,
+      champEntier: true,
       min: 1,
-    },
-    valeurSiNCAuMoins: {
-      fn: twoIntegersOption,
-      val1: 'ncMin',
-      val2: 'valeur',
     },
     echecCritique: {
       fn: tricheOption
@@ -35126,6 +35102,10 @@ var COFantasy2 = COFantasy2 || function() {
     },
     manoeuvre: wordDefaultOption,
     marteau: boolDefaultOption,
+    maxDmg: {
+      fn: booleanOption,
+      local: true,
+    },
     message: {
       fn: stringOption,
       array: true,
@@ -35314,6 +35294,12 @@ var COFantasy2 = COFantasy2 || function() {
       fn: effetSubOption,
       champMax: 'valeurMax'
     },
+    valeurSiNCAuMoins: {
+      fn: effetSubOption,
+      champDeuxEntiers: true,
+      val1: 'ncMin',
+      val2: 'valeur',
+    },
     vampirise: {
       fn: integerOption,
       min: 0,
@@ -35352,10 +35338,6 @@ var COFantasy2 = COFantasy2 || function() {
       local: true,
     },
     succes: stringDefaultOption,
-    maxDmg: {
-      fn: booleanOption,
-      local: true,
-    },
   };
 
   //Renseigne toujours options.playerId
