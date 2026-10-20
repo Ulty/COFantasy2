@@ -1,4 +1,4 @@
-//Dernière modification : mar. 20 oct. 2026,  05:43
+//Dernière modification : mar. 20 oct. 2026,  06:11
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3632,6 +3632,11 @@ var COFantasy2 = COFantasy2 || function() {
         attBonus += bonus;
         messageAttaqueDM("Attaque flamboyante", explications, options, bonus);
       }
+      if (attributeAsBool(attaquant, 'forceDeGeant')) {
+        let b = getIntValeurOfEffet(attaquant, 'forceDeGeant', 2);
+        attBonus += b;
+        messageAttaqueDM("Force de géant", explications, options, b);
+      }
     } //Fin de la condition options.contact
     let attrGobe = tokenAttribute(attaquant, 'estGobePar');
     if (attrGobe.length > 0) {
@@ -3798,11 +3803,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (attributeAsBool(personnage, 'cadavreAnime')) {
       attBonus -= 4;
       explications.push("Cadavre animé => -2 en Attaque");
-    }
-    if (attributeAsBool(personnage, 'forceDeGeant')) {
-      let bonusForceDeGeant = getIntValeurOfEffet(personnage, 'forceDeGeant', 2);
-      attBonus += bonusForceDeGeant;
-      explications.push("Force de géant => +" + bonusForceDeGeant + " en Attaque");
     }
     if (attributeAsBool(personnage, 'nueeDInsectes')) {
       let malusNuee = 2;
@@ -7472,11 +7472,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (attributeAsBool(attaquant, 'agrandissement')) {
         attDMBonusCommun += 2;
         explications.push("Agrandissement => +2 aux DM");
-      }
-      if (attributeAsBool(attaquant, 'forceDeGeant')) {
-        let bonusForceDeGeant = getIntValeurOfEffet(attaquant, 'forceDeGeant', 2);
-        attDMBonusCommun += bonusForceDeGeant;
-        explications.push("Force de géant => +" + bonusForceDeGeant + " aux DM");
       }
     }
     let nAEF = 0;
@@ -13482,7 +13477,6 @@ var COFantasy2 = COFantasy2 || function() {
         attrib: 'con',
         value: '1',
       }]
-
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des animaux
@@ -14064,6 +14058,34 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         sortilege: true,
         cmd: '!cof2-action se téléporte --messageMJ à moins de [[@{selected|niveau}*@{selected|INT}]] km dans un lieu en vue ou parfaitement connu',
+      }],
+    },
+    'voie de la sombre magie': {
+      bonusTestEvolutif_savoirsSombres: true,
+      pacteTenebreux: true,
+      CON_heroique: true,
+      actions: [{
+        nom: 'Ténèbres',
+        type: 'L',
+        sortilege: true,
+        cmd: '!cof2-tenebres @{selected|token_id} @{target|Cible|token_id}', //valeurs par défaut de la commande
+      }, {
+        nom: 'Reptation',
+        type: 'M',
+        sortilege: true,
+        cmd: '!cof2-effet reptation --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
+      }, {
+        nom: 'Strangulation',
+        type: 'A',
+        sortilege: true,
+        dm: true,
+        combat: true,
+        cmd: cmdStrangulation + ' --attaqueMagiqueOpposee',
+      }, {
+        nom: "Manteau d'ombre",
+        type: 'L',
+        sortilege: true,
+        cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
       }],
     },
   };
@@ -20504,41 +20526,47 @@ var COFantasy2 = COFantasy2 || function() {
       generic: true
     },
     effetRetarde: {
+      dureeEnTours: true,
       activation: "il va bientôt se produire quelque chose",
       actif: "s'attend à un effet",
       fin: "effet retardé activé",
       finFun: finEffetRetarde,
-      dureeEnTours: true,
       generic: true,
       prejudiciable: true,
       plusieurs: true,
     },
     effrayeParCriDeGuerre: {
+      dureeEnTour: true,
       activation: "est effrayé par le cri de guerre",
       activationF: "est effrayée par le cri de guerre",
       actif: "est effrayé par le cri de guerre",
       actifF: "est effrayée par le cri de guerre",
       fin: "retrouve du courage",
-      dureeEnTour: true,
       prejudiciable: true,
     },
     flecheVivante: {
+      dureeEnTours: true,
       activation: "la flèche prend racine dans la plaie",
       actif: "a une flèche qui pousse",
       fin: "", //On a déjà un message avec finFun
       finFun: finFlecheVivante,
-      dureeEnTours: true,
       dm: true,
       prejudiciable: true,
       plusieurs: true,
     },
+    forceDeGeant: {
+      dureeEnTours: true,
+      activation: "gagne de la force",
+      actif: "est fort comme un géant !",
+      fin: "retrouve une force normale",
+    },
     geneEnAttaque: {
+      dureeEnTours: true,
       activation: "est gêné dans ses attaques",
       activationF: "est gênée dans ses attaques",
       actif: "est gêné",
       actifF: "est gênée",
       fin: "",
-      dureeEnTours: true,
       visible: true,
     },
     messageRetarde: {
