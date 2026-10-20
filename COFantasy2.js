@@ -1,4 +1,4 @@
-//Dernière modification : lun. 19 oct. 2026,  05:51
+//Dernière modification : mar. 20 oct. 2026,  12:20
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5449,6 +5449,10 @@ var COFantasy2 = COFantasy2 || function() {
             attBonusTarget += 3;
             target.messages.push("Défense partielle => +3 au jet");
           }
+          if (getState(target, 'surpris')) {
+            attBonusTarget -= 5;
+            target.messages.push("Surprise => -5 au jet");
+          }
           defense = r20def.total + attSkillTarget + attBonusTarget;
           defenseTxt = r20def.display;
           if (attSkillTarget > 0) defenseTxt += ' +' + attSkillTarget;
@@ -7233,71 +7237,6 @@ var COFantasy2 = COFantasy2 || function() {
         if (f && f.newToken) cibleEffet.token = f.newToken;
         return;
       }
-      if (ef.save) {
-        if (ef.gober) {
-          let rollIdGober = 'gober_' + target.token.id;
-          let explications = target.messages || [];
-          let {
-            resultat
-          } = testOppose(rollIdGober, target, 'FOR', options, acteur, 'FOR', options,
-            explications, evt);
-          if (!target.messages) {
-            explications.forEach(function(msg) {
-              sendPerso(target, msg);
-            });
-          }
-          if (resultat == 2) {
-            expliquerPerso(target, " est entièrement avalé par " + nomPerso(acteur));
-            setTokenAttr(acteur, 'aGobe', target.token.id, evt);
-            setTokenAttr(target, 'estGobePar', acteur.token.id, evt);
-            moveTokenWithUndo(target.token, acteur.token.get('left'), acteur.token.get('top'), evt);
-          } else {
-            if (resultat === 0) diminueMalediction(acteur, evt);
-            expliquerPerso(target, " n'est pas avalé.");
-          }
-        } else {
-          if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, acteur, options)) {
-            if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
-              expliquerPerso(cibleEffet, " ne semble pas affecté par " + stringOfType(ef.typeDmg));
-              cibleEffet['msgImmunite_' + ef.typeDmg] = true;
-            }
-            return;
-          }
-          let msgPour = " pour ";
-          if (ef.msgSave) msgPour += ef.msgSave;
-          else msgPour += "résister à un effet";
-          let msgRate = ", " + nomPerso(cibleEffet) + " ";
-          if (ef.message) {
-            msgRate += messageActivation(cibleEffet, ef.message, ef.effet);
-            if (ef.message.dureeEnTours && stateCOF.options.affichage.val.duree_effets.val) msgRate += " (" + ef.valeur + " tours)";
-          }
-          ef.pasDeMessageDActivation = true;
-          let saveOpts = {
-            msgPour: msgPour,
-            msgRate: msgRate,
-            attaquant: acteur,
-            sortilege: options.sortilege,
-            type: ef.typeDmg,
-          };
-          ef.save.etat = effetEtatTemp(ef.effet);
-          let rollId = 'effet_' + ef.effet + index + '_' + cibleEffet.token.id;
-          let duree;
-          if (ef.message.dureeEnTours) duree = ef.arg;
-          let reussite = save(ef.save, cibleEffet, rollId, expliquer, saveOpts, evt);
-          if (reussite && duree && ef.save.demiDuree) {
-            reussite = false;
-            duree = Math.ceil(duree / 2);
-            ef = deepCopy(ef);
-            ef.arg = duree;
-            if (stateCOF.options.affichage.val.duree_effets.val) expliquer("La durée est réduite à " + duree + " tours");
-          }
-          if (!reussite) {
-            setEffetFrom(acteur, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
-          }
-        }
-        return;
-      }
-      //Pas de save
       if (ef.typeDmg && immuniseAuType(cibleEffet, ef.typeDmg, acteur, options)) {
         if (!cibleEffet['msgImmunite_' + ef.typeDmg]) {
           expliquerPerso(cibleEffet, " ne semble pas affecté par " + stringOfType(ef.typeDmg));
@@ -7305,7 +7244,65 @@ var COFantasy2 = COFantasy2 || function() {
         }
         return;
       }
-      setEffetFrom(acteur, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
+      if (ef.arg === undefined) ef.arg = 1;
+      if (!ef.save) {
+        setEffetFrom(acteur, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
+        return;
+      }
+      if (ef.gober) {
+        let rollIdGober = 'gober_' + target.token.id;
+        let explications = target.messages || [];
+        let {
+          resultat
+        } = testOppose(rollIdGober, target, 'FOR', options, acteur, 'FOR', options,
+          explications, evt);
+        if (!target.messages) {
+          explications.forEach(function(msg) {
+            sendPerso(target, msg);
+          });
+        }
+        if (resultat == 2) {
+          expliquerPerso(target, " est entièrement avalé par " + nomPerso(acteur));
+          setTokenAttr(acteur, 'aGobe', target.token.id, evt);
+          setTokenAttr(target, 'estGobePar', acteur.token.id, evt);
+          moveTokenWithUndo(target.token, acteur.token.get('left'), acteur.token.get('top'), evt);
+        } else {
+          if (resultat === 0) diminueMalediction(acteur, evt);
+          expliquerPerso(target, " n'est pas avalé.");
+        }
+      } else {
+        let msgPour = " pour ";
+        if (ef.msgSave) msgPour += ef.msgSave;
+        else msgPour += "résister à un effet";
+        let msgRate = ", " + nomPerso(cibleEffet) + " ";
+        if (ef.message) {
+          msgRate += messageActivation(cibleEffet, ef.message, ef.effet);
+          if (ef.message.dureeEnTours && stateCOF.options.affichage.val.duree_effets.val) msgRate += " (" + ef.valeur + " tours)";
+        }
+        ef.pasDeMessageDActivation = true;
+        let saveOpts = {
+          msgPour: msgPour,
+          msgRate: msgRate,
+          attaquant: acteur,
+          sortilege: options.sortilege,
+          type: ef.typeDmg,
+        };
+        ef.save.etat = effetEtatTemp(ef.effet);
+        let rollId = 'effet_' + ef.effet + index + '_' + cibleEffet.token.id;
+        let duree;
+        if (ef.message.dureeEnTours) duree = ef.arg;
+        let reussite = save(ef.save, cibleEffet, rollId, expliquer, saveOpts, evt);
+        if (reussite && duree && ef.save.demiDuree) {
+          reussite = false;
+          duree = Math.ceil(duree / 2);
+          ef = deepCopy(ef);
+          ef.arg = duree;
+          if (stateCOF.options.affichage.val.duree_effets.val) expliquer("La durée est réduite à " + duree + " tours");
+        }
+        if (!reussite) {
+          setEffetFrom(acteur, cibleEffet, ef.effet, ef.message, evt, pageId, ef, options);
+        }
+      }
     });
   }
 
@@ -7645,6 +7642,20 @@ var COFantasy2 = COFantasy2 || function() {
             ajouteDesEvolutifs(attaquant, 1, target, mainDmgType);
             target.messages.push("Massacrer la piétaille => +1d4° DM");
           }
+        }
+        if (options.manoeuvre == 'etourdir' && getState(target, 'surpris') && niveauPerso(target) < niveauPerso(attaquant)) {
+          let seuil = 10;
+          if (options.contondant) seuil = 15;
+          target.effets.push({
+            effet: 'assommeEnMinutes',
+            message: messageEffet.assommeEnMinutes,
+            dureeEnMinutes: rollDePlus(6).total,
+            save: {
+              carac: 'CON',
+              seuil
+            },
+
+          });
         }
         let attDMBonus = attDMBonusCommun;
         //Les modificateurs de dégâts qui dépendent de la cible
@@ -13133,7 +13144,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         typeAction: 'A',
         mana: 5,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome --immuniseSiResiste limiteParJour domination",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme --immuniseSiResiste limiteParJour domination",
       },
     },
     //Voie des illusions
@@ -13871,7 +13882,7 @@ var COFantasy2 = COFantasy2 || function() {
       }, {
         nom: "Domination",
         typeAction: 'A',
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assome",
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --optionEffet dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme",
       }],
     },
     "voie de l'air": {
@@ -15879,8 +15890,6 @@ var COFantasy2 = COFantasy2 || function() {
       avecCarac: 'agi'
     };
     const DIFF_TAILLE = " <span title=\"+ ou - 5 par différence de catégorie de taille\" style=\"font-family: \'Pictos\'\">S</span>";
-    //let choix_contact =
-    //  "|au contact, manoeuvre --toucher " + attaquePerso(perso, 'atkcac');
     let choix_contact_finesse =
       "|au contact (normal), manoeuvre --toucher " + attaquePerso(perso, 'atkcac') +
       "|au contact (en finesse), manoeuvre --toucher " + attaquePerso(perso, 'atkcac', optAgi);
@@ -15939,12 +15948,18 @@ var COFantasy2 = COFantasy2 || function() {
     tooltip = "Cible aveuglée";
     bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'aveugler', "Aveugler", tooltip);
     line += bt + " (-5)<br/>";
-    addLineToFramedDisplay(display, line);
-    line = '';
-    line += "Demander au MJ pour les man&oelig;uvres <ul>";
-    line += "<li><span title=\"cible renversée.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible\">Renverser</span> <span title=\"-10 contre un quadrupède\">(-5)</span>" + DIFF_TAILLE + "</li>";
-    line += "<li><span title=\"Cible étourdie.&#013;Si surpris et NC<" + niveau + ", test de CON ou assomée 1d6 min\">Étourdir</span> (-10)" + DIFF_TAILLE + "</li>";
-    line += "</ul>";
+    //Renverser
+    choix = "?{Renverser" + choix_contact_finesse + choix_arme + choix_magie + "}";
+    effet = " --etat renverse --if typeCible quadrupede --bonusAttaque -10 --else --bonusAttaque -5 --endif --bonusCategorieDeTaille --deplaceDe " + vitesse;
+    tooltip = "Cible renversée.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible";
+    bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'renverser', "Renverser", tooltip);
+    line += bt + " (-5)" + DIFF_TAILLE + " (+ mvt de " + vitesse + "m. max)<br/>";
+    //Étourdir
+    choix = "?{Étourdir" + choix_arme + choix_contact_finesse + choix_distance + choix_magie + "}";
+    effet = " --effet etourdi 1 --bonusAttaque -10 --bonusCategorieDeTaille";
+    tooltip = "Cible étourdie.&#013;Si surpris et NC<" + niveau + ", test de CON ou assomée 1d6 min";
+    bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'etourdir', "Étourdir", tooltip);
+    line += bt + " (-10)" + DIFF_TAILLE + "<br/>";
     addLineToFramedDisplay(display, line);
     sendFramedDisplay(display);
   }
@@ -18809,6 +18824,54 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function estQuadrupede(perso) {
+    if (predicateAsBool(perso, 'quadrupede')) return true;
+    if (estInsecte(perso)) return true;
+    let race = getRace(perso);
+    switch (race) {
+      case 'abnormis':
+      case 'basilic':
+      case 'dragon':
+      case 'bison':
+      case 'carnifurax':
+      case 'caerbandog':
+      case 'centaure':
+      case 'cerbere':
+      case 'cheval':
+      case 'chien':
+      case 'chimere':
+      case 'crocodile':
+      case 'destrier':
+      case 'diplodocus':
+      case 'elephant':
+      case 'fourmi':
+      case 'griffon':
+      case 'hydre':
+      case 'hyene':
+      case 'lezard':
+      case 'licorne':
+      case 'lion':
+      case 'loup':
+      case 'mammouth':
+      case 'manticore':
+      case 'molosse':
+      case 'ourhible':
+      case 'ours':
+      case 'panthere':
+      case 'pegase':
+      case 'rat':
+      case 'rhinoceros':
+      case 'sanglier':
+      case 'sphinx':
+      case 'tardigrade':
+      case 'tigre':
+      case 'triceratops':
+      case 'worg':
+        return true;
+    }
+    return false;
+  }
+
   function raceIs(perso, race) {
     return (getRace(perso).includes(race.toLowerCase()));
   }
@@ -18836,6 +18899,8 @@ var COFantasy2 = COFantasy2 || function() {
         return estMauvais(perso);
       case 'mort-vivant':
         return estMortVivant(perso);
+      case 'quadrupede':
+        return estQuadrupede(perso);
       default:
         return raceIs(perso, categorie) || predicateAsBool(perso, categorie);
     }
@@ -20030,6 +20095,17 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "reprend conscience",
       finFun: finEtatTemp,
       dureeEnTours: true,
+      msgSave: "reprendre conscience",
+      prejudiciable: true,
+      visible: true
+    },
+    assommeEnMinutes: {
+      activation: "est assommé",
+      activationF: "est assommée",
+      actif: "est assommé",
+      actifF: "est assommée",
+      fin: "reprend conscience",
+      finFun: finEtatTemp,
       msgSave: "reprendre conscience",
       prejudiciable: true,
       visible: true
@@ -21503,6 +21579,7 @@ var COFantasy2 = COFantasy2 || function() {
           setState(target, 'affaibli', true, evt);
           break;
         case 'assommeTemp':
+        case 'assommeEnMinutes':
           setState(target, 'assomme', true, evt);
           break;
         case 'invisibleTemp':
@@ -22062,7 +22139,7 @@ var COFantasy2 = COFantasy2 || function() {
       turnAction(cibles[0], playerId, pageId, evt);
   }
 
-  //Pour les effets activés par un perso
+  //Pour les effets activés par un perso. Il faut un champ ef.arg
   function setEffetFrom(acteur, target, effet, mEffet, evt, pageId, ef, options) {
     ef.acteur = acteur;
     setEffet(target, effet, mEffet, ef.arg, pageId, evt, ef, options);
