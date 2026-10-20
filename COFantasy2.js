@@ -1,4 +1,4 @@
-//Dernière modification : mar. 20 oct. 2026,  04:36
+//Dernière modification : mar. 20 oct. 2026,  05:43
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2647,7 +2647,7 @@ var COFantasy2 = COFantasy2 || function() {
     let titreMJ = "Récupération " + typeRecuperation;
     if (stateCOF.milieu) {
       titreMJ += " en milieu ";
-      titreMJ += boutonSimple('cof2-milieu ?{milieu|artificiel|naturel|indéterminé,&#32;}', stateCOF.milieu, BS_BUTTON);
+      titreMJ += boutonSimple('!cof2-milieu ?{milieu|artificiel|naturel|indéterminé,&#32;}', stateCOF.milieu, BS_BUTTON);
     }
     let displayMJ = startFramedDisplay(playerId, titreMJ, undefined, {
       chuchote: 'GM'
@@ -7391,11 +7391,30 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push("Châtiment divin => +" + args.choices.chatimentDivin + "d4° DM");
       }
     }
+    let mainDmgType = options.type || 'normal';
+    if (options.sacrifiePVPourDM) {
+      ajouteDesEvolutifs(attaquant, 2, options, mainDmgType);
+      let de = {
+        nbDe: 1,
+        dice: deEvolutif(attaquant),
+        type: 'magique',
+      };
+      let dm = rollDePlus(de, 'sacrifiePVPourDM', evt);
+      let opt = {
+        ignoreTouteRD: true
+      };
+      dealDamage(attaquant, dm, [], evt, false, opt, explications,
+        function(dmgDisplay, dmg, dmDrains) {
+          let dmgMsg =
+            "<b>" + nomPerso(attaquant) + " sacrifie :</b> " +
+            dmgDisplay + " DM pour augmenter les dégâts du sort.";
+          explications.push(dmgMsg);
+        });
+    }
     const attackingToken = attaquant.token;
     options.attaquant = attaquant;
     //Les dégâts
     //Dégâts insrits sur la ligne de l'arme
-    let mainDmgType = options.type || 'normal';
     let attNbDices = weaponStats.attNbDices;
     if (isNaN(attNbDices) || attNbDices < 0) {
       error("Dés de l'attaque incorrect", attNbDices);
@@ -7654,7 +7673,6 @@ var COFantasy2 = COFantasy2 || function() {
               carac: 'CON',
               seuil
             },
-
           });
         }
         let attDMBonus = attDMBonusCommun;
@@ -13442,6 +13460,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 3,
         dm: true,
+        combat: true,
         cmd: cmdStrangulation + ' --attaqueMagiqueOpposee',
       },
     },
@@ -13453,6 +13472,17 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 4,
         cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
       }
+    },
+    'pacte tenebreux': {
+      pacteTenebreux: true,
+      visionDansLeNoir: 100,
+      CON_heroique: true,
+      buffsSurFiche: [{
+        nom: 'Pacte ténébreux',
+        attrib: 'con',
+        value: '1',
+      }]
+
     },
     //Voies de druide ////////////////////////////////////////////
     //Voie des animaux
@@ -13657,7 +13687,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'marteau de la foi': {
       profil: 'pretre',
-      bonusMarteauDeLaFoi: -1,//car on ajoute le nombre de rangs 4
+      bonusMarteauDeLaFoi: -1, //car on ajoute le nombre de rangs 4
       plusParVoieDeRang: {
         predicat: 'bonusMarteauDeLaFoi',
         profil: 'pretre',
@@ -13826,6 +13856,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Vampirisation',
         dm: true,
         type: 'A',
+        sortilege: true,
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Vampirisation --attaqueMagiqueOpposee --sortilege --seulementVivant --portee 30 --dm @{selected|demi_NC}d8 --drain',
       },
     },
@@ -13889,10 +13920,12 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         dm: true,
         type: 'A',
+        sortilege: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque sonore --sortilege --auto --dm 2d4E+@{selected|CHA} --portee 10 --cone 120 --psave CON [[10+@{selected|CHA}]]",
       }, {
         nom: "Zone de silence",
         type: 'A',
+        sortilege: true,
         //TODO: utiliser une zone d'effet, dont l'effet soit dynamique en fonction des mouvements
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --dureeEnMinutes @{selected|CHA}",
       }, {
@@ -13900,6 +13933,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         entrerEnCombat: true,
         type: 'A',
+        sortilege: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Danse irrésistible --sortilege --attaqueMagiqueOpposee --pasDeDmg --portee 10 --effet danseIrresistible [[1d4E+@{selected|CHA}]] --valeurSiNCAuMoins @{selected|niveau} 1",
       }],
     },
@@ -13908,23 +13942,28 @@ var COFantasy2 = COFantasy2 || function() {
       actions: [{
         nom: 'Injonction',
         type: 'A',
+        sortilege: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Injonction --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20"
       }, {
         nom: "Sommeil",
         type: 'L',
+        sortilege: true,
         cmd: "!cof2-effet endormiEnMinutes true --controleMental --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
       }, {
         nom: "Confusion",
         limiteArmure: 'ensorceleur',
         type: 'A',
+        sortilege: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Confusion --controleMental --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 20 --effet confusion @{selected|CHA} --valeur [[12+@{selected|CHA}]]"
       }, {
         nom: "Amitié",
         type: 'L',
+        sortilege: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Amitié --sortilege --controleMental --pasDeDmg --attaqueMagiqueOpposee --portee 10 --effet amitie [[10+@{selected|CHA}]]"
       }, {
         nom: "Domination",
         type: 'A',
+        sortilege: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme --dureeEnMinutes @{selected|CHA}",
       }],
     },
@@ -13947,6 +13986,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         dm: true,
         type: 'A',
+        sortilege: true,
         seulementSiAttributBool: 'sousTension',
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Décharge électrique --dm 1d4E+@{selected|CHA} --electrique --sortilege --portee 10"
       }, {
@@ -14001,6 +14041,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         entrerEnCombat: true,
         type: 'L',
+        sortilege: true,
         //TODO: ajouter effet de lumière sur la cible
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Lumière sur les yeux --attaqueMagiqueOpposee --sortilege --pasDeDmg --portee 10 --conditionAttaque NC <= RANG --effet aveugle 1 --limiteParCombat 1 lumiereAveuglante',
       }, {
@@ -14011,14 +14052,17 @@ var COFantasy2 = COFantasy2 || function() {
         aPartirDeRang: 5,
         nom: 'Invisibilité sur',
         type: 'L',
+        sortilege: true,
         cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{target|token_id}',
       }, {
         nom: "Vol",
         type: 'A',
+        sortilege: true,
         cmd: '!cof2-effet enVol oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
       }, {
         nom: "Téléportation",
         type: 'L',
+        sortilege: true,
         cmd: '!cof2-action se téléporte --messageMJ à moins de [[@{selected|niveau}*@{selected|INT}]] km dans un lieu en vue ou parfaitement connu',
       }],
     },
@@ -16484,6 +16528,9 @@ var COFantasy2 = COFantasy2 || function() {
         command = command.replace(/ELEMENT/g, action.element);
       }
     }
+    if (action.dm && predicateAsBool(perso, 'pacteTenebreux') && (action.mana > 0 || action.sortilege)) {
+      command += " ?{Pacte ténébreux ?|Non,&#32;|Oui,--sacrifiePVPourDM}";
+    }
     let request;
     if (action.mana > 0 && !persoEstPNJ(perso)) {
       if (action.type == 'A' && typeActionPossible(perso, 'L')) {
@@ -16765,9 +16812,12 @@ var COFantasy2 = COFantasy2 || function() {
               command = selectedToValue(command, 'target|Cible', cible);
               command += ' --remplaceAttribut ' + attr.id + ' --auto --typeAction M';
               if (!persoEstPNJ(perso)) command += ' --mana 1';
+              if (predicateAsBool(perso, 'pacteTenebreux')) {
+                command += " ?{Pacte ténébreux ?|Non,&#32;|Oui,--sacrifiePVPourDM}";
+              }
               let bopt = {};
-              let b = boutonComplexe(command, 'Maintenir la strangulation', perso, bopt);
-              if (!bopt.actionImpossible) ligne += b + ' sur ' + nomPerso(cible) + '<br />';
+              let b = boutonComplexe(command, 'Maintenir', perso, bopt);
+              if (!bopt.actionImpossible) ligne += b + ' la strangulation sur ' + nomPerso(cible) + '<br />';
             });
           }
         }
@@ -23681,9 +23731,9 @@ var COFantasy2 = COFantasy2 || function() {
             selectedSet.add(obj.id);
           });
           if (tokenCentre.get('bar1_max') == 0) { // jshint ignore:line
-          if (options.fxCible) {
-            spawnFx(tokenCentre.get('left'), tokenCentre.get('top'), options.fxCible, pageId);
-          }
+            if (options.fxCible) {
+              spawnFx(tokenCentre.get('left'), tokenCentre.get('top'), options.fxCible, pageId);
+            }
             //C'est juste un token utilisé pour définir le disque
             tokenCentre.remove(); //On l'enlève, normalement plus besoin
             delete options.fxCible;
@@ -35108,6 +35158,10 @@ var COFantasy2 = COFantasy2 || function() {
     },
     grenaille: boolDefaultOption,
     hache: boolDefaultOption,
+    ignoreRD: {
+      fn: ignoreRDOption,
+      local: true
+    },
     imgAttack: wordDefaultOption,
     imgAttackEchec: wordDefaultOption,
     imgAttackEchecCritique: wordDefaultOption,
@@ -35150,6 +35204,10 @@ var COFantasy2 = COFantasy2 || function() {
     },
     maladie: {
       fn: dmgTypeOption
+    },
+    malediction: {
+      fn: booleanOption,
+      local: true,
     },
     mana: {
       fn: integerOption,
@@ -35259,6 +35317,7 @@ var COFantasy2 = COFantasy2 || function() {
       additif: true,
     },
     reroll1: boolDefaultOption,
+    sacrifiePVPourDM: boolDefaultOption,
     saufAllies: {
       fn: selectionOption
     },
@@ -35384,14 +35443,6 @@ var COFantasy2 = COFantasy2 || function() {
       local: true,
     },
     ignoreMoitieRD: {
-      fn: booleanOption,
-      local: true,
-    },
-    ignoreRD: {
-      fn: ignoreRDOption,
-      local: true
-    },
-    malediction: {
       fn: booleanOption,
       local: true,
     },
