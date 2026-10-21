@@ -1,4 +1,4 @@
-//Dernière modification : mer. 21 oct. 2026,  04:10
+//Dernière modification : mer. 21 oct. 2026,  04:31
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5753,15 +5753,12 @@ var COFantasy2 = COFantasy2 || function() {
           if (attributeAsBool(target, 'imageDecalee') &&
             (!options.aoe || predicateAsBool(target, 'imageDecaleeAvancee'))
           ) {
-            if (target.rollImageDecalee === undefined) {
-              target.rollImageDecalee = rollDePlus(6, "imageDecalee" + target.token.id, evt);
-            }
-            let id = target.rollImageDecalee;
-            if (id.total > 4) {
+              let r = rollDePlus(6, "imageDecalee" + target.token.id, evt);
+            if (r.total > 4) {
               target.touche = false;
-              target.messages.push(id.display + ": l'attaque passe à travers l'image de " + nomPerso(target));
+              target.messages.push(r.display + ": l'attaque passe à travers l'image de " + nomPerso(target));
             } else {
-              target.messages.push(id.display + ": malgré l'image légèrement décalée de " + nomPerso(target) + " l'attaque touche");
+              target.messages.push(r.display + ": malgré l'image légèrement décalée de " + nomPerso(target) + " l'attaque touche");
             }
           } else if (predicateAsBool(target, 'estUneIllusion')) {
             target.touche = false;
@@ -13147,6 +13144,19 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-action crée une illusion --select @{selected|token_id}',
       }
     },
+    'image decalee': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Image décalée",
+        type: 'M',
+        mana: 2,
+        limiteArmure: 'ensorceleur',
+        combat: true,
+        entrerEnCombat: true,
+        bufPersonnelNonCumulable: 'imageDecalee',
+        cmd: "!cof2-effet imageDecalee 1d4+@{selected|CHA} --select @{selected|token_id}"
+      },
+    },
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
     'projectile de mana': {
@@ -13175,6 +13185,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'M',
         mana: 2,
         limiteArmure: 'magicien',
+        bufPersonnelNonCumulable: 'levitation',
         cmd: "!cof2-effet levitation --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
       },
     },
@@ -13185,6 +13196,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 3,
         limiteArmure: 'magicien',
+        bufPersonnelNonCumulable: 'formeGazeuse',
         cmd: "!cof2-effet formeGazeuse --dureeEnMinutes 1 --select @{selected|token_id}"
       },
     },
@@ -20531,20 +20543,27 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "",
       visible: true,
     },
+    imageDecalee: {
+      dureeEnTours: true,
+      activation: "crée des images décalées qui se superposent à sa silhouette",
+      actif: "a des images décalées",
+      fin: "les images décalées displaraissent",
+      visible: true,
+    },
     messageRetarde: {
+      dureeEnTours: true,
       activation: "il va bientôt se produire quelque chose",
       actif: "s'attend à un effet",
       fin: "effet activé",
       finFun: finMessageRetarde,
-      dureeEnTours: true,
       generic: true,
       plusieurs: true
     },
     optionTactiqueDefensePartielle: {
+      dureeEnTours: true,
       activation: "se met en position défensive",
       actif: "se défend",
       fin: "",
-      dureeEnTours: true,
       visible: true
     },
     optionTactiqueDefenseTotale: {
