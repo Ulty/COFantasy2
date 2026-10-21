@@ -1,4 +1,4 @@
-//Dernière modification : mar. 20 oct. 2026,  06:11
+//Dernière modification : mer. 21 oct. 2026,  04:10
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5571,13 +5571,11 @@ var COFantasy2 = COFantasy2 || function() {
               "La poudre explose dans " + weaponName +
               ". L'arme est inutilisable jusqu'à la fin du combat");
             let dm = rollDePlus(deEvolutif(attaquant));
-            dealDamage(attaquant, dm, [], evt, false, options, explications,
-              function(dmgDisplay, dmg, dmDrains) {
-                let dmgMsg =
-                  "<b>Dommages pour " + nomPerso(attaquant) + " :</b> " +
-                  dmgDisplay;
-                addLineToFramedDisplay(display, dmgMsg);
-              });
+            let {
+              dmgDisplay
+            } = dealDamage(attaquant, dm, explications, evt);
+            let dmgMsg = "<b>Dommages pour " + nomPerso(attaquant) + " :</b> " + dmgDisplay;
+            addLineToFramedDisplay(display, dmgMsg);
           }
           //Résoltion du jet
           if (targetd20roll == 1 && !rollAttack.chance) {
@@ -5707,14 +5705,11 @@ var COFantasy2 = COFantasy2 || function() {
                 display: 1,
                 total: 1,
               };
-              dealDamage(target.colleASaProie, r, [], evt, false, options,
-                target.messages,
-                function(dmgDisplay, dmg, dmgDrain) {
-                  let dmgMsg =
-                    "<b>" + nomPerso(target.colleASaProie) + " subit :</b> " +
-                    dmgDisplay + " DM";
-                  target.messages.push(dmgMsg);
-                });
+              let {
+                dmgDisplay
+              } = dealDamage(target.colleASaProie, r, target.messages, evt);
+              let dmgMsg = "<b>" + nomPerso(target.colleASaProie) + " subit :</b> " + dmgDisplay + " DM";
+              target.messages.push(dmgMsg);
             }
             // Draw failed effect
             if (options.fx && options.distance) {
@@ -7306,6 +7301,10 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  let optIgnoreRD = {
+    ignoreTouteRD: true
+  };
+
   function attackDealDmg(args, attaquant, display, explications, evt, options) {
     let {
       cibles,
@@ -7400,16 +7399,13 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'magique',
       };
       let dm = rollDePlus(de, 'sacrifiePVPourDM', evt);
-      let opt = {
-        ignoreTouteRD: true
-      };
-      dealDamage(attaquant, dm, [], evt, false, opt, explications,
-        function(dmgDisplay, dmg, dmDrains) {
-          let dmgMsg =
-            "<b>" + nomPerso(attaquant) + " sacrifie :</b> " +
-            dmgDisplay + " DM pour augmenter les dégâts du sort.";
-          explications.push(dmgMsg);
-        });
+      let {
+        dmgDisplay
+      } = dealDamage(attaquant, dm, explications, evt, optIgnoreRD);
+      let dmgMsg =
+        "<b>" + nomPerso(attaquant) + " sacrifie :</b> " +
+        dmgDisplay + " DM pour augmenter les dégâts du sort.";
+      explications.push(dmgMsg);
     }
     const attackingToken = attaquant.token;
     options.attaquant = attaquant;
@@ -7973,7 +7969,7 @@ var COFantasy2 = COFantasy2 || function() {
             }
           }
           // Compte le nombre de saves pour la synchronisation
-          // (On ne compte pas les psave, gérés dans dealDamage)
+          // (On ne compte pas les psave, gérés dans dealFullDamage)
           let saves = 0;
           //ajoute les états sans save à la cible
           let etats = options.etats;
@@ -8108,220 +8104,179 @@ var COFantasy2 = COFantasy2 || function() {
           if (target.utiliseRuneProtection) {
             target.messages.push(nomPerso(target) + " utilise sa Rune de Protection pour annuler les dommages");
             addToAttributeAsInt(target, 'attributDeCombat_runeForgesort_protection', 1, -1, evt);
-            // Pas de dégâts, donc pas d'appel à dealDamage
+            // Pas de dégâts, donc pas d'appel à dealFullDamage
             finCibles();
           } else if (options.pasDeDmg ||
             (additionalDmg.length === 0 && mainDmgRoll.total === 0 && attNbDices === 0)) {
-            // Pas de dégâts, donc pas d'appel à dealDamage
+            // Pas de dégâts, donc pas d'appel à dealFullDamage
             finCibles();
           } else {
-            dealDamage(target, mainDmgRoll, additionalDmg, evt, target.critique,
-              options, target.messages,
-              function(dmgDisplay, dmg, dmgDrain) {
-                if (options.sucerLeSang) {
-                  let suce = attributeAsInt(attaquant, 'sangSuce', 0);
-                  if (suce + dmg >= options.sucerLeSang) {
+            let {
+              dmgDisplay,
+              dmg,
+              dmgDrain
+            } =
+            dealFullDamage(target, mainDmgRoll, additionalDmg, evt, target.critique,
+              options, target.messages);
+            if (options.sucerLeSang) {
+              let suce = attributeAsInt(attaquant, 'sangSuce', 0);
+              if (suce + dmg >= options.sucerLeSang) {
+                target.messages.push(
+                  "Repus, " + attackerTokName + " se détache et s'envole");
+                target.messages.push(nomPerso(target) + " se sent un peu faible...");
+                setState(target, 'affaibli', true, evt);
+                removeTokenAttr(attaquant, 'sangSuce', evt);
+                let mEffet = messageEffet.colleASaProie;
+                finDEffetPerso(attaquant, 'colleASaProie', mEffet, pageId, evt);
+              } else {
+                setTokenAttr(attaquant, 'sangSuce', suce + dmg, evt);
+                if (suce > 0)
+                  target.messages.push(
+                    attackerTokName + " continue à sucer le sang de " + nomPerso(target));
+              }
+            }
+            if (dmgDrain || (dmg > 0 && (options.vampirise || target.vampirise))) {
+              let pcVampirise = target.vampirise || options.vampirise;
+              let soinsVamp = dmgDrain || 0;
+              if (pcVampirise) soinsVamp += Math.ceil(dmg * pcVampirise / 100);
+              soignePerso(attaquant, soinsVamp, evt, function(soins) {
+                target.messages.push(
+                  "L'attaque soigne " + attackerTokName + " de " + soins + " PV");
+              }, function() {});
+            }
+            let absorptionEnergie = predicateAsInt(attaquant, 'absorptionEnergie', 0, 5);
+            if (absorptionEnergie > 0) {
+              if ((estMortVivant(attaquant) && predicateAsInt(target, 'voieDeLArchange', 1) > 2 && attributeAsBool(target, 'formeDAnge')) ||
+                (predicateAsBool(attaquant, 'vampire') && predicateAsBool(target, 'immuniteAbsorptionVampire'))
+              ) {
+                target.messages.push(nomPerso(target) + "n'est pas affecté" + eForFemale(target) + " par l'absorption d'énergie");
+              } else {
+                soignePerso(attaquant, absorptionEnergie, evt, function(soins) {
+                  target.messages.push(
+                    "L'attaque soigne " + attackerTokName + " de " + soins + " PV");
+                });
+                if (predicateAsBool(attaquant, 'vampire')) {
+                  let pointsDeSang = attributeAsInt(target, 'pointsDeSang', 0);
+                  pointsDeSang++;
+                  if (pointsDeSang > niveauPerso(target)) {
                     target.messages.push(
-                      "Repus, " + attackerTokName + " se détache et s'envole");
-                    target.messages.push(nomPerso(target) + " se sent un peu faible...");
-                    setState(target, 'affaibli', true, evt);
-                    removeTokenAttr(attaquant, 'sangSuce', evt);
-                    let mEffet = messageEffet.colleASaProie;
-                    finDEffetPerso(attaquant, 'colleASaProie', mEffet, pageId, evt);
-                  } else {
-                    setTokenAttr(attaquant, 'sangSuce', suce + dmg, evt);
-                    if (suce > 0)
-                      target.messages.push(
-                        attackerTokName + " continue à sucer le sang de " + nomPerso(target));
+                      "tombe inconscient" + eForFemale(target) + ". " +
+                      onGenre(target, "Il", "Elle") +
+                      " a trop de points de sang..."
+                    );
+                    setState(target, 'endormi', evt);
+                  }
+                  setTokenAttr(target, 'pointsDeSang', pointsDeSang, evt);
+                }
+              }
+            }
+            target.dmgMessage = "<b>DM :</b> ";
+            if (ficheAttributeAsBool(attaquant, 'jets_caches', false)) {
+              target.dmgMessage += dmg;
+              sendChat('COF', "/w GM Jet caché de dommages : " + dmgDisplay);
+            } else {
+              target.dmgMessage += dmgDisplay;
+            }
+            if (options.contact && !attributeAsBool(target, 'intangible')) {
+              //Les DMs automatiques en cas de toucher une cible
+              if (attributeAsBool(target, 'sousTension')) {
+                ciblesCount++;
+                let type = 'electrique';
+                let de = {
+                  dice: deEvolutif(target),
+                  nbDe: 1,
+                  type,
+                };
+                let attrsVal = tokenAttribute(target, 'sousTensionValeur');
+                if (attrsVal.length > 0) {
+                  let deVal = parseDice(attrsVal[0].get('current'), target);
+                  if (deVal) {
+                    de = deVal;
+                    de.type = type;
                   }
                 }
-                if (dmgDrain || (dmg > 0 && (options.vampirise || target.vampirise))) {
-                  let pcVampirise = target.vampirise || options.vampirise;
-                  let soinsVamp = dmgDrain || 0;
-                  if (pcVampirise) soinsVamp += Math.ceil(dmg * pcVampirise / 100);
-                  soignePerso(attaquant, soinsVamp, evt, function(soins) {
-                    target.messages.push(
-                      "L'attaque soigne " + attackerTokName + " de " + soins + " PV");
-                  }, function() {});
-                }
-                let absorptionEnergie = predicateAsInt(attaquant, 'absorptionEnergie', 0, 5);
-                if (absorptionEnergie > 0) {
-                  if ((estMortVivant(attaquant) && predicateAsInt(target, 'voieDeLArchange', 1) > 2 && attributeAsBool(target, 'formeDAnge')) ||
-                    (predicateAsBool(attaquant, 'vampire') && predicateAsBool(target, 'immuniteAbsorptionVampire'))
-                  ) {
-                    target.messages.push(nomPerso(target) + "n'est pas affecté" + eForFemale(target) + " par l'absorption d'énergie");
-                  } else {
-                    soignePerso(attaquant, absorptionEnergie, evt, function(soins) {
-                      target.messages.push(
-                        "L'attaque soigne " + attackerTokName + " de " + soins + " PV");
-                    });
-                    if (predicateAsBool(attaquant, 'vampire')) {
-                      let pointsDeSang = attributeAsInt(target, 'pointsDeSang', 0);
-                      pointsDeSang++;
-                      if (pointsDeSang > niveauPerso(target)) {
-                        target.messages.push(
-                          "tombe inconscient" + eForFemale(target) + ". " +
-                          onGenre(target, "Il", "Elle") +
-                          " a trop de points de sang..."
-                        );
-                        setState(target, 'endormi', evt);
-                      }
-                      setTokenAttr(target, 'pointsDeSang', pointsDeSang, evt);
-                    }
-                  }
-                }
-                target.dmgMessage = "<b>DM :</b> ";
-                if (ficheAttributeAsBool(attaquant, 'jets_caches', false)) {
-                  target.dmgMessage += dmg;
-                  sendChat('COF', "/w GM Jet caché de dommages : " + dmgDisplay);
-                } else {
-                  target.dmgMessage += dmgDisplay;
-                }
-                if (options.contact && !attributeAsBool(target, 'intangible')) {
-                  //Les DMs automatiques en cas de toucher une cible
-                  if (attributeAsBool(target, 'sousTension')) {
-                    ciblesCount++;
-                    let type = 'electrique';
-                    let de = {
-                      dice: deEvolutif(target),
-                      nbDe: 1,
-                      type,
-                    };
-                    let attrsVal = tokenAttribute(target, 'sousTensionValeur');
-                    if (attrsVal.length > 0) {
-                      let deVal = parseDice(attrsVal[0].get('current'), target);
-                      if (deVal) {
-                        de = deVal;
-                        de.type = type;
-                      }
-                    }
-                    let dm = rollDePlus(de, "sousTention" + target.token.id, evt);
-                    dealDamage(attaquant, dm, [], evt, false, options,
-                      target.messages,
-                      function(dmgDisplay, dmg, dmgDrain) {
-                        let dmgMsg =
-                          "<b>Décharge électrique sur " + attackerTokName + " :</b> " +
-                          dmgDisplay;
-                        target.messages.push(dmgMsg);
-                        finCibles();
-                      });
-                  }
-                  if (attributeAsBool(target, 'sangMordant')) {
-                    ciblesCount++;
-                    let type = 'acide';
-                    let de = {
-                      dice: deEvolutif(target),
-                      nbDe: 1,
-                      type,
-                    };
-                    let dm = rollDePlus(de, "sangMordant" + target.token.id, evt);
-                    dealDamage(attaquant, dm, [], evt, false, options,
-                      target.messages,
-                      function(dmgDisplay, dmg, dmgDrain) {
-                        let dmgMsg =
-                          "<b>Le sang acide gicle sur " + attackerTokName + " :</b> " +
-                          dmgDisplay + " DM";
-                        target.messages.push(dmgMsg);
-                        finCibles();
-                      });
-                  }
-                  if (attributeAsBool(target, 'armureDeFeu')) {
-                    ciblesCount++;
-                    let dm = '1d6';
-                    if (options.armeNaturelle) dm = '2d6';
-                    sendChat("", "[[" + dm + "]]", function(res) {
-                      let rolls = res[0];
-                      let explRoll = rolls.inlinerolls[0];
-                      let r = {
-                        total: explRoll.results.total,
-                        type: 'feu',
-                        display: buildinline(explRoll, 'feu', true)
-                      };
-                      dealDamage(attaquant, r, [], evt, false, options,
-                        target.messages,
-                        function(dmgDisplay, dmg, dmgDrain) {
-                          let dmgMsg =
-                            "<b>L'armure de feu brûle " + attackerTokName + " :</b> " +
-                            dmgDisplay + " DM";
-                          target.messages.push(dmgMsg);
-                          finCibles();
-                        });
-                    });
-                  }
-                  if (options.armeNaturelle && attributeAsBool(target, 'presenceGlaciale')) {
-                    ciblesCount++;
-                    let exprPresenceGlaciale = '[[';
-                    let attrsPGValeur = tokenAttribute(target, 'presenceGlacialeValeur');
-                    if (attrsPGValeur.length === 0) exprPresenceGlaciale += '1d6';
-                    else exprPresenceGlaciale += attrsPGValeur[0].get('max');
-                    exprPresenceGlaciale += ']]';
-                    sendChat("", exprPresenceGlaciale, function(res) {
-                      let rolls = res[0];
-                      let explRoll = rolls.inlinerolls[0];
-                      let r = {
-                        total: explRoll.results.total,
-                        type: 'froid',
-                        display: buildinline(explRoll, 'froid', true)
-                      };
-                      dealDamage(attaquant, r, [], evt, false, options,
-                        target.messages,
-                        function(dmgDisplay, dmg, dmgDrain) {
-                          let dmgMsg =
-                            "<b>" + attackerTokName + " est glacé :</b> " +
-                            dmgDisplay + " DM";
-                          target.messages.push(dmgMsg);
-                          finCibles();
-                        });
-                    });
-                  }
-                  let tcs = predicatesNamed(target, 'dmSiToucheContact');
-                  tcs.forEach(function(dstc) {
-                    dstc = dstc.split(' --');
-                    if (dstc.length < 1) return;
-                    ciblesCount++;
-                    sendChat("", "[[" + dstc[0] + "]]", function(res) {
-                      let rolls = res[0];
-                      let explRoll = rolls.inlinerolls[0];
-                      let type = 'normal';
-                      if (dstc.length > 1) type = dstc[1];
-                      let r = {
-                        total: explRoll.results.total,
-                        type: type,
-                        display: buildinline(explRoll, type, true)
-                      };
-                      dealDamage(attaquant, r, [], evt, false, options,
-                        target.messages,
-                        function(dmgDisplay, dmg, dmgDrain) {
-                          let dmgMsg =
-                            "<b>" + attackerTokName + " subit :</b> " +
-                            dmgDisplay + " DM en touchant " + nomPerso(target);
-                          target.messages.push(dmgMsg);
-                          finCibles();
-                        });
-                    });
-                  });
-                  let typeCorpsElem = predicateAsBool(target, 'corpsElementaire');
-                  if (typeCorpsElem && typeCorpsElem !== true) {
-                    ciblesCount++;
-                    let de = {
-                      dice: 6,
-                      nbDe: predicateAsInt(target, 'nbCorpsElementaire', 1),
-                      type: typeCorpsElem,
-                    };
-                    let dm = rollDePlus(de);
-                    dealDamage(attaquant, dm, [], evt, false, options,
-                      target.messages,
-                      function(dmgDisplay, dmg, dmgDrain) {
-                        let dmgMsg =
-                          "<b>" + attackerTokName + " subit :</b> " +
-                          dmgDisplay + " DM en touchant " + nomPerso(target);
-                        target.messages.push(dmgMsg);
-                        finCibles();
-                      });
-                  }
-                }
+                let dm = rollDePlus(de, "sousTention" + target.token.id, evt);
+                let {
+                  dmgDisplay
+                } = dealDamage(attaquant, dm, target.messages, evt);
+                let dmgMsg = "<b>Décharge électrique sur " + attackerTokName + " :</b> " + dmgDisplay;
+                target.messages.push(dmgMsg);
                 finCibles();
-              });
+              }
+              if (attributeAsBool(target, 'sangMordant')) {
+                ciblesCount++;
+                let type = 'acide';
+                let de = {
+                  dice: deEvolutif(target),
+                  nbDe: 1,
+                  type,
+                };
+                let dm = rollDePlus(de, "sangMordant" + target.token.id, evt);
+                let {
+                  dmgDisplay
+                } = dealDamage(attaquant, dm, target.messages, evt);
+                let dmgMsg =
+                  "<b>Le sang acide gicle sur " + attackerTokName + " :</b> " + dmgDisplay + " DM";
+                target.messages.push(dmgMsg);
+                finCibles();
+              }
+              if (attributeAsBool(target, 'armureDeFeu')) {
+                ciblesCount++;
+                let type = 'feu';
+                let nbDe = 1;
+                if (options.armeNaturelle) nbDe = 2;
+                let de = {
+                  dice: deEvolutif(target),
+                  nbDe,
+                  type,
+                };
+                let dm = rollDePlus(de, "armureDeFeu" + target.token.id, evt);
+                let {
+                  dmgDisplay
+                } = dealDamage(attaquant, dm, target.messages, evt);
+                let dmgMsg =
+                  "<b>L'armure de feu brûle " + attackerTokName + " :</b> " + dmgDisplay + " DM";
+                target.messages.push(dmgMsg);
+                finCibles();
+              }
+              if (options.armeNaturelle && attributeAsBool(target, 'presenceGlaciale')) {
+                ciblesCount++;
+                let type = 'froid';
+                let nbDe = 1;
+                if (options.armeNaturelle) nbDe = 2;
+                let de = {
+                  dice: deEvolutif(target),
+                  nbDe,
+                  type,
+                };
+                let dm = rollDePlus(de, "presenceGlaciale" + target.token.id, evt);
+                let {
+                  dmgDisplay
+                } = dealDamage(attaquant, dm, target.messages, evt);
+                let dmgMsg = "<b>" + attackerTokName + " est glacé :</b> " + dmgDisplay + " DM";
+                target.messages.push(dmgMsg);
+                finCibles();
+              }
+              let typeCorpsElem = predicateAsBool(target, 'corpsElementaire');
+              if (typeCorpsElem && typeCorpsElem !== true) {
+                ciblesCount++;
+                let de = {
+                  dice: 6,
+                  nbDe: predicateAsInt(target, 'nbCorpsElementaire', 1),
+                  type: typeCorpsElem,
+                };
+                let dm = rollDePlus(de);
+                let {
+                  dmgDisplay
+                } = dealDamage(attaquant, dm, target.messages, evt);
+                let dmgMsg =
+                  "<b>" + attackerTokName + " subit :</b> " +
+                  dmgDisplay + " DM en touchant " + nomPerso(target);
+                target.messages.push(dmgMsg);
+                finCibles();
+              }
+            }
+            finCibles();
           }
         } else {
           evt.succes = false;
@@ -9854,15 +9809,16 @@ var COFantasy2 = COFantasy2 || function() {
           let dmgRollNumber = rollNumber(afterEvaluateDmg[0]);
           dmg.total = roll.inlinerolls[dmgRollNumber].results.total;
           dmg.display = buildinline(roll.inlinerolls[dmgRollNumber], dmg.type, options.magique);
-          dealDamage(perso, dmg, [], evt, false, options, explications, function(dmgDisplay, dmgFinal) {
-            someDmgDone = true;
-            addLineToFramedDisplay(display,
-              name + " reçoit " + dmgDisplay + " DM");
-            explications.forEach(function(e) {
-              addLineToFramedDisplay(display, e, 80, false);
-            });
-            finalDisplay();
+          let {
+            dmgDisplay
+          } = dealDamage(perso, dmg, explications, evt, options);
+          someDmgDone = true;
+          addLineToFramedDisplay(display,
+            name + " reçoit " + dmgDisplay + " DM");
+          explications.forEach(function(e) {
+            addLineToFramedDisplay(display, e, 80, false);
           });
+          finalDisplay();
         }); //fin du jet de dés
       } catch (rollError) {
         error("Jet " + dmg.value + " mal formé", dmg);
@@ -11286,19 +11242,16 @@ var COFantasy2 = COFantasy2 || function() {
         nbDe: dep.brulure
       };
       let degat_brulure = rollDePlus(de, 'brulureDeMana', evt);
-      let opt = {
-        ignoreTouteRD: true
-      };
       let tdmg = perso.tempDmg;
       perso.tempDmg = true;
-      dealDamage(perso, degat_brulure, [], evt, false, opt, explications,
-        function(dmgDisplay, dmg, dmDrains) {
-          let pre = 'p';
-          if (stateCOF.options.affichage.val.depense_mana.val && dep.depense_pm > 0)
-            pre = "dépense " + dep.depense_pm + " PM et p";
-          sendPerso(perso, pre + "erd " + dmgDisplay + " PV temporaires à cause de la brûlure de mana pour " + msg);
-          perso.tempDmg = tdmg;
-        });
+      let {
+        dmgDisplay
+      } = dealDamage(perso, degat_brulure, explications, evt, optIgnoreRD);
+      let pre = 'p';
+      if (stateCOF.options.affichage.val.depense_mana.val && dep.depense_pm > 0)
+        pre = "dépense " + dep.depense_pm + " PM et p";
+      sendPerso(perso, pre + "erd " + dmgDisplay + " PV temporaires à cause de la brûlure de mana pour " + msg);
+      perso.tempDmg = tdmg;
     } else {
       if (stateCOF.options.affichage.val.depense_mana.val)
         sendPerso(perso, "dépense " + dep.depense_pm + " PM pour " + msg);
@@ -11761,17 +11714,17 @@ var COFantasy2 = COFantasy2 || function() {
             let pv = rollDePlus(options.depenseDR.pv, 'depenseDR', evt);
             let expl = explications || [];
             perso.ignoreTouteRD = true;
-            dealDamage(perso, pv, [], evt, false, {}, expl,
-              function(dmgDisplay, dmg) {
-                let dmgMsg = "perd " + dmgDisplay + " PV";
-                if (explications) explications.push(dmgMsg);
-                else {
-                  expl.forEach(function(m) {
-                    expliquerPerso(perso, m, options.secret);
-                  });
-                  expliquerPerso(perso, dmgMsg, options.secret);
-                }
+            let {
+              dmgDisplay
+            } = dealDamage(perso, pv, expl, evt);
+            let dmgMsg = "perd " + dmgDisplay + " PV";
+            if (explications) explications.push(dmgMsg);
+            else {
+              expl.forEach(function(m) {
+                expliquerPerso(perso, m, options.secret);
               });
+              expliquerPerso(perso, dmgMsg, options.secret);
+            }
           }
         } else {
           if (!options.testeRessources) {
@@ -12331,6 +12284,16 @@ var COFantasy2 = COFantasy2 || function() {
   const capaciteColossal = {
     colossal: true, //TODO: à utiliser pour estimer la partie de la RD due à cette voie
   };
+
+  const capaciteManteauDOmbre = { 
+      profil: 'sorcier',
+      action: {
+        nom: "Manteau d'ombre",
+        type: 'L',
+        mana: 4,
+        cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
+      }
+    };
 
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
@@ -13459,15 +13422,8 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: cmdStrangulation + ' --attaqueMagiqueOpposee',
       },
     },
-    "manteau d'ombre": {
-      profil: 'sorcier',
-      action: {
-        nom: "Manteau d'ombre",
-        type: 'L',
-        mana: 4,
-        cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
-      }
-    },
+    'manteau d’ombre': capaciteManteauDOmbre,
+    "manteau d'ombre": capaciteManteauDOmbre,
     'pacte tenebreux': {
       pacteTenebreux: true,
       visionDansLeNoir: 100,
@@ -19872,16 +19828,17 @@ var COFantasy2 = COFantasy2 || function() {
     dmArgs.type = type;
     let r = rollDePlus(dmArgs, 'dot' + effet + perso.token.id, evt);
     let explications = [];
-    dealDamage(perso, r, [], evt, false, options, explications,
-      function(dmgDisplay, dmg) {
-        if (dmg > 0) {
-          let msgDm = msg + ". " + onGenre(perso, 'Il', 'Elle');
-          sendPerso(perso, msgDm + " subit " + dmgDisplay + " DM");
-        }
-        explications.forEach(function(m) {
-          expliquerPerso(perso, m);
-        });
-      });
+    let {
+      dmgDisplay,
+      dmg
+    } = dealDamage(perso, r, explications, evt, options);
+    if (dmg > 0) {
+      let msgDm = msg + ". " + onGenre(perso, 'Il', 'Elle');
+      sendPerso(perso, msgDm + " subit " + dmgDisplay + " DM");
+    }
+    explications.forEach(function(m) {
+      expliquerPerso(perso, m);
+    });
   }
 
   function parTourArmeBrulante(perso, effet, attr, evt, options = {}) {
@@ -19926,16 +19883,17 @@ var COFantasy2 = COFantasy2 || function() {
     let r = rollDePlus(dmArgs, 'dot' + effet + perso.token.id, evt);
     let explications = [];
     let nameEffet = effet.substring(7, effet.indexOf(')'));
-    dealDamage(perso, r, [], evt, false, options, explications,
-      function(dmgDisplay, dmg) {
-        if (dmg > 0) {
-          let msgDm = nameEffet + ". " + nomPerso(perso);
-          sendPerso(perso, msgDm + " subit " + dmgDisplay + " DM");
-        }
-        explications.forEach(function(m) {
-          expliquerPerso(perso, m);
-        });
-      });
+    let {
+      dmgDisplay,
+      dmg
+    } = dealDamage(perso, r, explications, evt, options);
+    if (dmg > 0) {
+      let msgDm = nameEffet + ". " + nomPerso(perso);
+      sendPerso(perso, msgDm + " subit " + dmgDisplay + " DM");
+    }
+    explications.forEach(function(m) {
+      expliquerPerso(perso, m);
+    });
   }
 
   function parTourNueeDInsectes(perso, effet, attr, evt, options = {}) {
@@ -20119,28 +20077,32 @@ var COFantasy2 = COFantasy2 || function() {
     if (dmExpr === undefined) dmExpr = '3d4';
     let deArgs = parseDice(dmExpr);
     let dm = rollDePlus(deArgs, "flecheVivante" + perso.token.id, evt);
-    dealDamage(perso, dm, [], evt, false, {}, undefined,
-      function(dmgDisplay, dmgFinal) {
-        sendPerso(perso, " subit " + dmgDisplay + " DM, à cause de la flèche qui a poussé dans sa plaie");
-        if (getState(perso, 'mort')) {
-          sendChat('', "Un jeune arbuste pousse sur le cadavre de " + nomPerso(perso));
-          let imgsrc = "https://files.d20.io/images/492937234/DmDamCvcaNXyXdzSgbgMxQ/med.webp?1783255972";
-          let specs = {
-            width: 70,
-            height: 81,
-            showname: false,
-            showplayers_name: false,
-            showplayers_bar1: false,
-            light_hassight: false,
-          };
-          let t = createToken('jeune arbuste', perso, imgsrc, specs);
-          if (t) {
-            toFront(t);
-            evt.tokens = evt.tokens || [];
-            evt.tokens.push(t.id);
-          }
-        }
-      });
+    let explications = [];
+    let {
+      dmgDisplay
+    } = dealDamage(perso, dm, explications, evt);
+    sendPerso(perso, " subit " + dmgDisplay + " DM, à cause de la flèche qui a poussé dans sa plaie");
+    explications.forEach(function(msg) {
+      sendPerso(perso, msg);
+    });
+    if (getState(perso, 'mort')) {
+      sendChat('', "Un jeune arbuste pousse sur le cadavre de " + nomPerso(perso));
+      let imgsrc = "https://files.d20.io/images/492937234/DmDamCvcaNXyXdzSgbgMxQ/med.webp?1783255972";
+      let specs = {
+        width: 70,
+        height: 81,
+        showname: false,
+        showplayers_name: false,
+        showplayers_bar1: false,
+        light_hassight: false,
+      };
+      let t = createToken('jeune arbuste', perso, imgsrc, specs);
+      if (t) {
+        toFront(t);
+        evt.tokens = evt.tokens || [];
+        evt.tokens.push(t.id);
+      }
+    }
   }
 
   function retirerArmure(perso, effet, attr, newInit, evt, options) {
@@ -24461,18 +24423,15 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let dm = rollDePlus(deEvolutif(perso));
     let explications = [];
-    let optDmg = {
-      ignoreTouteRD: true
-    };
-    dealDamage(perso, dm, [], evtProuesse, false, optDmg, explications,
-      function(dmgDisplay, dmg) {
-        sendPerso(perso, "réalise une prouesse et perd " + dmgDisplay + " PV");
-        explications.forEach(function(expl) {
-          sendPerso(perso, expl);
-        });
-        if (!redoEvent(evt, args))
-          error("Type d'évènement pas encore géré pour la prouesse", evt);
-      });
+    let {
+      dmgDisplay
+    } = dealDamage(perso, dm, explications, evtProuesse, optIgnoreRD);
+    sendPerso(perso, "réalise une prouesse et perd " + dmgDisplay + " PV");
+    explications.forEach(function(expl) {
+      sendPerso(perso, expl);
+    });
+    if (!redoEvent(evt, args))
+      error("Type d'évènement pas encore géré pour la prouesse", evt);
   }
 
   function persoUtiliseRuneEnergie(perso, evt) {
@@ -27613,7 +27572,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  total: entier, de valeur 1dk + bonus
   //  deVal: la valeur de la partie dé seule
   //  display: un texte à afficher, de la bonne couleur, et avec tooltip
-  //  type: le type donne en argument, pour pouvoir passer ça directement à dealDamage. Si pas donné en arg, c'est 'normal'
+  //  type: le type donne en argument, pour pouvoir passer ça directement à dealFullDamage. Si pas donné en arg, c'est 'normal'
   //args peut être un nombre > 0 (le nombre de faces) ou bien un objet compatible avec le résultat de parseDice:
   //    nbDe (1 par défaut)
   //    dice: nombre de faces, argument obligatoire
@@ -28011,11 +27970,15 @@ var COFantasy2 = COFantasy2 || function() {
         if (getState(perso, 'mort')) {
           if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " continue de brûler");
         } else {
-          dealDamage(perso, dmgEnflamme, [], evt, false, {}, undefined,
-            function(dmgDisplay, dmgFinal) {
-              sendPerso(perso, " est en flamme ! " +
-                onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
-            });
+          let explications = [];
+          let {
+            dmgDisplay
+          } = dealDamage(perso, dmgEnflamme, explications, evt);
+          sendPerso(perso, " est en flamme ! " +
+            onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
+          explications.forEach(function(msg) {
+            sendPerso(perso, msg);
+          });
         }
         if (d6Enflamme < 3) {
           finDEffetPerso(perso, 'enfeu', undefined, pageId, evt);
@@ -28031,11 +27994,15 @@ var COFantasy2 = COFantasy2 || function() {
         if (getState(perso, 'mort')) {
           if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " continue de geler");
         } else {
-          dealDamage(perso, dmgEnflamme, [], evt, false, {}, undefined,
-            function(dmgDisplay, dmgFinal) {
-              sendPerso(perso, " gèle ! " +
-                onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
-            });
+          let explications = [];
+          let {
+            dmgDisplay
+          } = dealDamage(perso, dmgEnflamme, explications, evt, false);
+          sendPerso(perso, " gèle ! " +
+            onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
+          explications.forEach(function(msg) {
+            sendPerso(perso, msg);
+          });
         }
         if (d6Enflamme < 3) {
           finDEffetPerso(perso, 'enfroid', undefined, pageId, evt);
@@ -28051,11 +28018,15 @@ var COFantasy2 = COFantasy2 || function() {
         if (getState(perso, 'mort')) {
           if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " est consumé par l'acide");
         } else {
-          dealDamage(perso, dmgEnflamme, [], evt, false, {}, undefined,
-            function(dmgDisplay, dmgFinal) {
-              sendPerso(perso, " est rongé par l'acide ! " +
-                onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
-            });
+          let explications = [];
+          let {
+            dmgDisplay
+          } = dealDamage(perso, dmgEnflamme, explications, evt);
+          sendPerso(perso, " est rongé par l'acide ! " +
+            onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
+          explications.forEach(function(msg) {
+            sendPerso(perso, msg);
+          });
         }
         if (d6Enflamme < 3) {
           finDEffetPerso(perso, 'enacide', undefined, pageId, evt);
@@ -28071,11 +28042,15 @@ var COFantasy2 = COFantasy2 || function() {
         if (getState(perso, 'mort')) {
           if (d6Enflamme > 2) sendChat('', "Le cadavre de " + nomPerso(perso) + " est toujours parcouru d'éclairs");
         } else {
-          dealDamage(perso, dmgEnflamme, [], evt, false, {}, undefined,
-            function(dmgDisplay, dmgFinal) {
-              sendPerso(perso, " prend des coups de jus ! " +
-                onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
-            });
+          let explications = [];
+          let {
+            dmgDisplay
+          } = dealDamage(perso, dmgEnflamme, explications, evt);
+          sendPerso(perso, " prend des coups de jus ! " +
+            onGenre(perso, 'Il', 'Elle') + " subit " + dmgDisplay + " DM");
+          explications.forEach(function(msg) {
+            sendPerso(perso, msg);
+          });
         }
         if (d6Enflamme < 3) {
           finDEffetPerso(perso, 'enelectrique', undefined, pageId, evt);
@@ -28088,10 +28063,14 @@ var COFantasy2 = COFantasy2 || function() {
         };
         let dmg = rollDePlus(de, "gobe" + perso.token.id, evt);
         if (immuniseAsphyxie(perso)) dmg.type = 'acide';
-        dealDamage(perso, dmg, [], evt, false, {}, undefined,
-          function(dmgDisplay, dmgFinal) {
-            sendPerso(perso, "est en train d'être digéré. " + onGenre(perso, 'Il', 'Elle') + " perd " + dmgDisplay + " PVs");
-          });
+        let explications = [];
+        let {
+          dmgDisplay
+        } = dealDamage(perso, dmg, explications, evt);
+        sendPerso(perso, "est en train d'être digéré. " + onGenre(perso, 'Il', 'Elle') + " perd " + dmgDisplay + " PVs");
+        explications.forEach(function(msg) {
+          sendPerso(perso, msg);
+        });
       }
       if (attributeAsBool(perso, 'blessureQuiSaigne') &&
         !getState(perso, 'mort') && !immuniseAuxSaignements(perso)) {
@@ -28102,10 +28081,14 @@ var COFantasy2 = COFantasy2 || function() {
         let dmg = rollDePlus(de, "saignement" + perso.token.id, evt);
         let optDMSaignements = getEffectOptions(perso, 'blessureQuiSaigne');
         perso.ignoreTouteRD = true;
-        dealDamage(perso, dmg, [], evt, false, optDMSaignements, undefined,
-          function(dmgDisplay, dmgFinal) {
-            sendPerso(perso, "saigne. " + onGenre(perso, 'Il', 'Elle') + " perd " + dmgDisplay + " PVs");
-          });
+        let explications = [];
+        let {
+          dmgDisplay
+        } = dealDamage(perso, dmg, explications, evt, optDMSaignements);
+        sendPerso(perso, "saigne. " + onGenre(perso, 'Il', 'Elle') + " perd " + dmgDisplay + " PVs");
+        explications.forEach(function(msg) {
+          sendPerso(perso, msg);
+        });
       }
       let vitaliteSurnaturelle = predicateAsBool(perso, 'vitaliteSurnaturelle');
       if (vitaliteSurnaturelle) {
@@ -30186,25 +30169,22 @@ var COFantasy2 = COFantasy2 || function() {
       if (magicien) {
         if (pvPerso(magicien).pv > 0) {
           let dm = rollDePlus(deEvolutif(magicien), 'mortDuFamilier' + perso.token.id, evt);
-          let opt = {
-            ignoreTouteRD: true
-          };
           let explications = [];
-          dealDamage(magicien, dm, [], evt, false, opt, explications,
-            function(dmgDisplay, dmg) {
-              let msg = " perd " + dmgDisplay + " PV en contrecoup";
-              if (expliquer) {
-                expliquer(nomPerso(magicien) + ' ' + msg);
-                explications.forEach(function(m) {
-                  expliquer(m);
-                });
-              } else {
-                sendPerso(magicien, msg);
-                explications.forEach(function(m) {
-                  sendPerso(magicien, m);
-                });
-              }
+          let {
+            dmgDisplay
+          } = dealDamage(magicien, dm, explications, evt, optIgnoreRD);
+          let msg = " perd " + dmgDisplay + " PV en contrecoup";
+          if (expliquer) {
+            expliquer(nomPerso(magicien) + ' ' + msg);
+            explications.forEach(function(m) {
+              expliquer(m);
             });
+          } else {
+            sendPerso(magicien, msg);
+            explications.forEach(function(m) {
+              sendPerso(magicien, m);
+            });
+          }
         }
       }
     }
@@ -30285,71 +30265,6 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  //TODO: regarder si on a encore besoin de tout ça
-  function postBarUpdateForDealDamage(target, dmgTotal, pvPerdus, bar1, tempDmg, dmgDisplay, showTotal, dmDrains, displayRes, evt, expliquer) {
-    target.pvPerdus = target.pvPerdus || pvPerdus;
-    if (bar1 > 0 && tempDmg >= bar1) { //assommé ou passage à 0 PV selon le type de DM
-      if (target.tempDmg) setState(target, 'assomme', true, evt);
-      else mettreAZeroPV(target, evt, expliquer);
-    }
-    let attrsLienDeSang = tokenAttribute(target, "lienDeSangVers");
-    if (attrsLienDeSang.length > 0) {
-      let lienDuSangDmg = Math.floor(dmgTotal / 2);
-      if (lienDuSangDmg > 0) {
-        let vus = new Set();
-        attrsLienDeSang.forEach(function(attr) {
-          let r = {
-            total: lienDuSangDmg,
-            type: 'normal',
-            display: lienDuSangDmg
-          };
-          let personnageLie = persoOfId(attr.get("current"));
-          if (personnageLie) {
-            if (vus.has(personnageLie.token.id)) return;
-            vus.add(personnageLie.token.id);
-            expliquer("Le lien de sang inflige " + lienDuSangDmg + " dégâts à " + personnageLie.token.get("name"));
-            dealDamage(personnageLie, r, [], evt, false);
-          }
-        });
-      }
-    }
-    if (showTotal) dmgDisplay += " = " + dmgTotal;
-    if (displayRes === undefined) return;
-    displayRes(dmgDisplay, pvPerdus, dmDrains);
-  }
-
-  //target prend un coup qui lui fait perdre tous ses PVs
-  // Asynchrone
-  function prendreUnCoupMortel(target, dmgTotal, pvPerdus, bar1, pvMax, tempDmg, dmgDisplay, showTotal, dmDrains, displayRes, options, evt, expliquer) {
-    pvPerdus += bar1;
-    if (predicateAsBool(target, 'defierLaMort')) {
-      let defierLaMort = charAttributeAsInt(target, 'defierLaMort', 10);
-      let rollId = 'defierLaMort_' + target.token.id;
-      let saveOpts = {
-        msgPour: " pour défier la mort",
-        msgReussite: ", conserve 1 PV",
-      };
-      if (attributeAsBool(target, 'rageDuBerserk')) saveOpts.bonus = 10;
-      let reussite = save({
-        carac: 'CON',
-        seuil: defierLaMort
-      }, target, rollId, expliquer, saveOpts, evt);
-      if (reussite) {
-        bar1 = 1;
-        pvPerdus--;
-        setTokenAttr(target, 'defierLaMort', defierLaMort + 10, evt);
-        updateCurrentBar(target, 1, 1, evt);
-      } else {
-        mettreAZeroPV(target, evt, expliquer);
-      }
-      postBarUpdateForDealDamage(target, dmgTotal, pvPerdus, bar1, tempDmg, dmgDisplay, showTotal, dmDrains, displayRes, evt, expliquer);
-      //On arrête là, car tout le reste est fait dans la continuation du save.
-      return;
-    }
-    mettreAZeroPV(target, evt, expliquer);
-    postBarUpdateForDealDamage(target, dmgTotal, pvPerdus, bar1, tempDmg, dmgDisplay, showTotal, dmDrains, displayRes, evt, expliquer);
-  }
-
   function immuniseAuType(target, dmgType, attaquant, options) {
     if (predicateAsBool(target, 'immunite_' + dmgType)) {
       return true;
@@ -30395,48 +30310,53 @@ var COFantasy2 = COFantasy2 || function() {
     x.dmgTotal += bonusCrit.total;
   }
 
-  // Fonction asynchrone
-  // displayRes est optionnel, et peut avoir 2 arguments
-  // - un texte affichant le jet de dégâts
-  // - la valeur finale des dégâts infligés
+  let noDmg = {
+    dmgDisplay: '0',
+    dmg: 0,
+    dmgDrains: 0,
+  };
+
+  function dealDamage(perso, dmg, explications, evt, options) {
+    return dealFullDamage(perso, dmg, [], evt, false, options, explications);
+  }
+
   // crit est un booléen, il augmente de 1 (ou options.critCoef) le coefficient (option.dmgCoef) et active certains effets
-  function dealDamage(target, dmg, otherDmg, evt, crit, options = {}, explications = false, displayRes = false) {
+  // retourne
+  // - dmgDisplay
+  // - dmg
+  // - dmgDrains
+  function dealFullDamage(target, dmg, otherDmg, evt, crit, options = {}, explications = false) {
     let expliquer = function(msg) {
       if (explications) explications.push(msg);
       else sendPerso(target, msg);
     };
     if (options.interposer) {
-      return dealDamageAfterOthers(target, crit, {}, evt, expliquer, displayRes, options.interposer, dmg.display, false, {});
+      return dealDamageAfterOthers(target, crit, {}, evt, expliquer, options.interposer, dmg.display, false, {});
     }
     if ((!options.spectral && attributeAsBool(target, 'intangible')) ||
       (!options.magique && !options.sortilege && attributeAsBool(target, 'formeGazeuse'))
     ) {
       expliquer("L'attaque passe à travers " + nomPerso(target));
-      if (displayRes) displayRes('0', 0, 0);
-      return 0;
+      return noDmg;
     }
     if (options.asphyxie) {
       if (immuniseAsphyxie(target, expliquer)) {
-        if (displayRes) displayRes('0', 0, 0);
-        return 0;
+        return noDmg;
       }
     }
     if (options.saignement) {
       if (immuniseAuxSaignements(target, expliquer)) {
-        if (displayRes) displayRes('0', 0, 0);
-        return 0;
+        return noDmg;
       }
     }
     if (!options.magique && !options.sortilege && dmg.type != 'magique' &&
       (predicateOrAttributeAsBool(target, 'immunite_nonMagique') || predicateAsBool(target, 'creatureIntangible'))) {
       expliquer("L'attaque ne semble pas affecter " + nomPerso(target));
-      if (displayRes) displayRes('0', 0, 0);
-      return 0;
+      return noDmg;
     }
     if ((options.magique || options.sortilege || dmg.type == 'magique') && predicateAsBool(target, 'immunite_magique')) {
       expliquer("L'attaque ne semble pas affecter " + nomPerso(target));
-      if (displayRes) displayRes('0', 0, 0);
-      return 0;
+      return noDmg;
     }
     let dmgCoef = options.dmgCoef || 1;
     if (target.dmgCoef) dmgCoef += target.dmgCoef;
@@ -30559,7 +30479,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       });
     }
-    return dealDamageAfterDmgExtra(target, mainDmgType, dmgTotal, dmgDisplay, showTotal, dmgParType, dmgExtra, crit, options, evt, expliquer, displayRes);
+    return dealDamageAfterDmgExtra(target, mainDmgType, dmgTotal, dmgDisplay, showTotal, dmgParType, dmgExtra, crit, options, evt, expliquer);
   }
 
   function getRDS(perso) {
@@ -30838,7 +30758,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //On a déterminé les DM du type principal(possiblement après save des dmgExtra, maintenant on applique les résistances, puis on ajoute les DM d'autres types
-  function dealDamageAfterDmgExtra(target, mainDmgType, dmgTotal, dmgDisplay, showTotal, dmgParType, dmgExtra, crit, options, evt, expliquer, displayRes) {
+  function dealDamageAfterDmgExtra(target, mainDmgType, dmgTotal, dmgDisplay, showTotal, dmgParType, dmgExtra, crit, options, evt, expliquer) {
     let rd;
     let rdElems = 0;
     if (attributeAsBool(target, 'protectionContreLesElements')) {
@@ -30958,30 +30878,12 @@ var COFantasy2 = COFantasy2 || function() {
       });
     });
     // Autres sources de dégâts
-    // On compte d'abord les autres sources, pour la synchronisation
-    let count = 0;
-    for (let dt in dmgParType) {
-      if (immuniseAuType(target, dt, options.attaquant, options)) {
-        if (expliquer && !target['msgImmunite_' + dt]) {
-          expliquer(nomPerso(target) + " ne semble pas affecté par " + stringOfType(dt));
-          target['msgImmunite_' + dt] = true;
-        }
-        delete dmgParType[dt];
-      } else
-        count += dmgParType[dt].length;
-    }
     let critOther = crit;
-    let dealOneType = function(dmgType) {
-      if (dmgType == mainDmgType) {
-        count -= dmgParType[dmgType].length;
-        if (count === 0) dealDamageAfterOthers(target, crit, options, evt, expliquer, displayRes, dmgTotal, dmgDisplay, showTotal, dmSuivis);
-        return; //type principal déjà géré
-      }
+    let dealOneType = function(dmgType, listeDmg) {
       showTotal = true;
       let dm = 0;
       let typeDisplay = "";
-      let typeCount = dmgParType[dmgType].length;
-      dmgParType[dmgType].forEach(function(d) {
+      listeDmg.forEach(function(d) {
         let res = partialSave(d, target, false, d.display, d.total, expliquer, evt);
         let addTypeDisplay = d.display;
         if (res) {
@@ -31001,91 +30903,92 @@ var COFantasy2 = COFantasy2 || function() {
         if (critOther) addTypeDisplay = '(' + addTypeDisplay + ') x2';
         if (typeDisplay === '') typeDisplay = addTypeDisplay;
         else typeDisplay += "+" + addTypeDisplay;
-        typeCount--;
-        if (typeCount === 0) {
-          if (!(target.ignoreTouteRD || options.ignoreTouteRD)) {
-            rd = rd || getRDS(target);
-            let rdl = typeRD(rd, dmgType);
-            if (dmgType == 'normal') {
-              if (options.tranchant && rd.tranchant) rdl += rd.tranchant;
-              if (options.perforant && rd.perforant) rdl += rd.perforant;
-              if (options.contondant && rd.contondant) rdl += rd.contondant;
-            } else if ((dmgType == 'poison' || dmgType == 'feu' || dmgType == 'froid') && !options.magique && rd.nature && !dmgNaturel(options)) {
-              rdl += rd.nature;
-            }
-            if (target.ignoreMoitieRD) rdl = parseInt(rdl / 2);
-            if (target.ignoreRD) {
-              if (target.ignoreRD > rdl) {
-                target.ignoreRD -= rdl;
-                rdl = 0;
-              } else {
-                rdl -= target.ignoreRD;
-                target.ignoreRD = 0;
-              }
-            }
-            if (rdl > 0 && dm > 0) {
-              dm -= rdl;
-              if (dm < 0) {
-                rdl += dm;
-                dm = 0;
-              }
-              typeDisplay += "-" + rdl;
-            }
-            if (rdElems > 0 && dm > 0 && estElementaire(dmgType)) {
-              if (dm > rdElems) {
-                typeDisplay += ' - ' + rdElems;
-                dm -= rdElems;
-                rdElems = 0;
-              } else {
-                typeDisplay += ' - ' + dm;
-                rdElems -= dm;
-                dm = 0;
-              }
-            }
-            let additionalType = {
-              sortilege: options.sortilege,
-              magique: options.magique
-            };
-            let resSauf = applyRDSauf(rd.sauf, dmgType, dm, typeDisplay, additionalType, target);
-            dm = resSauf.total;
-            typeDisplay = resSauf.display;
-            mitigate(target, dmgType,
-              function(div) {
-                div = div || 2;
-                dm = Math.ceil(dm / div);
-                if (dmgParType[dmgType].length > 1) typeDisplay = "(" + typeDisplay + ")";
-                typeDisplay += " / " + div;
-              },
-              function() {
-                if (dm > 0) {
-                  typeDisplay += "-" + dm;
-                  dm = 0;
-                }
-              },
-              function() {
-                dm = Math.floor(dm * 1.5);
-                if (dmgParType[dmgType].length > 1) typeDisplay = "(" + typeDisplay + ")";
-                typeDisplay += " x 1.5";
-              },
-              expliquer, options);
-            dmgTotal += dm;
-            dmgDisplay += "+" + typeDisplay;
-            if (_.has(dmSuivis, dmgType)) {
-              dmSuivis[dmgType] = dm;
-            }
+      });
+      if (!(target.ignoreTouteRD || options.ignoreTouteRD)) {
+        rd = rd || getRDS(target);
+        let rdl = typeRD(rd, dmgType);
+        if (dmgType == 'normal') {
+          if (options.tranchant && rd.tranchant) rdl += rd.tranchant;
+          if (options.perforant && rd.perforant) rdl += rd.perforant;
+          if (options.contondant && rd.contondant) rdl += rd.contondant;
+        } else if ((dmgType == 'poison' || dmgType == 'feu' || dmgType == 'froid') && !options.magique && rd.nature && !dmgNaturel(options)) {
+          rdl += rd.nature;
+        }
+        if (target.ignoreMoitieRD) rdl = parseInt(rdl / 2);
+        if (target.ignoreRD) {
+          if (target.ignoreRD > rdl) {
+            target.ignoreRD -= rdl;
+            rdl = 0;
+          } else {
+            rdl -= target.ignoreRD;
+            target.ignoreRD = 0;
           }
         }
-        count--;
-        if (count === 0) dealDamageAfterOthers(target, crit, options, evt, expliquer, displayRes, dmgTotal, dmgDisplay, showTotal, dmSuivis);
-      });
-    };
-    if (count > 0) {
-      for (let dmgType in dmgParType) {
-        dealOneType(dmgType);
+        if (rdl > 0 && dm > 0) {
+          dm -= rdl;
+          if (dm < 0) {
+            rdl += dm;
+            dm = 0;
+          }
+          typeDisplay += "-" + rdl;
+        }
+        if (rdElems > 0 && dm > 0 && estElementaire(dmgType)) {
+          if (dm > rdElems) {
+            typeDisplay += ' - ' + rdElems;
+            dm -= rdElems;
+            rdElems = 0;
+          } else {
+            typeDisplay += ' - ' + dm;
+            rdElems -= dm;
+            dm = 0;
+          }
+        }
+        let additionalType = {
+          sortilege: options.sortilege,
+          magique: options.magique
+        };
+        let resSauf = applyRDSauf(rd.sauf, dmgType, dm, typeDisplay, additionalType, target);
+        dm = resSauf.total;
+        typeDisplay = resSauf.display;
+        mitigate(target, dmgType,
+          function(div) {
+            div = div || 2;
+            dm = Math.ceil(dm / div);
+            if (listeDmg.length > 1) typeDisplay = "(" + typeDisplay + ")";
+            typeDisplay += " / " + div;
+          },
+          function() {
+            if (dm > 0) {
+              typeDisplay += "-" + dm;
+              dm = 0;
+            }
+          },
+          function() {
+            dm = Math.floor(dm * 1.5);
+            if (listeDmg.length > 1) typeDisplay = "(" + typeDisplay + ")";
+            typeDisplay += " x 1.5";
+          },
+          expliquer, options);
+        dmgTotal += dm;
+        dmgDisplay += "+" + typeDisplay;
+        if (_.has(dmSuivis, dmgType)) {
+          dmSuivis[dmgType] = dm;
+        }
       }
-    } else {
-      return dealDamageAfterOthers(target, crit, options, evt, expliquer, displayRes, dmgTotal, dmgDisplay, showTotal, dmSuivis);
+    };
+    for (let dt in dmgParType) {
+      if (immuniseAuType(target, dt, options.attaquant, options)) {
+        if (expliquer && !target['msgImmunite_' + dt]) {
+          expliquer(nomPerso(target) + " ne semble pas affecté par " + stringOfType(dt));
+          target['msgImmunite_' + dt] = true;
+        }
+      } else if (dt == mainDmgType) {
+        continue; //déjà fait avant
+      } else {
+        dealOneType(dt, dmgParType[dt]);
+      }
     }
+    return dealDamageAfterOthers(target, crit, options, evt, expliquer, dmgTotal, dmgDisplay, showTotal, dmSuivis);
   }
 
   function ajouterBarreDMTemp(perso, pvmax, evt) {
@@ -31121,7 +31024,7 @@ var COFantasy2 = COFantasy2 || function() {
     return tempDmg;
   }
 
-  function dealDamageAfterOthers(target, crit, options, evt, expliquer, displayRes, dmgTotal, dmgDisplay, showTotal, dmSuivis) {
+  function dealDamageAfterOthers(target, crit, options, evt, expliquer, dmgTotal, dmgDisplay, showTotal, dmSuivis) {
     let token = target.token;
     // Maintenant on diminue les jets de DM, si besoin
     if ((options.distance || options.aoe) &&
@@ -31419,16 +31322,71 @@ var COFantasy2 = COFantasy2 || function() {
           setTokenAttr(target, 'attributDeCombat_sergentUtilise', true, evt);
           pvPerdus = 0;
         } else { //la cible prend le coup
-          prendreUnCoupMortel(target, dmgTotal, pvPerdus, bar1, pvMax, tempDmg, dmgDisplay, showTotal, dmSuivis.drain, displayRes, options, evt, expliquer);
-          //La suite est fait en continuation car la fonction est asynchrone
-          return;
+          pvPerdus += bar1;
+          if (predicateAsBool(target, 'defierLaMort')) {
+            let defierLaMort = charAttributeAsInt(target, 'defierLaMort', 10);
+            let rollId = 'defierLaMort_' + target.token.id;
+            let saveOpts = {
+              msgPour: " pour défier la mort",
+              msgReussite: ", conserve 1 PV",
+            };
+            if (attributeAsBool(target, 'rageDuBerserk')) saveOpts.bonus = 10;
+            let reussite = save({
+              carac: 'CON',
+              seuil: defierLaMort
+            }, target, rollId, expliquer, saveOpts, evt);
+            if (reussite) {
+              bar1 = 1;
+              pvPerdus--;
+              setTokenAttr(target, 'defierLaMort', defierLaMort + 10, evt);
+              updateCurrentBar(target, 1, 1, evt);
+            } else {
+              mettreAZeroPV(target, evt, expliquer);
+            }
+          } else {
+            mettreAZeroPV(target, evt, expliquer);
+          }
         }
       } else { // bar1>0
         updateCurrentBar(target, 1, bar1, evt);
       }
     }
-    postBarUpdateForDealDamage(target, dmgTotal, pvPerdus, bar1, tempDmg, dmgDisplay, showTotal, dmSuivis.drain, displayRes, evt, expliquer);
-    return dmgDisplay;
+    target.pvPerdus = target.pvPerdus || pvPerdus;
+    if (bar1 > 0 && tempDmg >= bar1) { //assommé ou passage à 0 PV selon le type de DM
+      if (target.tempDmg) setState(target, 'assomme', true, evt);
+      else mettreAZeroPV(target, evt, expliquer);
+    }
+    let attrsLienDeSang = tokenAttribute(target, "lienDeSangVers");
+    if (attrsLienDeSang.length > 0) {
+      let lienDuSangDmg = Math.floor(dmgTotal / 2);
+      if (lienDuSangDmg > 0) {
+        let vus = new Set();
+        attrsLienDeSang.forEach(function(attr) {
+          let r = {
+            total: lienDuSangDmg,
+            type: 'normal',
+            display: lienDuSangDmg
+          };
+          let personnageLie = persoOfId(attr.get("current"));
+          if (personnageLie) {
+            if (vus.has(personnageLie.token.id)) return;
+            vus.add(personnageLie.token.id);
+            expliquer("Le lien de sang inflige " + lienDuSangDmg + " dégâts à " + personnageLie.token.get("name"));
+            let explications = [];
+            dealDamage(personnageLie, r, explications, evt, optIgnoreRD);
+            explications.forEach(function(msg) {
+              expliquer(msg);
+            });
+          }
+        });
+      }
+    }
+    if (showTotal) dmgDisplay += " = " + dmgTotal;
+    return {
+      dmgDisplay,
+      dmg: pvPerdus,
+      dmgDrains: dmSuivis.drain
+    };
   }
 
 
