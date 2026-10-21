@@ -1,4 +1,4 @@
-//Dernière modification : mer. 21 oct. 2026,  04:31
+//Dernière modification : mer. 21 oct. 2026,  05:35
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13157,6 +13157,26 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-effet imageDecalee 1d4+@{selected|CHA} --select @{selected|token_id}"
       },
     },
+    'sort illusoire': {
+      profil: 'ensorceleur',
+      actions: [{
+        nom: "Sort illusoire sur 1 cible",
+        type: 'A',
+        mana: 3,
+        limiteArmure: 'ensorceleur',
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} ?{Nom du sort} --sortilege --auto --portee 30 --dm 3d4E+@{selected|CHA} --saveDM PER [[10+@{selected|CHA}]] --attaqueMentale",
+      }, {
+        nom: "Sort illusoire sur plusieurs cibles",
+        type: 'A',
+        mana: 3,
+        limiteArmure: 'ensorceleur',
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} ?{Nom du sort} --sortilege --auto --portee 30 --dm 2d4E+@{selected|CHA} --saveDM PER [[10+@{selected|CHA}]] --attaqueMentale ATTAQUE_AVEC_RANG_CIBLES",
+      }],
+    },
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
     'projectile de mana': {
@@ -16441,13 +16461,26 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function TARGETSToSelection(command, perso) {
+    let nb = 0, fin;
     let index = command.indexOf('INT_TARGETS_NAMES');
+    let off = 1;
+    if (index > 0) {
+      nb = modCarac(perso, 'INT');
+      fin = index + 17;
+    } else {
+      let m = command.match(/ATTAQUE_AVEC_([0-9]+)_CIBLES/);
+      if (m) {
+        off = 2;
+        nb = toInt(m[1], 1) - 1;//Les attaques on toujours au moins une cible de base
+        index = m.index;
+        fin = index + m[0].length;
+      }
+    }
     if (index < 0) return command;
-    let nb = modCarac(perso, 'INT');
     let pre = command.substring(0, index);
-    let post = command.substring(index + 17);
+    let post = command.substring(fin);
     for (let i = 0; i < nb; i++) {
-      let targ = '@{target|Cible' + (i + 1) + '|';
+      let targ = '@{target|Cible' + (i + off) + '|';
       pre += ' ' + targ + 'token_name}';
       post += ' --cible ' + targ + 'token_id}';
     }
@@ -35125,6 +35158,10 @@ var COFantasy2 = COFantasy2 || function() {
     energie: {
       fn: dmgTypeOption
     },
+    enflamme: {
+      fn: booleanOption,
+      local: true,
+    },
     enVue: {
       fn: selectionOption
     },
@@ -35163,6 +35200,10 @@ var COFantasy2 = COFantasy2 || function() {
     },
     grenaille: boolDefaultOption,
     hache: boolDefaultOption,
+    ignoreMoitieRD: {
+      fn: booleanOption,
+      local: true,
+    },
     ignoreRD: {
       fn: ignoreRDOption,
       local: true
@@ -35443,14 +35484,6 @@ var COFantasy2 = COFantasy2 || function() {
     },
     fromPlayerId: wordDefaultOption,
     optionsDeLArmeIncluses: boolDefaultOption,
-    enflamme: {
-      fn: booleanOption,
-      local: true,
-    },
-    ignoreMoitieRD: {
-      fn: booleanOption,
-      local: true,
-    },
   };
 
   //Renseigne toujours options.playerId
