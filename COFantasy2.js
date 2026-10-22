@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 22 oct. 2026,  03:38
+//Dernière modification : jeu. 22 oct. 2026,  05:42
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13202,8 +13202,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 4,
         limiteArmure: 'ensorceleur',
-        //TODO: faire un changement de token, et utiliser un effet pour savoir quand retrouver le token de départ
-        cmd: "!cof2-action prend l'apparence de @{target|Cible|token_name} --messageMJ pour @{selected|CHA} minutes, test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}.",
+        cmd: "!cof2-effet imitation --dureeEnMinutes @{selected|CHA} --valeur @{target|Cible|token_id} --message prend l'apparence de @{target|Cible|token_name} --messageMJ test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}.",
       },
     },
     'execution mentale': {
@@ -13988,6 +13987,49 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         sortilege: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Domination --sortilege --pasDeDmg --controleMental --attaqueMagiqueOpposee --portee 20 --effet domination --dureeEnMinutes @{selected|CHA} --effetSurLanceur assomme --dureeEnMinutes @{selected|CHA}",
+      }],
+    },
+    "voie des illusions": {
+      bonusTestEvolutif_supercherie: true,
+      actions: [{
+        nom: 'Mirage',
+        type: 'L',
+        sortilege: true,
+        cmd: '!cof2-action crée une illusion --select @{selected|token_id}',
+      }, {
+        nom: "Image décalée",
+        type: 'M',
+        sortilege: true,
+        combat: true,
+        entrerEnCombat: true,
+        bufPersonnelNonCumulable: 'imageDecalee',
+        cmd: "!cof2-effet imageDecalee 1d4+@{selected|CHA} --select @{selected|token_id}"
+      }, {
+        nom: "Sort illusoire sur 1 cible",
+        type: 'A',
+        sortilege: true,
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} ?{Nom du sort} --sortilege --auto --portee 30 --dm 3d4E+@{selected|CHA} --saveDM PER [[10+@{selected|CHA}]] --attaqueMentale",
+      }, {
+        nom: "Sort illusoire sur plusieurs cibles",
+        type: 'A',
+        sortilege: true,
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} ?{Nom du sort} --sortilege --auto --portee 30 --dm 2d4E+@{selected|CHA} --saveDM PER [[10+@{selected|CHA}]] --attaqueMentale ATTAQUE_AVEC_RANG_CIBLES",
+      }, {
+        nom: "Imitation",
+        type: 'A',
+        sortilege: true,
+        cmd: "!cof2-effet imitation --dureeEnMinutes @{selected|CHA} --valeur @{target|Cible|token_id} --message prend l'apparence de @{target|Cible|token_name} --messageMJ test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}.",
+      }, {
+        nom: "Exécution mentale",
+        type: 'A',
+        sortilege: true,
+        combat: true,
+        entrerEnCombat: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Exécution mentale --sortilege --attaqueMagiqueOpposee --portee 20 --attaqueMentale --pasDeDmg --if NC < @{selected|niveau} --etat mort --else --effet etourdi 1 --endif --limiteCibleParJour 1 cibleExecutionMentale",
       }],
     },
     "voie de l'air": {
@@ -20055,6 +20097,85 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  //Les fonctions à appeler au début d'un effet, largument effet contient la partie générique
+  function debutEtatTemp(perso, effet, pageId, evt, ef, options) {
+    let etat = effetEtatTemp(effet);
+    if (!etat) {
+      error("Début d'état temporaire non reconnu", effet);
+      return;
+    }
+    setState(perso, etat, true, evt, {
+      fromTemp: true
+    });
+  }
+
+  function mettreArmure(perso, effet, pageId, evt, ef, options) {
+    if (!ficheAttributeAsInt(perso, 'armure_eqp', 0) && ficheAttributeAsInt(perso, 'armure', 0)) {
+      setFicheAttr(perso, 'armure_eqp', 1, evt);
+    }
+  }
+
+  function debutAspectDeLaSuccube(perso, effet, pageId, evt, ef, options) {
+    //On retire l'autre aspect du Nécromancien si il est présent
+    finDEffetPerso(perso, "aspectDuDemon", undefined, pageId, evt);
+  }
+
+  function debutAspectDuDemon(perso, effet, pageId, evt, ef, options) {
+    //On retire l'autre aspect du Nécromancien si il est présent
+    finDEffetPerso(perso, "aspectDeLaSuccube", undefined, pageId, evt);
+  }
+
+  function debutIntangible(perso, effet, pageId, evt, ef, options) {
+    //On libère des effets physiques
+    finDEffetPerso(perso, 'prisonVegetale', undefined, pageId, evt);
+  }
+
+  function debutImitation(perso, effet, pageId, evt, ef, options) {
+    if (!ef.valeur) return;
+    let cible = persoOfId(ef.valeur);
+    if (!cible) return;
+    let token = perso.token;
+    let imgsrc = cible.token.get('imgsrc');
+    let sideImage = encodeURIComponent(imgsrc);
+    let oldImage = token.get('imgsrc');
+    let sides = token.get('sides');
+    let newSide = 1;
+    if (sides === '') {
+      affectToken(token, 'sides', sides, evt);
+      sides = oldImage + '|' + sideImage;
+      token.set('sides', sides);
+    } else if (sides.includes(sideImage)) {
+      let sideArray = sides.split('|');
+      newSide = sideArray.indexOf(sideImage);
+    } else {
+      affectToken(token, 'sides', sides, evt);
+      newSide = sides.split('|').length;
+      sides += '|' + sideImage;
+      token.set('sides', sides);
+    }
+    let side = token.get('currentSide');
+    ef.valeur = side; //Pour pouvoir retrouver le côté
+    affectToken(token, 'currentSide', side, evt);
+    affectToken(token, 'imgsrc', oldImage, evt);
+    token.set('currentSide', newSide);
+    token.set('imgsrc', normalizeTokenImg(imgsrc));
+      let ancienNom = token.get('name');
+    ef.valeurMax = ancienNom;
+      affectToken(token, 'name', ancienNom, evt);
+      token.set('name', cible.token.get('name'));
+    let nomVisible = token.get('showname') && token.get('showplayers_name');
+    let nomImiteVisible = cible.token.get('showname') && cible.token.get('showplayers_name');
+    if (nomImiteVisible && !nomVisible) {
+      setToken(token, 'showname', true, evt);
+      setToken(token, 'showplayers_name', true, evt);
+    } else if (!nomImiteVisible && nomVisible) {
+      setToken(token, 'showplayers_name', false, evt);
+    }
+    let bar1Visible = token.get('showplayers_bar1');
+    let bar1ImiteVisible = cible.token.get('showplayers_bar1');
+    if (bar1Visible != bar1ImiteVisible) setToken(token, 'showplayers_bar1', bar1ImiteVisible, evt);
+  }
+
   //Les fonctions à affectuer en fin d'effet. l'argument effet contient la partie générique
   function finEtatTemp(perso, effet, attr, newInit, evt, options) {
     let etat = effetEtatTemp(effet);
@@ -20198,6 +20319,17 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function finImitation(perso, effet, attr, newInit, evt, options) {
+    let attrsVal = tokenAttribute(perso, effet + 'Valeur'); //On va avoir besoin du max, donc pas possible de distinguer les copies de valeurs
+    if (attrsVal.length === 0) {
+      changeTokenSide(perso, 0, evt);
+      return;
+    }
+    let side = toInt(attrsVal[0].get('current'), 0);
+    changeTokenSide(perso, side, evt);
+    let name = attrsVal[0].get('max');
+    if (name) setToken(perso.token, 'name', name, evt);
+  }
 
   //Attributs possibles :
   // activation : message à l'activation
@@ -20235,6 +20367,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est affaibli",
       actifF: "est affaiblie",
       fin: "se sent moins faible",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "retrouver des forces",
@@ -20245,6 +20378,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est dominé par sa peur",
       actifF: "est dominée par sa peur",
       fin: "retrouve du courage",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "retrouver du courage",
@@ -20257,6 +20391,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est assommé",
       actifF: "est assommée",
       fin: "reprend conscience",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "reprendre conscience",
@@ -20269,6 +20404,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est assommé",
       actifF: "est assommée",
       fin: "reprend conscience",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       msgSave: "reprendre conscience",
       prejudiciable: true,
@@ -20279,6 +20415,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est aveuglé",
       actifF: "est aveuglée",
       fin: "retrouve la vue",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "retrouver la vue",
@@ -20290,6 +20427,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est aveuglé",
       actifF: "est aveuglée",
       fin: "retrouve la vue",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       msgSave: "retrouver la vue",
       prejudiciable: true,
@@ -20301,6 +20439,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est blessé",
       actifF: "est blessée",
       fin: "va mieux",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "récupérer de ses blessures",
@@ -20311,6 +20450,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "devient le chef",
       actif: "est le chef",
       fin: "n'est plus chef",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
     },
@@ -20318,6 +20458,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "s'endort",
       actif: "dort profondément",
       fin: "se réveille",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "résister au sommeil",
@@ -20328,6 +20469,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "s'endort",
       actif: "dort profondément",
       fin: "se réveille",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       msgSave: "résister au sommeil",
       prejudiciable: true,
@@ -20338,6 +20480,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est essoufflé",
       actifF: "est essoufflée",
       fin: "reprend son souffle",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "garder son souffle",
@@ -20351,6 +20494,7 @@ var COFantasy2 = COFantasy2 || function() {
       actifF: "est étourdie",
       fin: "n'est plus étourdi",
       finF: "n'est plus étourdie",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "se reprendre",
@@ -20361,6 +20505,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "est invalide: pas plus de 5 m par action de mvt",
       actif: "est invalide",
       fin: "peut à nouveau marcher normalement",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "éviter une blessure invalidante",
@@ -20371,6 +20516,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "disparaît",
       actif: "est invisible",
       fin: "réapparaît",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "ne pas devenir invisible",
@@ -20380,6 +20526,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "disparaît",
       actif: "est invisible",
       fin: "réapparaît",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       msgSave: "ne pas devenir invisible",
       visible: true
@@ -20391,6 +20538,7 @@ var COFantasy2 = COFantasy2 || function() {
       actifF: "est immobilisée",
       fin: "n'est plus immobilisé",
       finF: "n'est plus immobilisée",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "pouvoir bouger",
@@ -20404,6 +20552,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est mort",
       actifF: "est morte",
       fin: "revient à la vie !",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "rester en vie",
@@ -20418,6 +20567,7 @@ var COFantasy2 = COFantasy2 || function() {
       actifF: "est paralysée",
       fin: "n'est plus paralysé",
       finF: "n'est plus paralysée",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "ne plus être paralysé",
@@ -20430,6 +20580,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "ne voit plus très loin",
       actif: "est dans la pénombre",
       fin: "retrouve une vue normale",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "retrouver la vue",
@@ -20443,6 +20594,7 @@ var COFantasy2 = COFantasy2 || function() {
       msgSave: "ne plus être ralenti",
       fin: "n'est plus ralenti",
       finF: "n'est plus ralentie",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       prejudiciable: true,
@@ -20454,6 +20606,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est allongé",
       actifF: "est allongée",
       fin: "se relève",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "rester debout",
@@ -20466,6 +20619,7 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "est surpris",
       actifF: "est surprise",
       fin: "retrouve ses esprits",
+      debutFun: debutEtatTemp,
       finFun: finEtatTemp,
       dureeEnTours: true,
       msgSave: "réagir à temps",
@@ -20873,7 +21027,20 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "porte une armure sacrée",
       fin: "l'armure sacrée s'envole du corps et forme un cube de métal au pied de son porteur",
       visible: true,
+      debutFun: mettreArmure,
       finFun: retirerArmure,
+    },
+    aspectDeLaSuccube: {
+      activation: "acquiert une beauté fascinante",
+      actif: "est d'une beauté fascinante",
+      fin: "retrouve son apparence normale",
+      debutFun: debutAspectDeLaSuccube,
+    },
+    aspectDuDemon: {
+      activation: "prend l'apparence d'un démon ailé",
+      actif: "a l'apparence d'un démon",
+      fin: "retrouve son apparence normale",
+      debutFun: debutAspectDuDemon,
     },
     benediction: {
       //courant: bonus de bénédiction
@@ -20936,6 +21103,14 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "n'est plus dans une forêt ennemie",
       entrave: true
     },
+    imitation: {
+      activation: "change d'apparence",
+      actif: "a pris l'apparence de quelqu'un d'autre",
+      fin: "retrouve son apparence normale",
+      visible: true,
+      debutFun: debutImitation,
+      finFun: finImitation,
+    },
     inconscientApresPremiersSoins: {
       //courant: le nombre de PV qu'il aura en se réveillant
       activation: "reçoit les premiers soins",
@@ -20949,6 +21124,7 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "devient translucide",
       actif: "est intangible",
       fin: "redevient solide",
+      debutFun: debutIntangible,
       visible: true
     },
     formeGazeuse: {
@@ -21522,8 +21698,8 @@ var COFantasy2 = COFantasy2 || function() {
         unlockToken(perso, evt);
       });
     }
-    if (options.messagesMJ) {
-      options.messagesMJ.forEach(function(m) {
+    if (options.messageMJ) {
+      options.messageMJ.forEach(function(m) {
         sendChar(charId, '/w gm ' + m);
       });
     }
@@ -21586,8 +21762,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.fromEtat) return res;
     //Débloque les tokens si l'effet les immobilisait
     if (mEffet.lock) unlockToken(perso, evt);
-    if (options.messagesMJ) {
-      options.messagesMJ.forEach(function(m) {
+    if (options.messageMJ) {
+      options.messageMJ.forEach(function(m) {
         sendChar(perso.charId, '/w gm ' + m);
       });
     }
@@ -21735,67 +21911,9 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (!renew) {
       effetEclaire(target, mEffet, effet, evt);
-      switch (effet) {
-        case 'apeureTemp':
-          setState(target, 'apeure', true, evt);
-          break;
-        case 'aveugleTemp':
-        case 'aveugleEnMinutes':
-          setState(target, 'aveugle', true, evt);
-          break;
-        case 'endormiTemp':
-        case 'endormiEnMinutes':
-          setState(target, 'endormi', true, evt);
-          break;
-        case 'penombreTemp':
-          setState(target, 'penombre', true, evt);
-          break;
-        case 'ralentiTemp':
-          setState(target, 'ralenti', true, evt);
-          break;
-        case 'paralyseTemp':
-          setState(target, 'paralyse', true, evt);
-          break;
-        case 'immobiliseTemp':
-          setState(target, 'immobilise', true, evt);
-          break;
-        case 'etourdiTemp':
-          setState(target, 'etourdi', true, evt);
-          break;
-        case 'affaibliTemp':
-          setState(target, 'affaibli', true, evt);
-          break;
-        case 'assommeTemp':
-        case 'assommeEnMinutes':
-          setState(target, 'assomme', true, evt);
-          break;
-        case 'invisibleTemp':
-        case 'invisibleEnMinutes':
-          setState(target, 'invisible', true, evt);
-          break;
-        case 'armureSacree':
-          if (!ficheAttributeAsInt(target, 'armure_eqp', 0) && ficheAttributeAsInt(target, 'armure', 0)) {
-            setFicheAttr(target, 'armure_eqp', 1, evt);
-          }
-          break;
-        case 'aspectDuDemon':
-          //On retire l'autre aspect du Nécromancien si il est présent
-          finDEffetPerso(target, "aspectDeLaSuccube", undefined, pageId, evt);
-          break;
-        case 'aspectDeLaSuccube':
-          finDEffetPerso(target, "aspectDuDemon", undefined, pageId, evt);
-          break;
-        case 'cercleDeProtection':
-          let protecteur = options.acteur || target;
-          if (!attributeAsBool(protecteur, 'cercleDeProtectionActif')) {
-            setTokenAttr(protecteur, 'cercleDeProtectionActif', 1, evt, {
-              maxVal: 1
-            });
-          }
-          break;
-        case 'intangible': //On libère des effets physiques
-          finDEffetPerso(target, 'prisonVegetale', undefined, pageId, evt);
-          break;
+      if (mEffet && mEffet.debutFun) {
+        //Peut encore changer ef.valeur
+        mEffet.debutFun(target, effet, pageId, evt, ef, options);
       }
       if (mEffet && mEffet.statusMarker) {
         setPersoStatus(target, mEffet.statusMarker, true, evt);
@@ -22306,8 +22424,8 @@ var COFantasy2 = COFantasy2 || function() {
           sendPerso(perso, m, options.secret);
         });
       }
-      if (options.messagesMJ) {
-        options.messagesMJ.forEach(function(m) {
+      if (options.messageMJ) {
+        options.messageMJ.forEach(function(m) {
           sendChar(perso.charId, '/w gm ' + m);
         });
       }
@@ -28736,8 +28854,8 @@ var COFantasy2 = COFantasy2 || function() {
           envoyer(cible, m, options.secret);
         });
       }
-      if (options.messagesMJ) {
-        options.messagesMJ.forEach(function(m) {
+      if (options.messageMJ) {
+        options.messageMJ.forEach(function(m) {
           sendChar(cible.charId, '/w gm ' + m);
         });
       }
@@ -35315,6 +35433,10 @@ var COFantasy2 = COFantasy2 || function() {
       local: true,
     },
     message: {
+      fn: stringOption,
+      array: true,
+    },
+    messageMJ: {
       fn: stringOption,
       array: true,
     },
