@@ -463,6 +463,7 @@ tr {line-height: 25px;}
                   <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette attaque à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof-effet-temp</code>). Par défaut, le nom de cette ressource est le label de l'attaque. On peut remplacer le nombre <i>n</i> par le nom d'un prédicat dont la valeur sera utilisée.</li>
                   <li><code>--limiteParCombat</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par combat.</li>
                   <li><code>--limiteParTour</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par tour.</li>
+                  <li><code>--limiteCibleParJour</code> : même effet que la limite par jour, mais pour les cibles de l'attaque.</li>
                   <li><code>--seulementDistance</code> : l'attaque ne peut être réalisée que contre un adversaire à distance.</li>
                   <li><code>--seulementVivant</code> : n'affecte que les cibles vivantes</li>
                   <li><code>--forceMinimum <i>n</i></code> : l'attaque n'est possible que si l'attaquant a au moins <i>n</i> en force.</li>
@@ -746,14 +747,15 @@ tr {line-height: 25px;}
                   <p>Un personnage ayant un prédicat nommé <code>immunite_<i>effet</i></code> est immunisé à l'effet de nom <i>effet</i>.</p>
                   <ul>
                     <li><code>--acteur <i>id</i></code> : indique la source de l'effet. Utile pour un certain nombre d'autres options.</li>
-                    <li><code>--mana <i>id cout</i></code> : impose au token <i>id</i> de dépenser <i>cout</i> mana. Si <code>--lanceur</code> est donné, <i>id</i> est inutile. La présence de cette option, même avec un coût de 0, indique au script que l'effet devrait être supprimé à la mort du lanceur.</li>
-                    <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette effet à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof-attack</code>). Par défaut, le nom de cette ressource est <i>effet</i>. Attention, il faut un lanceur auquel appliquer la limite par jour !</li>
+                    <li><code>--mana <i>id cout</i></code> : impose au token <i>id</i> de dépenser <i>cout</i> mana. Si <code>--acteur</code> est donné, <i>id</i> est inutile. La présence de cette option, même avec un coût de 0, indique au script que l'effet devrait être supprimé à la mort du lanceur.</li>
+                    <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette effet à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof2-attack</code>). Par défaut, le nom de cette ressource est <i>effet</i>. Attention, il faut un lanceur auquel appliquer la limite par jour !</li>
                     <li><code>--limiteParCombat</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par combat.  Attention, il faut un lanceur auquel appliquer la limite par combat !</li>
+                  <li><code>--limiteCibleParJour</code> : même effet que la limite par jour, mais pour les cibles de l'effet au lieu du lanceur de l'effet.</li>
                     <li><code>--tempsRecharge <i>effet</i> <i>duree</i></code> : l'action n'est possible que si l'effet est inactif sur le personnage qui génère l'effet, et de plus active l'effet sur celui-ci pour la durée indiquée. Il existe un effet temporaire générique, <code>rechargeGen(<i>desc</i>)</code> que vous pouvez utiliser si aucun effet existant ne correspond.</li>
                     <li><code>--recharger <i>action</i></code> : indique que l'attaque ne peut être répétée qu'après avoir consacré une action de type <i>action</i> à recharger l'arme.</li>
                     <li><code>--dose <i>nom</i></code>: définie une ressource nommée <code>dose_<i>nom</i></code>, dont la valeur doit être positive. Utile par exemple pour les parchemins, les potions ou les baguettes.</li>
                     <li><code>--depensePR</code>: demande de dépenser un point de récupération. Si un premier argument est ajouté, on enlève ce nombre aux PR au lieu de 1. Si un second argument est précisé, on enlève ce second argument aux PV quand le personnage n'a plus de PR.</li>
-                    <li><code>--portee <i>id d</i></code> : impose aux cibles de l'effet d'être à moins de <i>d</i> mètres du token <i>id</i>. Si <code>--lanceur</code> est précisé, inutile de donner <i>id</i>.</li>
+                    <li><code>--portee <i>id d</i></code> : impose aux cibles de l'effet d'être à moins de <i>d</i> mètres du token <i>id</i>. Si <code>--acteur</code> est précisé, inutile de donner <i>id</i>.</li>
                     <li><code>--saveParTour <i>carac seuil</i></code> : la cible peut se sortir de l'effet chaque tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i>.</li>
                     <li><code>--saveActifParTour <i>carac seuil action</i></code> : la cible peut se sortir de l'effet à tour grâce à un test de <i>carac</i> de difficulte <i>seuil</i>, et demandant une action de type <i>action</i> (utilisation dans bouton dans la liste d'actions).</li>
                     <li><code>--save <i>carac seuil</i></code> : la cible peut faire un jet pour échapper à l'effet. Si on ajoute l'argument <code>demiDuree</code>, alors réussir la sauvegarde ne fait que diviser la durée.</li>
@@ -808,7 +810,7 @@ tr {line-height: 25px;}
                   <li><code>--secoue</code> : la peur ne donne qu'un malus de -2 aux tests. Mais un autre effet de peur de même type fait fuir.</li>
                   <li><code>--effroi</code> : la peur est passive (pas un sort)</li>
                   <li><code>--portee <i>n</i></code> : limite la portée du sort à <i>n</i> metres.</li>
-                  <li><code>--lanceur <i>id</i></code> : le lanceur de l'effet de peur (si il y en a un). Nécessaire pour la portée, par exemple.</li>
+                  <li><code>--acteur <i>id</i></code> : le lanceur de l'effet de peur (si il y en a un). Nécessaire pour la portée, par exemple.</li>
                   <li><code>--titre <i>message</i></code> : spécifie un titre pour la fenêtre affichant les jets de résistance à la peur.</li>
                   <li><code>--immuniseSiResiste <i>nom</i></code> : la personne qui résiste à cet effet de peur est ensuite immunisé pour la journée aux effets de peur ayant la même option (avec le même <i>nom</i>).</li>
                 </ul>
@@ -1283,6 +1285,8 @@ tr {line-height: 25px;}
                   <li><strong>Mirage :</strong> ajoute une compétence évolutive nommée <code>supercherie</code>. Le sort associé fait simplement dépenser la mana, au MJ de gérer les autres conséquences ou la durée du sort.</li>
                   <li><strong>Image décalée :</strong> géré.</li>
                   <li><strong>Sort illusoire :</strong> le script propose un sort pour la version à une cible et un autre pour le multi-cibles. Le joueur peut choisir le nom de l'attaque au moment du lancement.</li>
+                  <li><strong>Imitation :</strong> gestion minimale, au MJ de simuler l'effet.</li>
+                  <li><strong>Exécution mentale :</strong> géré.</li>
                 </ol>
                 </ol>
               </div>

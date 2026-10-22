@@ -1,4 +1,4 @@
-//Dernière modification : mer. 21 oct. 2026,  05:35
+//Dernière modification : jeu. 22 oct. 2026,  03:38
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4730,6 +4730,7 @@ var COFantasy2 = COFantasy2 || function() {
         case 'attributCible':
         case 'predicatCible':
         case 'typeCible':
+        case 'NC':
           if (target === undefined) {
             callIfAllDone(etatParent, callback);
             return true;
@@ -5753,7 +5754,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (attributeAsBool(target, 'imageDecalee') &&
             (!options.aoe || predicateAsBool(target, 'imageDecaleeAvancee'))
           ) {
-              let r = rollDePlus(6, "imageDecalee" + target.token.id, evt);
+            let r = rollDePlus(6, "imageDecalee" + target.token.id, evt);
             if (r.total > 4) {
               target.touche = false;
               target.messages.push(r.display + ": l'attaque passe à travers l'image de " + nomPerso(target));
@@ -6166,7 +6167,24 @@ var COFantasy2 = COFantasy2 || function() {
     // Effets quand on rentre en combat
     entrerEnCombat(attaquant, cibles, explications, evt);
     if (limiteRessources(attaquant, options, attackLabel, weaponName, evt, explications)) {
+      explications.forEach(function(msg) {
+        sendPerso(attaquant, msg, options.secret);
+      });
       return;
+    }
+    if (options.limiteCibleParJour) {
+      let ressource = options.limiteCibleParJour.ressource || weaponName;
+      ressource = "limiteParJour_" + ressource;
+      cibles = cibles.filter(function(target) {
+        let utilisations = attributeAsInt(target, ressource, options.limiteCibleParJour.val);
+        if (utilisations === 0) {
+          sendPerso(target, "ne peut plus être affecté" + eForFemale(target) + "par cette attaque aujourd'hui", options.secret);
+          return false;
+        }
+        setTokenAttr(target, ressource, utilisations - 1, evt);
+        return true;
+      });
+      if (cibles.length === 0) return;
     }
     // On commence par le jet d'attaque de base : juste le ou les dés d'attaque
     // et le modificateur d'arme et de caractéritiques qui apparaissent dans
@@ -12282,15 +12300,15 @@ var COFantasy2 = COFantasy2 || function() {
     colossal: true, //TODO: à utiliser pour estimer la partie de la RD due à cette voie
   };
 
-  const capaciteManteauDOmbre = { 
-      profil: 'sorcier',
-      action: {
-        nom: "Manteau d'ombre",
-        type: 'L',
-        mana: 4,
-        cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
-      }
-    };
+  const capaciteManteauDOmbre = {
+    profil: 'sorcier',
+    action: {
+      nom: "Manteau d'ombre",
+      type: 'L',
+      mana: 4,
+      cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
+    }
+  };
 
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
@@ -13176,6 +13194,29 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} ?{Nom du sort} --sortilege --auto --portee 30 --dm 2d4E+@{selected|CHA} --saveDM PER [[10+@{selected|CHA}]] --attaqueMentale ATTAQUE_AVEC_RANG_CIBLES",
       }],
+    },
+    'imitation': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Imitation",
+        type: 'A',
+        mana: 4,
+        limiteArmure: 'ensorceleur',
+        //TODO: faire un changement de token, et utiliser un effet pour savoir quand retrouver le token de départ
+        cmd: "!cof2-action prend l'apparence de @{target|Cible|token_name} --messageMJ pour @{selected|CHA} minutes, test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}.",
+      },
+    },
+    'execution mentale': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Exécution mentale",
+        type: 'A',
+        mana: 5,
+        limiteArmure: 'ensorceleur',
+        combat: true,
+        entrerEnCombat: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Exécution mentale --sortilege --attaqueMagiqueOpposee --portee 20 --attaqueMentale --pasDeDmg --if NC < @{selected|niveau} --etat mort --else --effet etourdi 1 --endif --limiteCibleParJour 1 cibleExecutionMentale",
+      },
     },
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
@@ -16461,7 +16502,8 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function TARGETSToSelection(command, perso) {
-    let nb = 0, fin;
+    let nb = 0,
+      fin;
     let index = command.indexOf('INT_TARGETS_NAMES');
     let off = 1;
     if (index > 0) {
@@ -16471,7 +16513,7 @@ var COFantasy2 = COFantasy2 || function() {
       let m = command.match(/ATTAQUE_AVEC_([0-9]+)_CIBLES/);
       if (m) {
         off = 2;
-        nb = toInt(m[1], 1) - 1;//Les attaques on toujours au moins une cible de base
+        nb = toInt(m[1], 1) - 1; //Les attaques on toujours au moins une cible de base
         index = m.index;
         fin = index + m[0].length;
       }
@@ -22229,11 +22271,9 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       if (options.limiteCibleParJour) {
-        let ressource = effet;
-        if (options.limiteCibleParJourRessource)
-          ressource = options.limiteCibleParJourRessource;
+        let ressource = options.limiteCibleParJour.ressource || effet;
         ressource = "limiteParJour_" + ressource;
-        let utilisations = attributeAsInt(perso, ressource, options.limiteCibleParJour);
+        let utilisations = attributeAsInt(perso, ressource, options.limiteCibleParJour.val);
         if (utilisations === 0) {
           expliquerPerso(perso, "ne peut plus bénéficier de " + effet + " aujourd'hui", options);
           return;
@@ -31677,11 +31717,9 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let ressourceLimiteSoinsParJour;
     if (soigneur && options.limiteSoinsParJour) {
-      ressourceLimiteSoinsParJour = effet;
-      if (options.limiteSoinsParJourRessource)
-        ressourceLimiteSoinsParJour = options.limiteSoinsParJourRessource;
+      ressourceLimiteSoinsParJour = options.limiteSoinsParJour.ressource || effet;
       ressourceLimiteSoinsParJour = "limiteParJour_Soin" + ressourceLimiteSoinsParJour;
-      let soinsRestantsDuJour = attributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour);
+      let soinsRestantsDuJour = attributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour.val);
       if (soinsRestantsDuJour < 1) {
         whisperChar(charId, "Plus possible de faire ces soins aujourd'hui");
         return;
@@ -31721,9 +31759,7 @@ var COFantasy2 = COFantasy2 || function() {
     let nbCibles = selected.length;
     let ressourceLimiteCibleParJour;
     if (options.limiteCibleParJour) {
-      ressourceLimiteCibleParJour = effet;
-      if (options.limiteCibleParJourRessource)
-        ressourceLimiteCibleParJour = options.limiteCibleParJourRessource;
+      ressourceLimiteCibleParJour = options.limiteCibleParJour.ressource || effet;
       ressourceLimiteCibleParJour = "limiteParJour_" + ressourceLimiteCibleParJour;
     }
     let display;
@@ -31743,7 +31779,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (display) sendFramedDisplay(display);
         if (ressourceLimiteSoinsParJour) {
-          whisperChar(charId, "peut encore soigner de " + attributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour) + " PV aujourd'hui.");
+          whisperChar(charId, "peut encore soigner de " + attributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour.val) + " PV aujourd'hui.");
         }
       }
       nbCibles--;
@@ -31754,7 +31790,7 @@ var COFantasy2 = COFantasy2 || function() {
     iterCibles(function(cible) {
       if (ressourceLimiteCibleParJour) {
         let utilisations =
-          attributeAsInt(cible, ressourceLimiteCibleParJour, options.limiteCibleParJour);
+          attributeAsInt(cible, ressourceLimiteCibleParJour, options.limiteCibleParJour.val);
         if (utilisations === 0) {
           sendPerso(cible, "ne peut plus bénéficier de " + effet + " aujourd'hui");
           finSoin();
@@ -31859,7 +31895,7 @@ var COFantasy2 = COFantasy2 || function() {
       let extraImg = afficheOptionImage(options);
       const printTrue = function(s) {
         if (ressourceLimiteSoinsParJour) {
-          addToAttributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour, -s, evt);
+          addToAttributeAsInt(soigneur, ressourceLimiteSoinsParJour, options.limiteSoinsParJour.val, -s, evt);
         }
         if (display) {
           let line = "<b>" + nomPerso(cible) + "</b> : + ";
@@ -33969,6 +34005,9 @@ var COFantasy2 = COFantasy2 || function() {
   // Pour les limites par jour, combat ou tour,
   // cmd[1] est la valeur ou un prédicat
   // cmd[2] est la ressource (optionelle)
+  // renvoie:
+  //  - val: le nombre limite
+  //  - ressource: la ressource, si présente
   function parseLimite(cmd, options, type) {
     let l = parseInt(cmd[1]);
     if (isNaN(l)) {
@@ -35019,6 +35058,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     attaqueAssuree: boolDefaultOption,
     attaqueContactOpposee: boolDefaultOption,
+    attaqueMentale: boolDefaultOption,
     attackId: wordDefaultOption,
     attaqueMagiqueOpposee: boolDefaultOption,
     attaquePrecise: boolDefaultOption,
@@ -35033,6 +35073,9 @@ var COFantasy2 = COFantasy2 || function() {
       local: true,
     },
     autoriseAction: boolDefaultOption,
+    bonus: {
+      fn: integerOption
+    },
     bonusAttaque: {
       fn: integerOption,
       additif: true,
@@ -35186,6 +35229,7 @@ var COFantasy2 = COFantasy2 || function() {
     froid: {
       fn: dmgTypeOption
     },
+    fromPlayerId: wordDefaultOption,
     fx: {
       fn: fxOption,
     },
@@ -35233,6 +35277,9 @@ var COFantasy2 = COFantasy2 || function() {
     },
     limiteArmure: {
       fn: limiteArmureOption,
+    },
+    limiteCibleParJour: {
+      fn: limiteOption,
     },
     limiteParCombat: {
       fn: limiteOption,
@@ -35297,6 +35344,7 @@ var COFantasy2 = COFantasy2 || function() {
       min: 1,
     },
     noSelect: boolDefaultOption,
+    optionsDeLArmeIncluses: boolDefaultOption,
     optionEffet: {
       fn: effetOptionOption
     },
@@ -35315,6 +35363,11 @@ var COFantasy2 = COFantasy2 || function() {
     perforant: boolDefaultOption,
     peur: {
       fn: peurOption,
+    },
+    plageEchecCritique: {
+      fn: integerOption,
+      min: 0,
+      max: 19,
     },
     plus: {
       fn: additionalDmgOption
@@ -35474,16 +35527,6 @@ var COFantasy2 = COFantasy2 || function() {
     difficulte: {
       fn: integerOption
     },
-    bonus: {
-      fn: integerOption
-    },
-    plageEchecCritique: {
-      fn: integerOption,
-      min: 0,
-      max: 19,
-    },
-    fromPlayerId: wordDefaultOption,
-    optionsDeLArmeIncluses: boolDefaultOption,
   };
 
   //Renseigne toujours options.playerId
