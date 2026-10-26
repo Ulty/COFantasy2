@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 22 oct. 2026,  05:42
+//Dernière modification : lun. 26 oct. 2026,  03:23
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -938,7 +938,7 @@ var COFantasy2 = COFantasy2 || function() {
   //     - attaque : nombre d'actions d'attaque effectuées par le personnage actif
   //     - mouvement : nombre d'actions de mouvement effectuées par le personnage actif
   //     - gratuite : nombre d'actions gratuites effectuées par le personnage actif
-  //     - extra : vaut 'M' ou 'A' quand le personnage a doit à une action supplémentaire ce roound
+  //     - extra : vaut 'M' ou 'A' quand le personnage a doit à une action supplémentaire ce round
   //     - supplementaires : actions spécifiques disponibles pour le personnage.
   //   - auras         : liste des auras actives
   //   - aurasCounts   : compteur pour id des auras
@@ -4058,14 +4058,14 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let attrAgrippe = tokenAttribute(attaquant, 'agrippe');
     attrAgrippe.forEach(function(a) {
-      let cibleAgrippee = persoOfIdName(a.get('current'), pageId);
+      let cibleAgrippee = persoOfId(a.get('current'), pageId);
       if (cibleAgrippee && cibleAgrippee.id == target.id &&
         !attributeAsBool(cibleAgrippee, 'agrippeParUnDemon')) {
         attBonus += 5;
         if (options.pasDeDmg)
           explications.push("Cible agrippée => +5 em Attaque");
         else
-          explications.push("Cible agrippée => +5 att. et 1d6 DM");
+          explications.push("Cible agrippée => +5 att. et 1d4°  DM");
         target.estAgrippee = true;
       }
     });
@@ -5197,10 +5197,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let attrAgrippe = tokenAttribute(attaquant, 'agrippe');
     attrAgrippe.forEach(function(a) {
-      let cibleAgrippee = persoOfIdName(a.get('current'), pageId);
+      let cibleAgrippee = persoOfId(a.get('current'), pageId);
       if (cibleAgrippee && cibleAgrippee.id == target.id &&
         !attributeAsBool(cibleAgrippee, 'agrippeParUnDemon')) {
-        explications.push("Cible agrippée => +1d6 DM");
+        explications.push("Cible agrippée => +1d4° DM");
         target.estAgrippee = true;
       }
     });
@@ -5957,6 +5957,23 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
+  function deBonusEtDMEvolutifs(perso, nb, msg, explications, options) {
+    let ajoute;
+    if (!options.auto) {
+      ajouteDeBonus(options);
+      msg += " => dé bonus";
+      ajoute = true;
+    }
+    if (!options.pasDeDmg) {
+      ajouteDesEvolutifs(perso, nb, options);
+      if (options.auto) msg += ' =>';
+      else msg += " et";
+      ajoute = true;
+      msg += " +" + nb + "d4° DM";
+    }
+    if (ajoute) explications.push(msg);
+  }
+
   function resoudreAttaque(args, attaquant, evt, explications, options) {
     let {
       cibles,
@@ -5985,31 +6002,17 @@ var COFantasy2 = COFantasy2 || function() {
     }
     //Les attaques des teignes
     if (predicateAsBool(attaquant, 'teigne') && attributeAsBool(attaquant, 'attributDeCombat_teigneRateAttaque')) {
-      let msg = "A raté sa dernière attaque =>";
-      if (!options.auto) {
-        ajouteDeBonus(options);
-        msg += " dé bonus";
-      }
-      if (!options.pasDeDmg) {
-        ajouteDesEvolutifs(attaquant, 2, options);
-        if (!options.auto) msg += " et";
-        msg += " +2d4° DM";
-      }
-      explications.push(msg);
+      deBonusEtDMEvolutifs(attaquant, 2, "A raté sa dernière attaque", explications, options);
       removeTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', evt);
     }
+    if ((!stateCOF.combat || stateCOF.combat.tour < 2) && predicateAsBool(attaquant, 'attaqueEnVolVersSol') && attributeAsBool(attaquant, 'enVol')) {
+      let auSol = cibles.every(function(target) {
+        return !attributeAsBool(target, 'enVol');
+      });
+      if (auSol) deBonusEtDMEvolutifs(attaquant, 1, "Attaque en piqué", explications, options);
+    }
     if (attributeAsBool(attaquant, 'chargeFantastique')) {
-      let msg = "Charge fantastique =>";
-      if (!options.auto) {
-        ajouteDeBonus(options);
-        msg += " dé bonus";
-      }
-      if (!options.pasDeDmg) {
-        ajouteDesEvolutifs(attaquant, 2, options);
-        if (!options.auto) msg += " et";
-        msg += " +1d4° DM";
-      }
-      explications.push(msg);
+      deBonusEtDMEvolutifs(attaquant, 2, "Charge fantastique", explications, options);
     }
     if (!options.auto && predicateAsBool(attaquant, 'deBonusContreSurpris') && cibles.every(function(target) {
         return getState(target, 'surpris');
@@ -7604,13 +7607,18 @@ var COFantasy2 = COFantasy2 || function() {
           if (attributeAsBool(target, 'armureDEau')) {
             target.messages.push("L'armure d'eau empêche " + nomPerso(target) + " d'être aggripé");
           } else {
-            let immobilise = estAussiGrandQue(attaquant, target);
-            setTokenAttr(attaquant, 'agrippe', target.token.id, evt);
-            setTokenAttr(target, 'estAgrippePar', attaquant.token.id, evt, {
-              maxVal: immobilise
-            });
-            if (immobilise) setState(target, 'immobilise', true, evt);
-            target.messages.push("est agrippé");
+            let opt = {
+              saveActifParTour: {
+                carac: 'FOR',
+                typeAction: 'M',
+                seuil: 10 + modCarac(attaquant, 'FOR'),
+              },
+            };
+            if (!estAussiGrandQue(target, attaquant)) {
+              opt.valeur = true; //ça va immobiliser la cible
+            }
+            activerEffetNom(attaquant, target, 'estAgrippePar', attaquant.token.id, pageId, evt, opt);
+            target.messages.push(nomPerso(attaquant)+" agrippe "+nomPerso(target));
           }
         }
         if (options.devorer) {
@@ -13449,7 +13457,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'magicien',
         type: 'A',
         mana: 4,
-        cmd: '!cof2-effet enVol oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
+        cmd: '!cof2-effet peutVoler oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
       }
     },
     'teleportation': {
@@ -13871,6 +13879,17 @@ var COFantasy2 = COFantasy2 || function() {
     'fauchage': {
       fauchage: true,
     },
+    //Voie des créatures élémentaires
+    //Voie des créatures magiques
+    //Voie des créatures volantes
+    'vol rapide': {
+      volant: true,
+      actionDeMvtSuppSiEnVol: true,
+      attaqueEnVolVersSol: true,
+    },
+    'agripper': { //A priori, il semble possible de savoir agripper sans savoir voler
+      agripper: true,
+    },
     //Voie de la magie maléfique
     'vampirisation': {
       siphonDesAmes: 2,
@@ -14123,7 +14142,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Vol",
         type: 'A',
         sortilege: true,
-        cmd: '!cof2-effet enVol oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
+        cmd: '!cof2-effet peutVoler oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
       }, {
         nom: "Téléportation",
         type: 'L',
@@ -16166,9 +16185,13 @@ var COFantasy2 = COFantasy2 || function() {
     return res;
   }
 
-  function actionExtra(a, actions) {
+  function actionExtra(perso, a, actions) {
     let extra = actions.extra;
-    if (!extra) return a;
+    if (!extra) {
+      if (predicateAsBool(perso, 'actionDeMvtSuppSiEnVol') && attributeAsBool(perso, 'enVol'))
+        extra = 'M';
+      else return a;
+    }
     switch (a) {
       case 'G':
         return extra;
@@ -16186,16 +16209,16 @@ var COFantasy2 = COFantasy2 || function() {
         if (combat) {
           let actions = actionsDisponibles(perso, combat);
           if (actions.limitee) {
-            perso.actionMax = actionExtra('G', actions);
+            perso.actionMax = actionExtra(perso, 'G', actions);
           } else if (actions.attaque + actions.mouvement > 1) {
-            perso.actionMax = actionExtra('G', actions);
+            perso.actionMax = actionExtra(perso, 'G', actions);
           } else if (actions.attaque > 0) {
             if (getState(perso, 'ralenti') || attributeAsBool(perso, 'limiteParTour_riposteAvantInit')) {
-              perso.actionMax = actionExtra('G', actions);
-            } else perso.actionMax = actionExtra('M', actions);
+              perso.actionMax = actionExtra(perso, 'G', actions);
+            } else perso.actionMax = actionExtra(perso, 'M', actions);
           } else if (actions.mouvement == 1) {
             if (getState(perso, 'ralenti') || attributeAsBool(perso, 'limiteParTour_riposteAvantInit')) {
-              perso.actionMax = actionExtra('G', actions);
+              perso.actionMax = actionExtra(perso, 'G', actions);
             } else perso.actionMax = 'A';
           } else {
             if (getState(perso, 'ralenti')) {
@@ -16803,6 +16826,15 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (options.actionsAvantLeTour || !avant) {
+      if (attributeAsBool(perso, 'enVol')) {
+        let cmd = '!cof2-effet enVol false --select @{selected|token_id}';
+        let style = 'style="background-color:#272751"';
+        ligne += boutonSimple(cmd, 'se poser', style) + '<br/>';
+      } else if (predicateAsBool(perso, 'volant') || attributeAsBool(perso, 'peutVoler')) {
+        let cmd = '!cof2-effet enVol --select @{selected|token_id}';
+        let style = 'style="background-color:#272751"';
+        ligne += boutonSimple(cmd, "s'envoler", style) + '<br/>';
+      }
       //Les actions proposées seulement au tour du personnage
       if (actionsEnCombat) {
         //On rajoute les actions du tour par défaut
@@ -18370,7 +18402,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (!res && !strict) {
       switch (etat) {
         case 'immobilise':
-          return attributeAsBool(perso, 'prisonVegetale');
+          return attributeAsBool(perso, 'prisonVegetale') || attributeAsBool(perso, 'estAgrippeParValeur');
         case 'paralyse':
           return attributeAsBool(perso, 'paralyseGoule') || attributeAsBool(perso, 'poisonParalysant');
       }
@@ -18622,18 +18654,9 @@ var COFantasy2 = COFantasy2 || function() {
             //On libère les personnages agrippés, si il y en a.
             let attrAgrippe = tokenAttribute(perso, 'agrippe');
             attrAgrippe.forEach(function(a) {
-              let cible = persoOfIdName(a.get('current'), pageId);
+              let cible = persoOfId(a.get('current'), pageId);
               if (cible) {
-                let attrCible = tokenAttribute(cible, 'estAgrippePar');
-                attrCible.forEach(function(a) {
-                  let agrippant = persoOfIdName(a.get('current', pageId));
-                  if (agrippant.token.id == perso.token.id) {
-                    sendPerso(cible, 'se libère de ' + nomPerso(agrippant));
-                    toFront(cible.token);
-                    if (a.get('max')) setState(cible, 'immobilise', false, evt);
-                    deleteAttribute(a, evt);
-                  }
-                });
+                finDEffetPerso(cible, 'estAgrippePar', undefined, pageId, evt);
                 removeTokenAttr(cible, 'agrippeParUnDemon', evt);
               }
               deleteAttribute(a, evt);
@@ -20098,7 +20121,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //Les fonctions à appeler au début d'un effet, largument effet contient la partie générique
-  function debutEtatTemp(perso, effet, pageId, evt, ef, options) {
+  function debutEtatTemp(perso, effet, val, pageId, evt, ef, options) {
     let etat = effetEtatTemp(effet);
     if (!etat) {
       error("Début d'état temporaire non reconnu", effet);
@@ -20109,28 +20132,28 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
-  function mettreArmure(perso, effet, pageId, evt, ef, options) {
+  function mettreArmure(perso, effet, val, pageId, evt, ef, options) {
     if (!ficheAttributeAsInt(perso, 'armure_eqp', 0) && ficheAttributeAsInt(perso, 'armure', 0)) {
       setFicheAttr(perso, 'armure_eqp', 1, evt);
     }
   }
 
-  function debutAspectDeLaSuccube(perso, effet, pageId, evt, ef, options) {
+  function debutAspectDeLaSuccube(perso, effet, val, pageId, evt, ef, options) {
     //On retire l'autre aspect du Nécromancien si il est présent
     finDEffetPerso(perso, "aspectDuDemon", undefined, pageId, evt);
   }
 
-  function debutAspectDuDemon(perso, effet, pageId, evt, ef, options) {
+  function debutAspectDuDemon(perso, effet, val, pageId, evt, ef, options) {
     //On retire l'autre aspect du Nécromancien si il est présent
     finDEffetPerso(perso, "aspectDeLaSuccube", undefined, pageId, evt);
   }
 
-  function debutIntangible(perso, effet, pageId, evt, ef, options) {
+  function debutIntangible(perso, effet, val, pageId, evt, ef, options) {
     //On libère des effets physiques
     finDEffetPerso(perso, 'prisonVegetale', undefined, pageId, evt);
   }
 
-  function debutImitation(perso, effet, pageId, evt, ef, options) {
+  function debutImitation(perso, effet, val, pageId, evt, ef, options) {
     if (!ef.valeur) return;
     let cible = persoOfId(ef.valeur);
     if (!cible) return;
@@ -20159,10 +20182,10 @@ var COFantasy2 = COFantasy2 || function() {
     affectToken(token, 'imgsrc', oldImage, evt);
     token.set('currentSide', newSide);
     token.set('imgsrc', normalizeTokenImg(imgsrc));
-      let ancienNom = token.get('name');
+    let ancienNom = token.get('name');
     ef.valeurMax = ancienNom;
-      affectToken(token, 'name', ancienNom, evt);
-      token.set('name', cible.token.get('name'));
+    affectToken(token, 'name', ancienNom, evt);
+    token.set('name', cible.token.get('name'));
     let nomVisible = token.get('showname') && token.get('showplayers_name');
     let nomImiteVisible = cible.token.get('showname') && cible.token.get('showplayers_name');
     if (nomImiteVisible && !nomVisible) {
@@ -20174,6 +20197,18 @@ var COFantasy2 = COFantasy2 || function() {
     let bar1Visible = token.get('showplayers_bar1');
     let bar1ImiteVisible = cible.token.get('showplayers_bar1');
     if (bar1Visible != bar1ImiteVisible) setToken(token, 'showplayers_bar1', bar1ImiteVisible, evt);
+  }
+
+  function debutAgrippe(perso, effet, val, pageId, evt, ef, options) {
+    if (ef.valeur) lockToken(perso, evt);
+    let agrippant = persoOfId(val);
+    if (!agrippant) {
+      log("Mise en place de l'effet agrippé sur " + nomPerso(perso) + ", sans personnage qui l'agrippe");
+      expliquerPerso("est agrippé" + eForFemale(perso));
+      return;
+    }
+    setTokenAttr(agrippant, 'agrippe', perso.token.id, evt);
+    expliquerPerso(agrippant, "agrippe " + nomPerso(perso));
   }
 
   //Les fonctions à affectuer en fin d'effet. l'argument effet contient la partie générique
@@ -20248,9 +20283,9 @@ var COFantasy2 = COFantasy2 || function() {
     if (attrM.length === 0) return;
     let imageMur = getObj('graphic', attrM[0].get('current'));
     if (imageMur) {
-      imageMur.remove();
+      deleteTokenWithUndo(imageMur, evt);
     }
-    attrM[0].remove();
+    deleteAttribute(attrM[0], evt);
   }
 
   function finSoinsEnAttente(perso, effet, attr, newInit, evt, options) {
@@ -20275,9 +20310,9 @@ var COFantasy2 = COFantasy2 || function() {
     if (attrId.length === 0) return;
     let image = getObj('graphic', attrId[0].get('current'));
     if (image) {
-      image.remove();
+      deleteTokenWithUndo(image, evt);
     }
-    attr[0].remove();
+    deleteAttribute(attrId[0], evt);
   }
 
   function finFlecheVivante(perso, effet, attr, newInit, evt, options) {
@@ -20329,6 +20364,22 @@ var COFantasy2 = COFantasy2 || function() {
     changeTokenSide(perso, side, evt);
     let name = attrsVal[0].get('max');
     if (name) setToken(perso.token, 'name', name, evt);
+  }
+
+  function finPeutVoler(perso, effet, attr, newInit, evt, options) {
+    finDEffetPerso(perso, 'enVol', undefined, undefined, evt);
+  }
+
+  function finAgrippe(perso, effet, attr, newInit, evt, options) {
+    options.unlock = true;
+    let agrippant = persoOfId(attr.get('current'));
+    if (!agrippant) return;
+    let attrsAgrippant = tokenAttribute(agrippant, 'agrippe');
+    attrsAgrippant.some(function(a) {
+      if (a.get('current') != perso.token.id) return false;
+      deleteAttribute(a, evt);
+      return true;
+    });
   }
 
   //Attributs possibles :
@@ -20824,12 +20875,12 @@ var COFantasy2 = COFantasy2 || function() {
       visible: false,
     },
     poisonAffaiblissantLatent: {
+      dureeEnTours: true,
       activation: "sent qu'un poison commence à se répandre dans ses veines",
       actif: "est empoisonné, mais l'effet du poison ne se fait pas encore sentir",
       actifF: "est empoisonnée, mais l'effet du poison ne se fait pas encore sentir",
       fin: "se sent faible",
       finFun: finPoisonAffaiblissantLatent,
-      dureeEnTours: true,
       msgSave: "résister au poison",
       prejudiciable: true,
       seulementVivant: true,
@@ -20907,6 +20958,7 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true,
       generic: true, //pour pouvoir avoir plusieurs zones de vie
     },
+    //Durées en combat
     armureMagique: {
       activation: "est entouré d'un halo magique",
       activationF: "est entourée d'un halo magique",
@@ -20956,30 +21008,19 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true,
     },
     genouBrise: {
+      dureeCombat: true,
       activation: "reçoit un coup dans les genoux !",
       actif: "est blessé aux jambes",
       actifF: "est blessée aux jambes",
       fin: "peut à nouveau se déplacer normalement",
-      dureeCombat: true,
       prejudiciable: true,
       visible: true,
     },
-    petrifie: {
-      activation: "se change en pierre",
-      actif: "est transformé en pierre",
-      actifF: "est transformée en pierre",
-      fin: "n'est plus pétrifié",
-      finF: "n'est plus pétrifiée",
-      prejudiciable: true,
-      msgSave: "résister à la pétrification",
-      entrave: true,
-      lock: true,
-    },
     blessureQuiSaigne: {
+      dureeCombat: true,
       activation: "reçoit une blessure qui saigne",
       actif: "saigne à cause d'une blessure",
       fin: "saigne beaucoup moins",
-      dureeCombat: true,
       saignement: true,
       msgSave: "ne plus saigner",
       prejudiciable: true,
@@ -21084,6 +21125,20 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "se pose au sol",
       visible: true,
     },
+    estAgrippePar: {
+      //contrôle aussi un attribut aggripe chez celui qui agrippe
+      //La valeur de l'attribut est l'id du token qui agrippe
+      //Pas d'activation, le message est affiché dans debutFun
+      actif: "est agrippé",
+      actifF: "est agrippée",
+      fin: "est libéré",
+      finF: "est libérée",
+      msgSave: "se libérer",
+      visible: true,
+      entrave: true,
+      debutFun: debutAgrippe,
+      finFun: finAgrippe,
+    },
     domination: {
       activation: "perd le contrôle de ses actions",
       actif: "est sous la domination de quelqu'un",
@@ -21139,6 +21194,12 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "retombe au sol",
       visible: true,
     },
+    peutVoler: {
+      activation: "peut maintenant voler",
+      actif: "peut voler",
+      fin: "ne peut plus voler",
+      finFun: finPeutVoler,
+    },
     maitriseDesElements: {
       //courant: la RD aux éléments
       activation: "gagne la maîtrise des éléments",
@@ -21166,6 +21227,17 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "a la peau dure comme l'écorce",
       fin: "retrouve une peau normale",
       visible: true
+    },
+    petrifie: {
+      activation: "se change en pierre",
+      actif: "est transformé en pierre",
+      actifF: "est transformée en pierre",
+      fin: "n'est plus pétrifié",
+      finF: "n'est plus pétrifiée",
+      prejudiciable: true,
+      msgSave: "résister à la pétrification",
+      entrave: true,
+      lock: true,
     },
     prisonVegetale: {
       activation: "voit des plantes pousser et s'enrouler autour de ses jambes",
@@ -21689,7 +21761,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     deleteAttribute(attr, evt);
     //Débloque les tokens si l'effet les immobilisait
-    if (mEffet.lock) {
+    if (mEffet.lock || options.unlock) {
       iterTokensOfAttribute(charId, pageId, efComplet, attrName, function(token) {
         let perso = {
           token: token,
@@ -21761,7 +21833,7 @@ var COFantasy2 = COFantasy2 || function() {
     deleteAttribute(attr, evt);
     if (options.fromEtat) return res;
     //Débloque les tokens si l'effet les immobilisait
-    if (mEffet.lock) unlockToken(perso, evt);
+    if (mEffet.lock || options.unlock) unlockToken(perso, evt);
     if (options.messageMJ) {
       options.messageMJ.forEach(function(m) {
         sendChar(perso.charId, '/w gm ' + m);
@@ -21785,7 +21857,7 @@ var COFantasy2 = COFantasy2 || function() {
   function deleteValeurOfEffet(attr, attrsVal, evt) {
     let res = attrsVal.find(function(a) {
       let id = a.get('max');
-      return id == undefined || attr.id == id;
+      return id === undefined || id === '' || attr.id == id;
     });
     if (res) deleteAttribute(res, evt);
   }
@@ -21913,7 +21985,7 @@ var COFantasy2 = COFantasy2 || function() {
       effetEclaire(target, mEffet, effet, evt);
       if (mEffet && mEffet.debutFun) {
         //Peut encore changer ef.valeur
-        mEffet.debutFun(target, effet, pageId, evt, ef, options);
+        mEffet.debutFun(target, effet, valeur, pageId, evt, ef, options);
       }
       if (mEffet && mEffet.statusMarker) {
         setPersoStatus(target, mEffet.statusMarker, true, evt);
@@ -24034,7 +24106,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   //TODO: revoir cette liste pour COF2
-  const attributesWithTokNames = new RegExp('^agrippe($|_)|^agrippePar($|_)|^devorePar($|_)||^ecrase($|_)|^ecrasePar($|_)|^aGobe($|_)|^estGobePar($|_)|^etreinteImmole($|_)|^etreinteImmolePar($|_)|^etreinteScorpion($|_)|^etreinteScorpionPar($|_)|^suit($|_)|^estSuiviPar($|_)');
+  const attributesWithTokNames = new RegExp('^devorePar($|_)||^ecrase($|_)|^ecrasePar($|_)|^aGobe($|_)|^estGobePar($|_)|^etreinteImmole($|_)|^etreinteImmolePar($|_)|^etreinteScorpion($|_)|^etreinteScorpionPar($|_)|^suit($|_)|^estSuiviPar($|_)');
 
   function revelerNom(perso, ancienNom, nouveauNom, cache) {
     let character = getObj('character', perso.charId);
@@ -26065,6 +26137,8 @@ var COFantasy2 = COFantasy2 || function() {
       };
       finDEffetPerso(perso, effetC, met, pageId, evt, opt);
     }
+    options.acteur = perso;
+    montrerActions(playerId, pageId, options);
   }
 
   //renvoie

@@ -460,7 +460,7 @@ tr {line-height: 25px;}
                   <li><code>--explodeMax</code> : relance les valeurs maximum aux dés de DM de base, et rajoute le nouveau résultat (qui lui-même explose).</li>
                   <li><code>--relanceSiMax</code> : relance les dés de DM une fois s'ils font le maximum.</li>
                   <li><code>--mana <i>n</i></code> : l'attaque coûte <i>n</i> points de mana. Si l'attaque provoque un effet temporaire, le script essaiera de le supprimer à la mort du lanceur (même avec un coût nul).</li>
-                  <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette attaque à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof-effet-temp</code>). Par défaut, le nom de cette ressource est le label de l'attaque. On peut remplacer le nombre <i>n</i> par le nom d'un prédicat dont la valeur sera utilisée.</li>
+                  <li><code>--limiteParJour <i>l</i></code> : limite le nombre d'utilisations de cette attaque à <i>l</i> fois par jour. On peut préciser un nom après <i>l</i>, qui va correspondre à une ressource pouvant être partagée avec d'autres attaques ou d'autres effets (voir <code>!cof2-effet</code>). Par défaut, le nom de cette ressource est le label de l'attaque. On peut remplacer le nombre <i>n</i> par le nom d'un prédicat dont la valeur sera utilisée.</li>
                   <li><code>--limiteParCombat</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par combat.</li>
                   <li><code>--limiteParTour</code> : même effet que la limite par jour. Si aucun argument n'est donné, la limite est de une fois par tour.</li>
                   <li><code>--limiteCibleParJour</code> : même effet que la limite par jour, mais pour les cibles de l'attaque.</li>
@@ -562,7 +562,7 @@ tr {line-height: 25px;}
                 <p>Applique des dégâts à tous les tokens sélectionnés. L'argument <i>dm</i> peut être un inline roll. Utile par exemple pour les chutes, ou bien les dégâts d'environnement, voire de pièges.<br />
                 Arguments optionels: une partie des options de <code>!cof2-attaque</code>, dont le type, et par exemple <code>--psave <i>carac seuil</i></code> (jet de <i>carac</i>, si supérieur au <i>seuil</i>, les dégâts sont divisés par 2). On peut aussi donner un titre aux dégâts en utilisant l'option <code>--titre</code>
                 </p>
-                <p> Il est possible d'infliger des dégâts sur la durée en utilisant la commande <code>!cof2-effet dotGen(<i>nom</i>) <i>duree</i> --valeur <i>expr</i> <i>type</i></code>. Les arguments de <code>--valeur</code> donnent l'expression à évaluer, de type lancé de dé, et le type de dégâts. Par défaut, si rien n'est précisé, c'est <code>1d6</code> et <code>normal</code>. On peut utiliser les options habituelles de <code>!cof-effet-temp</code>. Ainsi, si on souhaite infliger des dégâts de poison de 1d4+1 par tour, pendant 10 tours, avec un jet de CON difficulté 12 pour arrêter l'effet, on pourra écrire <code>!cof-effet-temp dotGen(monPoison) 10 --saveParTour CON 12 --valeur 1d4+1 poison</code>.
+                <p> Il est possible d'infliger des dégâts sur la durée en utilisant la commande <code>!cof2-effet dotGen(<i>nom</i>) <i>duree</i> --valeur <i>expr</i> <i>type</i></code>. Les arguments de <code>--valeur</code> donnent l'expression à évaluer, de type lancé de dé, et le type de dégâts. Par défaut, si rien n'est précisé, c'est <code>1d6</code> et <code>normal</code>. On peut utiliser les options habituelles de <code>!cof2-effet</code>. Ainsi, si on souhaite infliger des dégâts de poison de 1d4+1 par tour, pendant 10 tours, avec un jet de CON difficulté 12 pour arrêter l'effet, on pourra écrire <code>!cof2-effet dotGen(monPoison) 10 --saveParTour CON 12 --valeur 1d4+1 poison</code>.
                 </p>
               </div>
                 <h4 class="text-secondary">Soins: <code>!cof2-soin <i>x</i></code></h4>
@@ -738,7 +738,7 @@ tr {line-height: 25px;}
                 <!--
                 <h4 class="text-secondary">Conditions hostiles et extrêmes</h4>
                 <div class="decalage">
-                <p>Pour des conditions hostiles, faire <code>!cof-effet conditionsHostiles oui</code> en sélectionnant les personnages concernés. Pour des conditions extrêmes, <code>!cof2-effet conditionsHostiles 5</code>. À noter que le script permet de passer en argument n'importe quel nombre, qui sera appliqué en malus à la DEX, FOR, DEF et attaque.</p>
+                <p>Pour des conditions hostiles, faire <code>!cof2-effet conditionsHostiles oui</code> en sélectionnant les personnages concernés. Pour des conditions extrêmes, <code>!cof2-effet conditionsHostiles 5</code>. À noter que le script permet de passer en argument n'importe quel nombre, qui sera appliqué en malus à la DEX, FOR, DEF et attaque.</p>
                 </div>
                 -->
                 <h4 class="text-secondary">Autres bufs et debufs</h4>
@@ -782,7 +782,7 @@ tr {line-height: 25px;}
                 </div>
                 <h4 class="text-secondary">Effets retardés</h4>
                 <div class="decalage">
-                  <p>On peut utiliser l'effet temporaire générique <code>messageRetarde(<i>nom</i>)</code> pour programmer un message qui sera affiché après un certain nombre de tours. Au bout de ce nombre de tours, le nom est affiché, ainsi que le texte de valeur (avec <code>--valeur</code> si besoin). La syntaxe est <code>!cof-effet-temp messageRetarde(<i>nom</i>) <i>duree</i> --valeur <i>message</i></code>. Si vous avez besoin d'un message qui contienne des espaces, remplacez les espaces par des <code>_</code>.</p>
+                  <p>On peut utiliser l'effet temporaire générique <code>messageRetarde(<i>nom</i>)</code> pour programmer un message qui sera affiché après un certain nombre de tours. Au bout de ce nombre de tours, le nom est affiché, ainsi que le texte de valeur (avec <code>--valeur</code> si besoin). La syntaxe est <code>!cof2-effet messageRetarde(<i>nom</i>) <i>duree</i> --valeur <i>message</i></code>. Si vous avez besoin d'un message qui contienne des espaces, remplacez les espaces par des <code>_</code>.</p>
                   <p>On peut aussi déclencher un effet après un certain nombre de tour avec l'effet temporaire générique <code>effetRetarde(<i>effet</i>)</code>. Après la durée de l'effet retardé, si <i>effet</i> est un état, la cible est mise dans cet état, si c'est un effet temporaire, on lui applique cet effet pour une durée de 1 tour, ou si un argument <code>--valeur</code> a été donné, il sera utilisé comme durée. Enfin si ce n'est ni l'un ni l'autre, un attribut avec le nom <i>effet</i> sera créé, de valeur courante <code>true</code>, ou bien si un argument <code>--valeur</code> a été donné, cette valeur sera utilisée comme valeur courante de l'attribut <i>effet</i>.</p>
                 </div>
                 <!--
@@ -1544,6 +1544,12 @@ tr {line-height: 25px;}
                 <h4 class="text-secondary">Voie des créatures colossales</h4>
                 <ol>
                   <li><strong>Fauchage :</strong> applique l'effet quand le dé est assez grand.</li>
+                </ol>
+                <h4 class="text-secondary">Voie des créatures volantes</h4>
+                <p>Pour les créatures volantes, le script propose de s'envoler ou de se poser dans les actions du tiour.</p>
+                <ol>
+                  <li><strong>Vol rapide :</strong> tout devrait être pris en compte.</li>
+                  <li><strong>Agripper :</strong> tout devrait être pris en compte.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de la magie maléfique</h4>
                 <ol>
