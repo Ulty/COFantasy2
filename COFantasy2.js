@@ -1,4 +1,4 @@
-//Dernière modification : lun. 26 oct. 2026,  03:23
+//Dernière modification : mar. 03 nov. 2026,  02:35
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -7618,7 +7618,7 @@ var COFantasy2 = COFantasy2 || function() {
               opt.valeur = true; //ça va immobiliser la cible
             }
             activerEffetNom(attaquant, target, 'estAgrippePar', attaquant.token.id, pageId, evt, opt);
-            target.messages.push(nomPerso(attaquant)+" agrippe "+nomPerso(target));
+            target.messages.push(nomPerso(attaquant) + " agrippe " + nomPerso(target));
           }
         }
         if (options.devorer) {
@@ -17462,21 +17462,23 @@ var COFantasy2 = COFantasy2 || function() {
   function commandePause(cmd, playerId, pageId, options) {
     if (stateCOF.pause) stateCOF.pause = false;
     else stateCOF.pause = true;
-    let tokens = findObjs({
-      _type: 'graphic',
-      _subtype: 'token',
-      layer: 'objects'
-    });
-    let charTreated = new Set();
-    let charTreatedBlocked = new Set();
-    tokens.forEach(function(token) {
-      let charId = token.get('represents');
-      if (charId === '') return;
-      if (!estControlleParJoueur(charId, {
-          saufMJ: true
-        })) return;
-      if (stateCOF.pause) token.set('lockMovement', true);
-      else {
+    let c = Campaign();
+    let pm = c.get('isMovementPaused');
+    if (!stateCOF.pause && !pm) {
+      //Cas où on a mis en pause avant l'introduction de isMovementPaused
+      let tokens = findObjs({
+        _type: 'graphic',
+        _subtype: 'token',
+        layer: 'objects'
+      });
+      let charTreated = new Set();
+      let charTreatedBlocked = new Set();
+      tokens.forEach(function(token) {
+        let charId = token.get('represents');
+        if (charId === '') return;
+        if (!estControlleParJoueur(charId, {
+            saufMJ: true
+          })) return;
         let linked = token.get('bar1_link') !== '';
         if (linked && charTreated.has(charId)) {
           if (!charTreatedBlocked.has(charId)) token.set('lockMovement', false);
@@ -17495,8 +17497,10 @@ var COFantasy2 = COFantasy2 || function() {
           token.set('lockMovement', false);
           enleveDecoince(perso);
         }
-      }
-    });
+      });
+    } else {
+      c.set('isMovementPaused', stateCOF.pause);
+    }
     let macros = findObjs({
       _type: 'macro'
     });
@@ -20011,6 +20015,14 @@ var COFantasy2 = COFantasy2 || function() {
     parTourDmg(perso, effet, attr, dmArgs, 'normal', "ne peut plus respirer", evt, options);
   }
 
+  function parTourPutrefaction(perso, effet, attr, evt, options = {}) {
+    let dmArgs = {
+      nbDe: 1,
+      dice: 6
+    };
+    parTourDmg(perso, effet, attr, dmArgs, 'maladie', "pourrit", evt, options);
+  }
+
   function parTourDotGen(perso, effet, attr, evt, options) {
     if (getState(perso, 'mort')) return;
     let dmArgs = {
@@ -20387,6 +20399,8 @@ var COFantasy2 = COFantasy2 || function() {
   // activationF : message à l'activation si la cible est féminine
   // actif : message de statut
   // actifF : message de statut si la cible est féminine
+  // debutFun: une fonction à exécuter quand on ajoute l'effet
+  // parTourFun: une fonction à exécuter à chaque tour
   // finFun: une fonction à exécuter quand l'état se termine. Renvoie true si cela détruit le personnage
   // fin : message à la fin de l'effet
   // dm : permet d'infliger des dm
@@ -20873,6 +20887,17 @@ var COFantasy2 = COFantasy2 || function() {
       fin: '',
       dureeEnTours: true,
       visible: false,
+    },
+    putrefaction: {
+      dureeEnTours: true,
+      activation: "contracte une horrible maladie",
+      actif: "pourrit rapidement",
+      fin: "ne pourrit plus",
+      parTourFun: parTourPutrefaction,
+      msgSave: "résister à la maladie",
+      prejudiciable: true,
+      dm: true,
+      visible: true
     },
     poisonAffaiblissantLatent: {
       dureeEnTours: true,
