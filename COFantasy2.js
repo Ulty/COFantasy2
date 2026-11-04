@@ -1,4 +1,4 @@
-//Dernière modification : mer. 04 nov. 2026,  03:30
+//Dernière modification : mer. 04 nov. 2026,  05:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11335,7 +11335,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (!options.testeRessources) {
         setTokenAttr(perso, ressource, utilisations - 1, evt);
         if (opt.ressource && (limite > 1 || type != 'Tour')) {
-          let msgLimite = nomPerso(perso) + " ";
+          let msgLimite = '';
           if (utilisations < 2) {
             msgLimite += "ne pourra plus utiliser ";
           } else {
@@ -11347,7 +11347,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (explications) {
             stateCOF.afterDisplay = stateCOF.afterDisplay || [];
             stateCOF.afterDisplay.push({
-              msg: msgLimite,
+              msg: nomPerso(perso) + ' ' +msgLimite,
               destinataire: perso
             });
           } else sendPerso(perso, msgLimite, true);
@@ -15517,6 +15517,7 @@ var COFantasy2 = COFantasy2 || function() {
       let optionsSansChoix = removeRollQueries(ligneOptions);
       opt = parseOptions(optionsSansChoix, pageId, opt);
     }
+    if (!options.typeAction && !opt.typeAction) options.typeAction = 'A';
     if (options.typeAction && !opt.typeActon) {
       let am = attackStats.attaqueMultiple || 1;
       if (am < 2)
@@ -30616,9 +30617,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (explications) explications.push(msg);
       else sendPerso(target, msg);
     };
-    if (options.interposer) {
-      return dealDamageAfterOthers(target, crit, {}, evt, expliquer, options.interposer, dmg.display, false, {});
-    }
+    let mainDmgType = dmg.type;
     if ((!options.spectral && attributeAsBool(target, 'intangible')) ||
       (!options.magique && !options.sortilege && attributeAsBool(target, 'formeGazeuse'))
     ) {
@@ -30746,7 +30745,6 @@ var COFantasy2 = COFantasy2 || function() {
       else dmgParType[d.type] = [d];
     });
     // Dommages de même type que le principal, mais à part, donc non affectés par les critiques
-    let mainDmgType = dmg.type;
     let dmgExtra = dmgParType[mainDmgType];
     if (dmgExtra && dmgExtra.length > 0 &&
       !immuniseAuType(target, mainDmgType, options.attaquant, options)) {
@@ -31501,6 +31499,35 @@ var COFantasy2 = COFantasy2 || function() {
       let mpm = attributeAsInt(target, 'memePasMalIgnore', 0);
       setTokenAttr(target, 'memePasMalIgnore', mpm + options.memePasMal, evt);
       setAttrDuree(target, 'memePasMalBonus', 3, evt);
+    }
+    if (dmgTotal <= 0) {
+      if (showTotal) dmgDisplay += " = " + dmgTotal;
+      return {
+        dmgDisplay,
+        dmg: 0,
+        dmgDrains: 0,
+      };
+    }
+    //Putréfaction, se déclenche dès que la cible subit des DM
+    if (options.attaquant && predicateAsBool(options.attaquant, 'putrefaction') && !attributeAsBool(target, 'putrefaction')) {
+      let rollId = 'resistePutrefaction' + target.token.id;
+      let saveOpts = {
+        msgPour: " pour résister à la maladie",
+        msgReussite: ", résiste",
+      };
+      let cond = {
+        carac: 'CON',
+        seuil: 15,
+        type: 'maladie',
+      };
+      let reussite = save(cond, target, rollId, expliquer, saveOpts, evt);
+      if (!reussite) {
+        let opt = {
+          valeur: '1d' + (deEvolutif(options.attaquant) + 2),
+          typeDmg: 'maladie',
+        };
+        activerEffetNom(options.attaquant, target, 'putrefaction', 5, pageId, evt, opt);
+      }
     }
     // calcul de l'effet sur la cible
     let {
