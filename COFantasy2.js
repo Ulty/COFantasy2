@@ -1,4 +1,4 @@
-//Dernière modification : mer. 04 nov. 2026,  05:47
+//Dernière modification : jeu. 05 nov. 2026,  02:49
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -7859,8 +7859,20 @@ var COFantasy2 = COFantasy2 || function() {
           dmImmole.type = 'feu';
           additionalDmg.push(dmImmole);
         }
-        if (!options.sortilege && !options.magique &&
-          predicateAsBool(target, 'immuniteAuxArmes')) {
+        if (!options.sortilege && predicateAsBool(target, 'immuniteAuxArmes')) {
+          if (options.magique) {
+            let nbDe = 1;
+            if (options.magique !== true) nbDe = options.magique;
+            else if (options.magiquePlus) nbDe = options.magiquePlus;
+            mainDmgRollDice.nbDe = nbDe;
+            mainDmgRollDice.de = 6;
+            let vol = modCarac(attaquant, 'VOL');
+            if (vol > 0) mainDmgRollDice.bonus = vol; 
+            else mainDmgRollDice.bonus = 0;
+          } else {
+            mainDmgRollDice.nbDe = 0;
+            mainDmgRollDice.bonus = 0;
+            target.messages.push("L'attaque semble traverser "+nomPerso(target));
           additionalDmg = additionalDmg.filter(function(dmSpec) {
             switch (dmSpec.type) {
               case undefined:
@@ -7872,6 +7884,7 @@ var COFantasy2 = COFantasy2 || function() {
                 return true;
             }
           });
+          }
         }
         additionalDmg.forEach(function(dmSpec) {
           if (dmSpec.carac) dmSpec.bonus = modCarac(attaquant, dmSpec.value);
@@ -8835,9 +8848,17 @@ var COFantasy2 = COFantasy2 || function() {
       error("Impossible de trouver l'arme pour l'attaque", attackLabel);
       return;
     }
-    if (weaponStats.arme && predicateAsBool(attaquant, 'armeBenie')) options.magique = true;
+    if (weaponStats.arme && predicateAsBool(attaquant, 'armeBenie')) {
+      let mag;
+      if (options.magique === true) mag = 1;
+      else mag = options.magique || 0;
+      options.magique = mag + 1;
+    }
     if (weaponStats.arc && predicateAsBool(attaquant, 'flecheMagique')) {
-      options.magique = true;
+      let mag;
+      if (options.magique === true) mag = 1;
+      else mag = options.magique || 0;
+      options.magique = mag + 1;
       options.flecheMagique = true;
     }
     attackLabel = weaponStats.label;
@@ -30579,8 +30600,6 @@ var COFantasy2 = COFantasy2 || function() {
         if (estDemon(target) && !(options && options.magique)) return true;
         if (predicateAsBool(target, 'vegetatif')) return true;
         return attributeAsBool(target, 'sangDeLArbreCoeur');
-      case 'drain':
-        return predicateAsInt(target, 'voieDeLArchange', 1) > 2 && attributeAsBool(target, 'formeDAnge');
     }
     if (options.attaqueMentale && predicateAsBool(target, 'immunite_mental')) return true;
     return false;
@@ -30600,7 +30619,7 @@ var COFantasy2 = COFantasy2 || function() {
   let noDmg = {
     dmgDisplay: '0',
     dmg: 0,
-    dmgDrains: 0,
+    dmgDrain: 0,
   };
 
   function dealDamage(perso, dmg, explications, evt, options) {
@@ -30611,7 +30630,7 @@ var COFantasy2 = COFantasy2 || function() {
   // retourne
   // - dmgDisplay
   // - dmg
-  // - dmgDrains
+  // - dmgDrain
   function dealFullDamage(target, dmg, otherDmg, evt, crit, options = {}, explications = false) {
     let expliquer = function(msg) {
       if (explications) explications.push(msg);
@@ -31505,7 +31524,7 @@ var COFantasy2 = COFantasy2 || function() {
       return {
         dmgDisplay,
         dmg: 0,
-        dmgDrains: 0,
+        dmgDrain: 0,
       };
     }
     //Putréfaction, se déclenche dès que la cible subit des DM
@@ -31698,7 +31717,7 @@ var COFantasy2 = COFantasy2 || function() {
     return {
       dmgDisplay,
       dmg: pvPerdus,
-      dmgDrains: dmSuivis.drain
+      dmgDrain: dmSuivis.drain
     };
   }
 
@@ -33936,6 +33955,8 @@ var COFantasy2 = COFantasy2 || function() {
                 options.magique = options.armeMagiquePlus;
               } else if (options.magique !== true) {
                 options.magique += options.armeMagiquePlus;
+              } else {
+                options.magique = options.armeMagiquePlus + 1;
               }
             } else {
               if (playerId) sendPlayer("Modificateur " + m + " inconnu.", playerId);
