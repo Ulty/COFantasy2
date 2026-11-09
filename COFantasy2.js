@@ -1,4 +1,4 @@
-//Dernière modification : lun. 09 nov. 2026,  03:56
+//Dernière modification : lun. 09 nov. 2026,  04:20
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13329,6 +13329,17 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-effet maitriseDesElements SELONRANG(3,4,5,6,7) --dureeEnMinutes @{selected|INT} --select @{selected|token_id}",
       }
     },
+    'respiration aquatique': {
+      profil: 'magicien',
+      action: {
+        nom: 'Respiration aquatique',
+        type: 'A',
+        mana: 3,
+        limiteArmure: 'magicien',
+        //TODO: proposer dans une liste de sorts utilitaires, plus rarement utilisés ?
+        cmd: "!cof2-effet respirationAquatique --dureeEnMinutes 10 --select @{selected|token_id} INT_TARGETS",
+      },
+    },
     //Voie de la magie protectrice
     'armure de mana': {
       profil: 'magicien',
@@ -16588,13 +16599,19 @@ var COFantasy2 = COFantasy2 || function() {
 
   function TARGETSToSelection(command, perso) {
     let nb = 0,
-      fin;
+      fin, names;
     let index = command.indexOf('INT_TARGETS_NAMES');
     let off = 1;
     if (index > 0) {
       nb = modCarac(perso, 'INT');
       fin = index + 17;
+      names = true;
     } else {
+      index = command.indexOf('INT_TARGETS');
+      if (index > 0) {
+      nb = modCarac(perso, 'INT');
+        fin = index + 11;
+      } else {
       let m = command.match(/ATTAQUE_AVEC_([0-9]+)_CIBLES/);
       if (m) {
         off = 2;
@@ -16602,13 +16619,14 @@ var COFantasy2 = COFantasy2 || function() {
         index = m.index;
         fin = index + m[0].length;
       }
+      }
     }
     if (index < 0) return command;
     let pre = command.substring(0, index);
     let post = command.substring(fin);
     for (let i = 0; i < nb; i++) {
       let targ = '@{target|Cible' + (i + off) + '|';
-      pre += ' ' + targ + 'token_name}';
+      if (names) pre += ' ' + targ + 'token_name}';
       post += ' --cible ' + targ + 'token_id}';
     }
     return pre + post;
@@ -20815,7 +20833,7 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true,
       lock: true,
     },
-    //Autres effets temporaires
+    //Autres effets temporaires, durée en tours
     acculeParManoeuvre: {
       activation: "ne peut plus reculer, il est acculé !",
       activationF: "ne peut plus reculer, elle est acculée !",
@@ -21404,6 +21422,11 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "peut ramper sur les murs et plafonds",
       actif: "peut ramper sur les murs et plafonds",
       fin: "ne peut plus ramper sur les murs et plafonds",
+    },
+    respirationAquatique: {
+      activation: "peut maintenant respirer sous l'eau",
+      actif: "peut respirer sous l'eau",
+      fin: "ne peut plus respirer sous l'eau",
     },
     soinsEnAttente: {
       //courant: l'expression des soins
