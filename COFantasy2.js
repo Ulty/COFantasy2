@@ -1,4 +1,4 @@
-//Dernière modification : lun. 09 nov. 2026,  04:20
+//Dernière modification : lun. 09 nov. 2026,  06:38
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11186,7 +11186,7 @@ var COFantasy2 = COFantasy2 || function() {
         depense_pm: cout
       };
     }
-    sendPerso(personnage, "n'a pas de points de mana, action impossible");
+    if (msg) sendPerso(personnage, "n'a pas de points de mana, action impossible");
     return false;
   }
 
@@ -16609,16 +16609,16 @@ var COFantasy2 = COFantasy2 || function() {
     } else {
       index = command.indexOf('INT_TARGETS');
       if (index > 0) {
-      nb = modCarac(perso, 'INT');
+        nb = modCarac(perso, 'INT');
         fin = index + 11;
       } else {
-      let m = command.match(/ATTAQUE_AVEC_([0-9]+)_CIBLES/);
-      if (m) {
-        off = 2;
-        nb = toInt(m[1], 1) - 1; //Les attaques on toujours au moins une cible de base
-        index = m.index;
-        fin = index + m[0].length;
-      }
+        let m = command.match(/ATTAQUE_AVEC_([0-9]+)_CIBLES/);
+        if (m) {
+          off = 2;
+          nb = toInt(m[1], 1) - 1; //Les attaques on toujours au moins une cible de base
+          index = m.index;
+          fin = index + m[0].length;
+        }
       }
     }
     if (index < 0) return command;
@@ -16639,13 +16639,16 @@ var COFantasy2 = COFantasy2 || function() {
     if (avant && !action.enDehorsDeSonTour) return ligne;
     if (actionsEnCombat) {
       if (action.horsCombat) return ligne;
-      if (action.debutDuTour && !aucuneActionRealiseeCeTour(perso)) return ligne;
-      if (action.debutOuFinDuTour && !aucuneActionRealiseeCeTour(perso) && typeActionPossible(perso, 'M'))
-        return ligne;
     } else {
       if (action.combat) return ligne;
     }
-    if (action.premierRound && stateCOF.combat && stateCOF.combat.tour > 1) return ligne;
+    let combat = stateCOF.combat;
+    if (combat) {
+      if (action.premierRound && combat.tour > 1) return ligne;
+      if (action.debutDuTour && !aucuneActionRealiseeCeTour(perso)) return ligne;
+      if (action.debutOuFinDuTour && !aucuneActionRealiseeCeTour(perso) && typeActionPossible(perso, 'M'))
+        return ligne;
+    }
     if (action.milieu && stateCOF.milieu && action.milieu != stateCOF.milieu) return ligne;
     if (action.bufPersonnelNonCumulable && attributeAsBool(perso, action.bufPersonnelNonCumulable)) {
       if (estEffetIndetermine(action.bufPersonnelNonCumulable)) {
@@ -16708,7 +16711,7 @@ var COFantasy2 = COFantasy2 || function() {
         //Possibilité de se concentrer pour diminuer le coût
         let manaL = action.mana - 2;
         if (manaL < 0) manaL = 0;
-        if (!stateCOF.combat) {
+        if (!combat) {
           //En dehors du combat, on utilise l'option la plus économique
           command += " --mana " + manaL;
         } else {
@@ -16728,10 +16731,10 @@ var COFantasy2 = COFantasy2 || function() {
         if (command.startsWith('!cof2-soin ')) opt.pasDeBrulureDeMana = true;
         if (!depenseManaPossible(perso, action.mana, false, opt)) return ligne;
         command += " --mana " + action.mana;
-        if (action.type && (stateCOF.combat || action.entrerEnCombat || action.dm)) command += " --typeAction " + action.type;
+        if (action.type && (combat || action.entrerEnCombat || action.dm)) command += " --typeAction " + action.type;
       }
     } else {
-      if (action.type && (stateCOF.combat || action.entrerEnCombat || action.dm)) command += " --typeAction " + action.type;
+      if (action.type && (combat || action.entrerEnCombat || action.dm)) command += " --typeAction " + action.type;
     }
     command += ' --acteur ' + perso.token.id;
     let bopt = {
@@ -16740,6 +16743,52 @@ var COFantasy2 = COFantasy2 || function() {
     let b = boutonComplexe(command, action.nom, perso, bopt);
     if (!bopt.actionImpossible) ligne += b + '<br />';
     return ligne;
+  }
+
+  function actionsDeGrimoire(perso, listActions, options) {
+    let cmd = listActions.split(' ');
+    if (cmd.length < 3) {
+      error("Action de grimoire mal formé", cmd);
+      return;
+    }
+    let rangSortMax = toInt(cmd[1], 1);
+    let equipement = listAllEquipment(perso);
+    let grimoire = equipement[cmd[2]];
+    if (!grimoire) {
+      error("Impossible de trouver le grimoire", cmd);
+      return;
+    }
+    let r = fieldAsString(grimoire, 'equip-props', '');
+    if (!r) {
+      error("pas de propriété pour le grimoire", grimoire);
+      return;
+    }
+    let title = fieldAsString(grimoire, 'equip-nom', 'Grimoire');
+    let ressource = title.replace(/ /g, '_');
+    let ligne = '';
+    r = r.split('\n');
+    r.shift();
+    r.forEach(function(nom, i) {
+      if (!nom) return;
+      let preds = predicatDeConsommable(nom);
+      if (preds) {
+        let action = preds.action;
+        if (action) {
+          if (action.mana > rangSortMax) return;
+          action = {...action
+          };
+          action.mana = 1;
+          action.type = 'L';
+          delete action.combat;
+          action.cmd += ' --limiteParJour 1 '+ressource+i;
+          ligne = ajouterAction(perso, action, ligne);
+        }
+      }
+    });
+    return {
+      title,
+      ligne
+    };
   }
 
   function avantSonTour(perso, combat) {
@@ -17219,6 +17268,50 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       }
+      //Les actions de grimoires de pouvoir
+      let equipement = listAllEquipment(perso);
+      if (typeActionPossible(perso, 'L') && depenseManaPossible(perso, 1)) {
+        for (let pref in equipement) {
+          let eq = equipement[pref];
+          if (eq['equip-on'] == '1') {
+            let r = fieldAsString(eq, 'equip-props', '');
+            if (!r) continue;
+            r = r.split('\n');
+            let deb = removeAccents(r[0]).toLowerCase();
+            deb = deb.split(' ').filter(function(d) {
+              return d !== '';
+            });
+            if (deb[0] != 'grimoire' || deb.length < 3 || deb[1] != 'de' || deb[2] != 'pouvoir') continue;
+            let rangSortMax = 0;
+            let infos = getInfos(perso);
+            let rsm = infos.rangSortMax;
+            if (deb.length > 3) {
+              if (deb[3] == 'mystique') {
+                if (famillePerso(perso) != 'mystique' &&
+                  removeAccents(ficheAttribute(perso, 'profil', '').toLowerCase().trim() != 'barde')) continue;
+                for (let profil in rsm) {
+                  if (profil == 'barde' || familleParProfil[profil] == 'mystique')
+                    rangSortMax = Math.max(rangSortMax, rsm[profil]);
+                }
+              } else if (deb[3] == 'profane') {
+                if (famillePerso(perso) != 'mage' &&
+                  removeAccents(ficheAttribute(perso, 'profil', '').toLowerCase().trim() != 'barde')) continue;
+                for (let profil in rsm) {
+                  if (profil == 'barde' || familleParProfil[profil] == 'mage')
+                    rangSortMax = Math.max(rangSortMax, rsm[profil]);
+                }
+              } else {
+                for (let profil in rsm) {
+                  rangSortMax = Math.max(rangSortMax, rsm[profil]);
+                }
+              }
+            }
+            if (rangSortMax < 1) continue;
+            let command = "!cof2-liste-actions grimoire-script " + rangSortMax + ' ' + pref + " --select " + perso.token.id;
+            ligne += boutonSimple(command, PICTO_LISTE_ACTIONS.picto + fieldAsString(eq, 'equip-nom', 'Grimoire'), BS_LISTE_ACTIONS) + '<br/>';
+          }
+        }
+      }
     }
     //La liste d'action proprement dite
     ligne = actionsDeListe(perso, 1, pageId, ligne);
@@ -17252,22 +17345,33 @@ var COFantasy2 = COFantasy2 || function() {
       chuchote: true
     };
     let title = 'Actions possibles';
+    let ligne = '';
     let actionsDuTour;
+    let fait;
     if (listActions) {
-      title = listActions;
-      actionsDuTour = findListeActions(perso, listActions);
-      if (actionsDuTour === undefined) {
-        return;
+      if (listActions.startsWith("grimoire-script ")) {
+        ({
+          title,
+          ligne
+        } = actionsDeGrimoire(perso, listActions, options));
+        fait = true;
+      } else {
+        title = listActions;
+        actionsDuTour = findListeActions(perso, listActions);
+        if (actionsDuTour === undefined) {
+          return;
+        }
       }
     } else {
       actionsDuTour = 1;
     }
-    let ligne = '';
-    if (actionsDuTour == 1) {
-      ligne = actionsParDefaut(perso, ligne, playerId, pageId, evt, options);
-    } else {
-      //Pour les autre listes, on n'affiche que la liste sur la fiche
-      ligne = actionsDeListe(perso, actionsDuTour, pageId, ligne);
+    if (!fait) {
+      if (actionsDuTour == 1) {
+        ligne = actionsParDefaut(perso, ligne, playerId, pageId, evt, options);
+      } else {
+        //Pour les autre listes, on n'affiche que la liste sur la fiche
+        ligne = actionsDeListe(perso, actionsDuTour, pageId, ligne);
+      }
     }
     let onlyTitle = false;
     if (stateCOF.combat) {
@@ -32499,7 +32603,7 @@ var COFantasy2 = COFantasy2 || function() {
               actionDuNom = {...actionDuNom
               };
               actionDuNom.cmd += ' --potion';
-              action = commandeDeConsommble(perso, actionDuNom, options);
+              action = commandeDeConsommable(perso, actionDuNom, options);
               action = selectedToValue(action, 'target', perso); //la cible de la potion est le personnage
             }
           }
@@ -32581,7 +32685,7 @@ var COFantasy2 = COFantasy2 || function() {
     return predicatsParCapacite[capacite];
   }
 
-  function commandeDeConsommble(perso, action, options) {
+  function commandeDeConsommable(perso, action, options) {
     let command = selectedToValue(action.cmd, 'selected', perso);
     command = TARGETSToSelection(command, perso);
     if (!command.includes(' --acteur')) {
@@ -32624,7 +32728,7 @@ var COFantasy2 = COFantasy2 || function() {
         profil
       };
     }
-    let command = commandeDeConsommble(perso, action, options);
+    let command = commandeDeConsommable(perso, action, options);
     if (!options.parchemin) command += ' --parchemin ' + parchemin.rang + ' ' + parchemin.profil;
     return command;
   }
