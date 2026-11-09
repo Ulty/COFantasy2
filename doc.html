@@ -842,13 +842,12 @@ tr {line-height: 25px;}
                 <p>Il est possible d'automatiser les escaliers, de façons à ce que les tokens qui passent sur le lieux de l'escalier soient automatiquement transportés. Pour cela, sélectionner le token de l'escalier et lancer la commande <code>!cof-tp-auto</code>. Dans sa version sans argument, le dépacement automatique aura lieu dès qu'un token sera dans le rectangle du token de l'escalier. Sinon, on peut préciser un rayon (en mètres), et le mouvement aura lieur dès que le token sera à moins de cette distance du centre de l'escalier. Le déplacement se fera vers le haut si c'est possible, et sinon vers le bas. À noter que Roll20 peut perdre parfois les données sur les tokens entre les parties. Quand c'est le cas, le script va s'efforce de rerouver les escaliers automatiques, mais ça a plus de chances de marcher si vous donnez un nom unique au token de votre escalier. Pour mettre fin au déplacement automatique sur un escalier, sélectionner le token de l'escalier et taper la commande <code>!cof-tp-auto off</code>.</p>
                 -->
               </div>
-              <!--
               <h4 class="text-secondary" id="montures">Montures</h4>
               <div class="decalage">
-                <p>Pour qu'un personnage puisse monter sur une monture, il faut que cette monture soit associée à une fiche de personnage et qu'il possède un <a href=#predicats>prédicat</a> <code>monture</code>. La commande pour monter sur la monture est <code>!cof-en-selle @{selected|token_id} @{target|token_id}</code>, à lancer en sélectionnant le cavalier.</p>
+                <p>Pour qu'un personnage puisse monter sur une monture, il faut que cette monture soit associée à une fiche de personnage et qu'il possède un <a href=#predicats>prédicat</a> <code>monture</code>. La commande pour monter sur la monture est <code>!cof2-en-selle @{selected|token_id}</code>, à lancer en sélectionnant le cavalier. En deuxième argument optionnel, on peut préciser le nom de la monture, ou l'id du token de la monture, par exemple avec <code>@{target|token_id}</code>.</p>
                 <p>On peut ensuite bouger la monture, cela déplace le cavalier. Le mieux est de lancer la commander alors que le token du cavalier est sur le token de la monture. Si on déplace le cavalier, cela fait aussi bouger sa monture.</p>
+                <p>Pour descendre de la monture, il suffit d'utiliser la même commande que pour monter dessus.</p>
               </div>
-              -->
               <h4 class="text-secondary" id="suivre">Suivre un autre personnages</h4>
               <div class="decalage">
                 Le principe est le suivant : on sélectionne un token, dans les abilities qui s'affichent en haut de la map, on clique sur <code>Suivre</code>, puis on sélectionne le token à suivre. À partir de ce moment, le script déplace le premier token à chaque fois qu'on déplace le second (en tenant compte des états qui empêchent le mouvement et des obstacles sur le layer de lumière, si ils doivent empêcher le mouvement). On peut aussi suivre un token qui en suit un autre. Et pour arrêter de suivre un token, il suffit de déplacer manuellement le premier token.
@@ -1210,6 +1209,10 @@ tr {line-height: 25px;}
               </div>
                 <h3 class="text-info" id="chevalier">Chevalier</h3>
               <div class="decalage">
+                <h4 class="text-secondary">Voie du cavalier</h4>
+                <ol>
+                  <li><strong>Fidèle monture :</strong> il faut préciser en paramètre de la capacité le nom de la monture (<code>nom:</code> suivi du nom), et le script va créer une fiche pour la monture (que vous pouvez ensuite modifier, en particulier pour avoir une image qui vous convient). Si vous n'avez pas mis la macro <code>En selle</code> en token action, le script ajoute une ability pour monter et descendre de la monture. La deplacement supplémentaire est proposé quand le personnage est sur une monture.</li>
+                </ol>
                 <h4 class="text-secondary">Voie de la guerre</h4>
                 <ol>
                   <li></li>
