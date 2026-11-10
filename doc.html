@@ -292,6 +292,7 @@ tr {line-height: 25px;}
               <h4 class="text-secondary" >Objets magiques</h4>
               <div class="decalage">
                 <p>Pour les grimoires de pouvoir, utiliser le champs <code>equip-props</code> de l'équipement. Il faut mettre en première ligne <code>Grimoire de pouvoir</code>, suivi de <code>profane</code> ou <code>mystique</code>. Mettre ensuite les noms de capacité, à raison d'une capacité par ligne. On peut mettre plusieurs fois une capacité pour pouvoir utiliser le sorts plus d'une fois par jour.</p>
+                <p>Pour les objets de pouvoir qui permettent d'utiliser une action venant d'une capacité, vous pouvez mettre dans les propriétés de l'objet (champ <code>equip-props</code>) un prédicat <code>pouvoir</code> de valeur le nom de la capacité (entre guillemets, si le nom est composé de plusieurs mots). La limite du nombre d'utilisations peut être donnée dans le même champ par un prédicat <code>pouvoirLimiteParJour</code> de valeur le nombre d'utilisations maximum par jour.</p>
                 <p>Pour les autres pouvoirs, il y a un champ <code>equip-predicats</code>, dont les prédicats sont lus et pris en compte quand l'objet est équipé.</p>
               </div>
               <h4 class="text-secondary" id="consommables">Utilisation des ressources (potions, parchemins, ...) <code>!cof2-lister-ressources</code></h4>

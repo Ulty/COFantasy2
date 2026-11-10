@@ -1,4 +1,4 @@
-//Dernière modification : lun. 09 nov. 2026,  06:38
+//Dernière modification : mar. 10 nov. 2026,  04:03
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -11270,7 +11270,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (!options.testeRessources) {
         setTokenAttr(perso, ressource, utilisations - 1, evt);
-        if (opt.ressource && (limite > 1 || type != 'Tour')) {
+        if (opt.ressource && limite > 1 && !options.limiteCachee) {
           let msgLimite = '';
           if (utilisations < 2) {
             msgLimite += "ne pourra plus utiliser ";
@@ -12285,8 +12285,8 @@ var COFantasy2 = COFantasy2 || function() {
   //  - pasAuContactAdversaire
   //  - surMonture: le personnage doit être sur une monture
   //  - limiteArmure: limitation d'armure
-  //  - aPrtirDeRang: action disponible seulement à partir d'un certain rang dans la voie
-  //  - debloqueActions: liste d'actions qui sont débloquées si on exécute la cmd
+  //  - aPartirDeRang: action disponible seulement à partir d'un certain rang dans la voie
+  //  - debloqueActions: liste d'actions qui sont débloquées pour le tour si on exécute la cmd
   // capacite : reproduit l'effet d'une capacité
   //  - nom : le nom de la capacité
   //  - profil : une liste de profils desquels la capacité peut provenir
@@ -12566,7 +12566,7 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         limiteArmure: 'rodeur',
         armeEnMain: 'portee',
-        cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} -1 --deMalus --plus 3d4E"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --deMalus --plus 3d4E"
       },
     },
     'tir rapide': {
@@ -16772,16 +16772,26 @@ var COFantasy2 = COFantasy2 || function() {
       if (!nom) return;
       let preds = predicatDeConsommable(nom);
       if (preds) {
+        let actions = preds.actions;
         let action = preds.action;
         if (action) {
-          if (action.mana > rangSortMax) return;
-          action = {...action
-          };
-          action.mana = 1;
-          action.type = 'L';
-          delete action.combat;
-          action.cmd += ' --limiteParJour 1 '+ressource+i;
-          ligne = ajouterAction(perso, action, ligne);
+          if (actions) actions.push(action);
+          else actions = [action];
+        }
+        if (actions) {
+          actions.forEach(function(a) {
+            if (a.mana > rangSortMax) return;
+            action = {...a
+            };
+            if (action.mana) {
+              action.mana = 1;
+              action.type = 'L';
+              action.cmd += ' --limiteParJour 1 ' + ressource + i;
+            }
+            delete action.limiteArmure;
+            delete action.combat;
+            ligne = ajouterAction(perso, action, ligne);
+          });
         }
       }
     });
@@ -17268,20 +17278,50 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
       }
-      //Les actions de grimoires de pouvoir
+      //Les actions de grimoires de pouvoir et d'objets de pouvoir
       let equipement = listAllEquipment(perso);
       if (typeActionPossible(perso, 'L') && depenseManaPossible(perso, 1)) {
         for (let pref in equipement) {
           let eq = equipement[pref];
           if (eq['equip-on'] == '1') {
-            let r = fieldAsString(eq, 'equip-props', '');
-            if (!r) continue;
-            r = r.split('\n');
+            let raw = fieldAsString(eq, 'equip-props', '');
+            if (!raw) continue;
+            let r = raw.split('\n');
             let deb = removeAccents(r[0]).toLowerCase();
             deb = deb.split(' ').filter(function(d) {
               return d !== '';
             });
-            if (deb[0] != 'grimoire' || deb.length < 3 || deb[1] != 'de' || deb[2] != 'pouvoir') continue;
+            if (deb[0] != 'grimoire' || deb.length < 3 || deb[1] != 'de' || deb[2] != 'pouvoir') {
+              //On n'a pas un grimoire de pouvoir, mais on peut voir un objet de pouvoir
+              let p = predicateOfRaw(raw);
+              if (!p.pouvoir) continue;
+              let limite = '';
+              if (p.limitePouvoirParJour) {
+                let nom = fieldAsString(eq, 'equip-nom', '');
+                if (nom) nom = nom.replace(/ /g, '_');
+                else nom = "objetDePouvoir";
+                limite = ' --limiteParJour ' + p.limitePouvoirParJour + ' ' + nom + ' --limiteCachee';
+              }
+
+              let actionsDeCapa = [];
+              predicatsDeCapacite(perso, p.pouvoir, 0, 1, {}, actionsDeCapa); //Choix de rang à 1
+              for (let i = 0; i < actionsDeCapa.length; i++) {
+                let action = {...actionsDeCapa[i]
+                };
+                if (action.mana || !action.seulementSiAttributBool) {
+                  delete action.mana;
+                  if (action.dm || action.cmd.startsWith("!cof2-attaque")) action.type = 'A';
+                  else {
+                    action.type = 'G';
+                    action.cmd += ' --limiteParTour 1 utiliserObjetDePouvoir';
+                  }
+                }
+                action.cmd += limite;
+                delete action.limiteArmure;
+                ligne = ajouterAction(perso, action, ligne, actionsEnCombat, avant);
+              }
+              continue;
+            }
             let rangSortMax = 0;
             let infos = getInfos(perso);
             let rsm = infos.rangSortMax;
@@ -35571,6 +35611,9 @@ var COFantasy2 = COFantasy2 || function() {
     deplaceDe: {
       fn: deplaceDeOption,
     },
+    difficulte: {
+      fn: integerOption
+    },
     disque: {
       fn: selectionOption
     },
@@ -35710,6 +35753,7 @@ var COFantasy2 = COFantasy2 || function() {
     limiteArmure: {
       fn: limiteArmureOption,
     },
+    limiteCachee: boolDefaultOption,
     limiteCibleParJour: {
       fn: limiteOption,
     },
@@ -35960,9 +36004,6 @@ var COFantasy2 = COFantasy2 || function() {
     deBonus: boolDefaultOption,
     deMalus: boolDefaultOption,
     forceReset: boolDefaultOption,
-    difficulte: {
-      fn: integerOption
-    },
   };
 
   //Renseigne toujours options.playerId
