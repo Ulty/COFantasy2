@@ -1,4 +1,4 @@
-//Dernière modification : mar. 10 nov. 2026,  04:03
+//Dernière modification : jeu. 12 nov. 2026,  04:38
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3372,6 +3372,10 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push("Terrain difficile => +1 en DEF");
       defense += 1;
     }
+    let bonusDEFArmureLourde = predicateAsInt(target, 'bonusDEFArmureLourde', 0);
+    if (bonusDEFArmureLourde > 0 && typeArmurePortee(target) < 3) {
+      defense += bonusDEFArmureLourde;
+    }
     return defense;
   }
 
@@ -3715,6 +3719,9 @@ var COFantasy2 = COFantasy2 || function() {
         attBonus += bonusSceptre;
         messageAttaqueDM("Sort", explications, options, bonusSceptre);
       }
+    }
+    if (options.bonusDM !== undefined && weaponStats && weaponStats.arc) {
+      options.bonusDM += predicateAsInt(attaquant, 'bonusDM_arc', 0);
     }
     return attBonus;
   }
@@ -4314,6 +4321,9 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (options.controleMental) {
       attBonus += predicateAsInt(attaquant, 'bonusAttaque_controleMental', 0);
+    }
+    if (weaponStats && weaponStats.arc) {
+      attBonus += predicateAsInt(attaquant, 'bonusAttaque_arc', 0);
     }
     return attBonus;
   }
@@ -7466,23 +7476,26 @@ var COFantasy2 = COFantasy2 || function() {
         effetPoison(poisonAttr, poisonAttr.get('max'), attaquant, explications, options);
         deleteAttribute(poisonAttr, evt);
       }
-      let attrDmgArme = 'dmgArme(' + attackLabel + ')';
-      if (attributeAsBool(attaquant, attrDmgArme)) {
+      let dmgArmeNom = 'dmgArme(' + attackLabel + ')';
+      let attrDmgArme = tokenAttribute(attaquant, dmgArmeNom);
+      attrDmgArme.forEach(function(a) {
         let dmgArme = {
           type: mainDmgType,
           nbDe: 1,
           dice: deEvolutif(attaquant),
         };
-        let valDmgArme = tokenAttribute(attaquant, attrDmgArme + 'Valeur');
-        if (valDmgArme.length > 0) {
-          let dmgArmeParsed = parseDice(valDmgArme[0].get('current'), attaquant);
-          if (dmgArmeParsed) dmgArme = dmgArmeParsed;
-          let dmgArmeType = valDmgArme[0].get('max');
-          if (dmgArmeType !== '') dmgArme.type = dmgArmeType;
+        let valDmgArme = getValeurOfEffet(attaquant, dmgArmeNom, a);
+        if (valDmgArme) {
+          valDmgArme = predicateOfRaw(valDmgArme);
+          if (valDmgArme.dmg) {
+            let dmgArmeParsed = parseDice(valDmgArme.dmg, attaquant);
+            if (dmgArmeParsed) dmgArme = dmgArmeParsed;
+          }
+          if (valDmgArme.type) dmgArme.type = valDmgArme.type;
         }
         options.additionalDmg.push(dmgArme);
-        explications.push("Arme enduite => +" + dmgArme.value + " aux DM");
-      }
+        explications.push("Arme boostée => +" + dmgArme.value + " aux DM");
+      });
     }
     if (!options.pasDeDmg) {
       if (options.imparable) {
@@ -12877,6 +12890,17 @@ var COFantasy2 = COFantasy2 || function() {
         }]
       },
     },
+    //Voie de la guerre
+    'armure sur mesure': {
+      armureSurMesure: true,
+      bonusDEFArmureLourde: 0,
+      plusParVoieDeRang: {
+        predicat: 'bonusDEFArmureLourde',
+        profil: 'chevalier',
+        rang: 5,
+        def: 0,
+      },
+    },
     //Voie du meneur d'hommes
     'sans peur': {
       sansPeur: true,
@@ -14234,6 +14258,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   function replaceSpecialInField(obj, k, numVoie, rmax, params) {
     let v = obj[k];
+    if (!v) return;
     let t = typeof v;
     switch (t) {
       case 'string':
@@ -14829,6 +14854,37 @@ var COFantasy2 = COFantasy2 || function() {
     return infos;
   }
 
+  //renvoie un nombre, correspondant à l'AGI max pour le type d'armure (1 plaque complète, à 6 cuir simple et 8 rien)
+  function typeArmurePortee(perso) {
+    if (perso.typeArmurePortee) return perso.typeArmurePortee;
+    let typeArmurePortee;
+    if (ficheAttributeAsInt(perso, 'armure_eqp', 0) > 0) {
+      let id = ficheAttribute(perso, 'armor_gearid', '');
+      if (id) {
+        let prefix = 'repeating_equipement_' + id + '_';
+        let props = ficheAttribute(perso, id + prefix + 'equip_props', '');
+        if (props) {
+          let p = predicateOfRaw(props);
+          let agi = p['agi-max'];
+          if (agi) {
+            typeArmurePortee = toInt(agi, 1);
+          }
+        }
+      }
+      if (typeArmurePortee === undefined) {
+        //On va juste regarder le bonus et le malus d'armure.
+        let bonus = ficheAttributeAsInt(perso, 'armure', 0);
+        let malus = ficheAttributeAsInt(perso, 'armure_malus', bonus);
+        if (malus < bonus - 1) bonus = Math.floor((malus + bonus) / 2);
+        if (bonus >= 8) typeArmurePortee = 1;
+        else if (bonus <= 0) typeArmurePortee = 8;
+        else typeArmurePortee = 8 - bonus;
+      }
+    } else typeArmurePortee = 8;
+    perso.typeArmurePortee = typeArmurePortee;
+    return typeArmurePortee;
+  }
+
   //Renvoie 0 (ou false) si l'armure que porte perso n'est pas restreinte par restriction,
   //sinon renvoie la différence de classe entre les deux
   //Attention à ne pas utiliser quand on calcule les prédicats !
@@ -14839,33 +14895,10 @@ var COFantasy2 = COFantasy2 || function() {
     let limite = limiteBonusArmure(perso, restriction);
     if (limite < 2) {
       diff = 0;
-    } else if (ficheAttributeAsInt(perso, 'armure_eqp', 0) > 0) {
-      if (limite > 7) {
-        diff = 7; //TODO
-      } else {
-        let id = ficheAttribute(perso, 'armor_gearid', '');
-        if (id) {
-          let prefix = 'repeating_equipement_' + id + '_';
-          let props = ficheAttribute(perso, id + prefix + 'equip_props', '');
-          if (props) {
-            let p = predicateOfRaw(props);
-            let agi = p['agi-max'];
-            if (agi) {
-              agi = toInt(agi, 1);
-              if (agi >= limite) diff = 0;
-              else diff = limite - agi;
-            }
-          }
-        }
-        if (diff === undefined) {
-          //On va juste regarder le bonus et le malus d'armure.
-          let bonus = ficheAttributeAsInt(perso, 'armure', 0);
-          let malus = ficheAttributeAsInt(perso, 'armure_malus', bonus);
-          if (malus < bonus - 1) bonus = Math.floor((malus + bonus) / 2);
-          diff = bonus + limite - 8;
-          if (diff < 0) diff = 0;
-        }
-      }
+    } else {
+      let a = typeArmurePortee(perso);
+      if (a >= limite) diff = 0;
+      else diff = limite - a;
     }
     perso.armureRestreinte[restriction] = diff;
     return diff;
@@ -20691,7 +20724,7 @@ var COFantasy2 = COFantasy2 || function() {
   // dm : permet d'infliger des dm
   // soins : soigne
   // prejudiciable: est un effet préjudiciable, qui peut être enlevé par délivrance
-  // generic: admet un argument entre parenthèses
+  // generic: admet un argument entre parenthèses. On peut préciser le type de l'argument avec un string.
   // seulementVivant: ne peut s'appliquer qu'aux créatures vivantes
   // visible : l'effet est visible
   // msgSave: message à afficher quand on résiste à l'effet. Sera précédé de "pour "
@@ -21088,6 +21121,10 @@ var COFantasy2 = COFantasy2 || function() {
       prejudiciable: true,
       plusieurs: true,
     },
+    effetTempGenerique: {
+      dureeEnTours: true,
+      generic: true,
+    },
     effrayeParCriDeGuerre: {
       dureeEnTour: true,
       activation: "est effrayé par le cri de guerre",
@@ -21266,7 +21303,7 @@ var COFantasy2 = COFantasy2 || function() {
       parTourFun: parTourZoneDeVie,
       dureeEnTours: true,
       visible: true,
-      generic: true, //pour pouvoir avoir plusieurs zones de vie
+      plusieurs: true,
     },
     //Durées en combat
     armureMagique: {
@@ -21448,6 +21485,14 @@ var COFantasy2 = COFantasy2 || function() {
       entrave: true,
       debutFun: debutAgrippe,
       finFun: finAgrippe,
+    },
+    dmgArme: { //Ajoute 1d4e DM à l'arme en main. Si valeur est présent, peut contenir les champs dmg et type pour spécifier d'autres valeurs de DM, ainsi que le type des DM.
+      activation: "enduit son arme d'une huile magique",
+      actif: "a une arme plus puissante",
+      fin: "L'arme retrouve sa puissance normale",
+      dm: true,
+      generic: 'arme',
+      plusieurs: true,
     },
     domination: {
       activation: "perd le contrôle de ses actions",
@@ -22738,6 +22783,15 @@ var COFantasy2 = COFantasy2 || function() {
       if (options.valeurSiNCAuMoins && niveauPerso(perso) >= options.valeurSiNCAuMoins.ncMin) {
         valeurCible = options.valeurSiNCAuMoins.valeur;
       }
+      let effetC = effet;
+      if (mEffet && mEffet.generic == 'arme' && !effet.includes('(')) {
+        let arme = armesEnMain(perso);
+        if (!arme) {
+          sendPlayer(nomPerso(perso) + " n'a pas d'arme en main, impossible de savoir à quoi appliquer " + effet, playerId);
+          return;
+        }
+        effetC = effet + '(' + arme.label + ')';
+      }
       if (options.save) {
         let msgPour = options.save.msgPour;
         if (!msgPour) {
@@ -22759,7 +22813,7 @@ var COFantasy2 = COFantasy2 || function() {
           options.save.etat = effet;
         }
         options.save.entrave = mEffet.entrave;
-        let saveId = 'effet_' + effet + "_" + perso.token.id;
+        let saveId = 'effet_' + effetC + "_" + perso.token.id;
         let reussite = save(options.save, perso, saveId, expliquer, saveOpts, evt);
         if (reussite && options.save.demiDuree) {
           reussite = false;
@@ -22793,9 +22847,9 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (activer) {
           options.insensibleTeste = true;
-          activerEffet(lanceur, perso, effet, mEffet, valeurCible, pageId, evt, options);
+          activerEffet(lanceur, perso, effetC, mEffet, valeurCible, pageId, evt, options);
         } else {
-          finDEffetPerso(perso, effet, mEffet, pageId, evt, options);
+          finDEffetPerso(perso, effetC, mEffet, pageId, evt, options);
         }
       } else {
         setState(perso, effet, activer, evt, options);
@@ -25121,6 +25175,9 @@ var COFantasy2 = COFantasy2 || function() {
         //    if (ficheAttributeAsInt(perso, 'bouclier_eqp', 0, optTransforme))
         //     malusArmure += ficheAttributeAsInt(perso, 'bouclier_malus', 0, optTransforme);
       }
+      if (malusArmure > 0 && predicateAsBool(perso, 'armureSurMesure')) {
+        malusArmure = Math.floor(malusArmure / 2);
+      }
       perso.malusArmures = malusArmure;
     } else malusArmure = perso.malusArmure;
     if (expliquer && malusArmure > 0) {
@@ -25556,9 +25613,6 @@ var COFantasy2 = COFantasy2 || function() {
     };
     // D'abord la partie qui dépend de la caractéristique
     let bonus = modCarac(perso, carac);
-    if (!persoEstPNJ(perso)) {
-      bonus += ficheAttributeAsInt(perso, carac.toLowerCase() + "_buff", 0);
-    }
     let txt = "Bonus " + deCarac(carac) + " : ";
     if (bonus > 0) txt += '+';
     expliquer(txt + bonus);
@@ -32722,7 +32776,15 @@ var COFantasy2 = COFantasy2 || function() {
     let indexPar = capacite.indexOf('(');
     if (indexPar > 0) capacite = capacite.substring(0, indexPar);
     capacite = capacite.trim();
-    return predicatsParCapacite[capacite];
+    let pred = predicatsParCapacite[capacite];
+    if (!pred) return;
+    pred = deepCopy(pred);
+    let rang = 1;
+    if (pred.action && pred.action.mana) rang = toInt(pred.action.mana, 1);
+    else if (pred.actions && pred.actions[0].mana) rang = toInt(pred.actions[0].mana, 1);
+    replaceSpecialInField(pred, 'action', 0, rang, {}); //Pas de paramètre, rang 1
+    replaceSpecialInField(pred, 'actions', 0, rang, {});
+    return pred;
   }
 
   function commandeDeConsommable(perso, action, options) {
@@ -32745,11 +32807,18 @@ var COFantasy2 = COFantasy2 || function() {
     let action = preds.action;
     if (!action) {
       if (preds.actions) {
-        log("Plus d'une action possible pour " + nom + ", ce n'est pas encore géré.");
+        let actionsAvecMana = preds.actions.filter(function(a) {
+          return a.mana;
+        });
+        if (actionsAvecMana.length == 1) action = actionsAvecMana[0];
+        else {
+          log("Plus d'une action possible pour " + nom + ", ce n'est pas encore géré.");
+          return;
+        }
       } else {
         log("Pas d'action associée à la capacité " + nom);
+        return;
       }
-      return;
     }
     let parchemin = options.parchemin;
     if (!parchemin) {

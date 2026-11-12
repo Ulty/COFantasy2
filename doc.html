@@ -781,7 +781,9 @@ tr {line-height: 25px;}
                     <li><code>--valeurSiNCAuMoins <i>n</i></code> : remplace la valeur de l'effet si le NC de la cible est supérieur ou égal à <i>n</i>.</li>
                   </ul>
                   <p> Il existe un effet temporaire générique sans message, pour avoir des timers associés à des personnages : <code>effetTempGenerique</code>. Vous pouvez décider du message à la création avec l'option <code>--activation</code>, du message de statut avec <code>--actif</code> et du message de fin avec <code>--fin</code>.</p>
+                  <!--
                   <p><code>!cof-boire-alcool</code> et <code>!cof-desaouler</code> permettent de faire varier le niveau d'ébriété. Par exemple, pour tester si le niveau d'ébriété augmente après avoir bu un certain nombre de verres, on peut utiliser la macro <code>!cof-boire-alcool --save CON [[10+?{Nombre de verres}]]</code>.
+                  -->
                 </div>
                 <h4 class="text-secondary">Effets retardés</h4>
                 <div class="decalage">
@@ -1217,7 +1219,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie de la guerre</h4>
                 <ol>
-                  <li></li>
+                  <li><strong>Armure dur mesure :</strong> tout est géré par le script.</li>
                   <li></li>
                   <li></li>
                   <li><strong>Force héroïque :</strong> le script ajoute un buff sur l'augmentation de caractéristique, et donne un dé bonus aux tests (sans toucher au champ de caractéristique héroïque sur la fiche)</li>
@@ -1682,6 +1684,8 @@ tr {line-height: 25px;}
                   <li><strong>ajoutePERauxDMdArc</strong> : indique qu'il fait ajouter la PER aux dégâts des arcs.</li>
                   <li><strong>aucuneActionCombat</strong> : indique que le personnage n'agit jamais en combat. Ce peut être pas exemple le cas du familier du mage.</li>
                   <li><strong>bonus_DEF</strong> : bonus à la défense. Ne se cumule pas.</li>
+                  <li><strong>bonusDM_arc</strong> : bonus aux DM à l'arc.</li>
+                  <li><strong>bonusAttaque_arc</strong> : bonus à l'attaque avec un arc.</li>
                   <li><strong>bonusAttaque_controleMental</strong> : bonus à l'attaque magique pour les sorts de contrôle mental et de charme. Ne se cumule pas.</li>
                   <li><strong>bonusAttaqueMagique</strong> : bonus à l'attaque magique. Ne se cumule pas.</li>
                   <li><strong>bonusInitiative</strong> : bonus à l'initiative. Ne se cumule pas.</li>
