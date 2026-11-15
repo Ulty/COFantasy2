@@ -1,4 +1,4 @@
-//Dernière modification : dim. 15 nov. 2026,  01:09
+//Dernière modification : dim. 15 nov. 2026,  05:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3031,8 +3031,8 @@ var COFantasy2 = COFantasy2 || function() {
     if (getState(perso, 'etourdi')) defense -= 5;
     if (getState(perso, 'invisible') && attaquant && !getState(attaquant, 'aveugle')) {
       if (attributeAsBool(attaquant, 'detectionDeLInvisible')) {
-          explications.push("Cible invisible, mais " + nomPerso(attaquant) + " détecte sa présence");
-    } else if (options.distance) {
+        explications.push("Cible invisible, mais " + nomPerso(attaquant) + " détecte sa présence");
+      } else if (options.distance) {
         if (options.tirAveugle) {
           explications.push("Cible invisible, mais " + nomPerso(attaquant) + " sait tirer à l'aveugle");
         } else {
@@ -3319,7 +3319,7 @@ var COFantasy2 = COFantasy2 || function() {
       defense += 1;
     }
     if (attaquant && predicateAsBool(attaquant, 'ignoreOrdres')) defense += 10;
-    defense += predicateAsBool(perso, 'bonusDivination', 0);
+    defense += predicateAsInt(perso, 'bonusDivination', 0);
     return defense;
   }
 
@@ -3827,7 +3827,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (target.bonusAttaque) attBonus += target.bonusAttaque;
     if (getState(attaquant, 'aveugle')) {
       if (attributeAsBool(attaquant, 'detectionDeLInvisible')) {
-          explications.push(nomPerso(attaquant) + " aveuglé"+eForFemale(attaquant)+", mais "+onGenre('il', 'elle')+" détecte ses adversaires");
+        explications.push(nomPerso(attaquant) + " aveuglé" + eForFemale(attaquant) + ", mais " + onGenre('il', 'elle') + " détecte ses adversaires");
       } else if (options.distance) {
         if (options.tirAveugle) {
           explications.push("Attaquant aveuglé, mais il sait tirer à l'aveugle");
@@ -6200,21 +6200,21 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Impossible d'encaisser le dernier coup, ce n'était pas une attaque au contact", playerId);
       return;
     }
-      if (!attributeAsBool(chevalier, 'encaisserUnCoup')) {
-        sendPerso(chevalier, "n'est pas placé " + eForFemale(chevalier) + " pour encaisser un coup");
-        return;
-      }
-      let cible = args.cibles.find(function(target) {
-        return (target.token.id === chevalier.token.id);
-      });
-      if (cible === undefined) {
-        sendPerso(chevalier, "n'est pas la cible de la dernière attaque");
-        return;
-      }
-      args.choices = args.choices || {};
-      args.choices[chevalier.token.id] = args.choices[chevalier.token.id] || {};
-      args.choices[chevalier.token.id].encaisserUnCoup = true;
-      resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
+    if (!attributeAsBool(chevalier, 'encaisserUnCoup')) {
+      sendPerso(chevalier, "n'est pas placé " + eForFemale(chevalier) + " pour encaisser un coup");
+      return;
+    }
+    let cible = args.cibles.find(function(target) {
+      return (target.token.id === chevalier.token.id);
+    });
+    if (cible === undefined) {
+      sendPerso(chevalier, "n'est pas la cible de la dernière attaque");
+      return;
+    }
+    args.choices = args.choices || {};
+    args.choices[chevalier.token.id] = args.choices[chevalier.token.id] || {};
+    args.choices[chevalier.token.id].encaisserUnCoup = true;
+    resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
   }
 
   // asynchrone : on fait les jets du personnage en opposition
@@ -6731,14 +6731,17 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer(nomPerso(chevalier) + " a déjà ignoré la douleur pendant ce combat", playerId);
       return;
     }
-        const evt= {
-          type: 'ignorer la douleur'
-        };
-        addEvent(evt);
-        utiliseCapacite(chevalier, test, evt);
-      let {pv, pvMax} = pvPerso(chevalier);
+    const evt = {
+      type: 'ignorer la douleur'
+    };
+    addEvent(evt);
+    utiliseCapacite(chevalier, test, evt);
+    let {
+      pv,
+      pvMax
+    } = pvPerso(chevalier);
     let mort = pv <= 0;
-      let bar4 = toInt(chevalier.token.get('bar4_value'), 0);
+    let bar4 = toInt(chevalier.token.get('bar4_value'), 0);
     let assomme = !mort && bar4 >= pv;
     if (pvPerdus) {
       pv += pvPerdus;
@@ -8523,7 +8526,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (!options.pasDeDmg && target.touche && !target.crit && target.dmgTotal > 0 &&
           capaciteDisponible(target, 'ignorerLaDouleur', 'combat') &&
           attributeAsInt(target, 'douleurIgnoree', 0) === 0) {
-         let cmd = "!cof2-ignorer-la-douleur " + target.token.id + evt.d + ' ' + target.dmgTotal + ' ' + target.pvPerdus;
+          let cmd = "!cof2-ignorer-la-douleur " + target.token.id + evt.d + ' ' + target.dmgTotal + ' ' + target.pvPerdus;
           if (target.tempDmg) cmd += ' ' + target.tempDmg;
           addLineToFramedDisplay(display, nomPerso(target) + " peut " + boutonSimple(cmd, "ignorer la douleur"));
         }
@@ -8716,6 +8719,15 @@ var COFantasy2 = COFantasy2 || function() {
       else mag = options.magique || 0;
       options.magique = mag + 1;
       options.flecheMagique = true;
+    }
+    if (weaponStats.baton && predicateAsBool(attaquant, 'batonDeMage') && !persoEstPNJ(attaquant)) {
+      let dmMoyensInt = (deEvolutif(attaquant) + 1) / 2 + modCarac(attaquant, 'INT');
+      let dmMoyensNormaux = weaponStats.attNbDices * (weaponStats.attDice + 1) / 2 + computeCarValue(attaquant, weaponStats.attCarBonus);
+      if (dmMoyensInt > dmMoyensNormaux) {
+        weaponStats.attNbDices = 1;
+        weaponStats.attDice = deEvolutif(attaquant);
+        weaponStats.attCarBonus = '@{int}';
+      }
     }
     attackLabel = weaponStats.label;
     //On parse les options de sélection qui ont un sens différent pour les attaques
@@ -12088,6 +12100,17 @@ var COFantasy2 = COFantasy2 || function() {
     }
   };
 
+  const capaciteDetectionDeLInvisible = {
+    profil: 'ensorceleur',
+    action: {
+      nom: "Détection de l'invisible",
+      type: 'L',
+      man: 2,
+      bufPersonnelNonCumulable: 'detectionDeLInvisible',
+      cmd: "!cof2-effet detectionDeLInvisible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}",
+    },
+  };
+
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
   // action est un objet, est actions est une liste d'actions, avec les champs:
@@ -12960,16 +12983,8 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Divination --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10 --if NC < @{selected|niveau} --message divination réussie --else --message la cible est trop puissante --endif",
       }
     },
-    "detection de l'invisible": {
-      profil: 'ensorceleur',
-      action: {
-        nom: "Détection de l'invisible",
-        type: 'L',
-        man: 2,
-        bufPersonnelNonCumulable: 'detectionDeLInvisible',
-        cmd: "!cof2-effet detectionDeLInvisible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}",
-      },
-    },
+    'detection de l’invisible': capaciteDetectionDeLInvisible,
+    "detection de l'invisible": capaciteDetectionDeLInvisible,
     //Voie de l'envoûteur
     injonction: {
       bonusTestEvolutif_injonction: true,
@@ -13112,6 +13127,19 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'ensorceleur',
         horsCombat: true,
         cmd: "!cof2-action invoque un serviteur invisible --messageMJ le sort dure @{selected|CHA} minutes",
+      },
+    },
+    //Voies de forgesort
+    //Voie des artefacts
+    'baton de mage': {
+      batonDeMage: true,
+      action: {
+        nom: "Éclair d'énergie au bâton",
+        aPartirDeRang: 3,
+        type: 'L',
+        armeEnMain: 'baton',
+        limiteArmure: 'forgesort',
+        cmd: "!cof2-attaque @{selected|token_id} @{target|token_id} -1 --toucher @{selected|atkmag} --dm 2d4E+@{selected|INT} --magique --titre Éclair d'énergie",
       },
     },
     //Voies de magicien /////////////////////////////////////////////
@@ -30440,12 +30468,19 @@ var COFantasy2 = COFantasy2 || function() {
     ilds.forEach(function(attr) {
       let total = toInt(attr.get('current'), 0);
       if (total) {
-        let dm = {total};
+        let dm = {
+          total
+        };
         let charId = attr.get('characterid');
         iterTokensOfAttribute(charId, combat.pageId, 'douleurIgnoree', attr.get('name'), function(token) {
-          let perso = {token, charId};
-          let {dmg} = dealDamage(perso, dm, [], evt, optIgnoreRD);
-          sendPerso(perso, " est rattrapé"+eForFemale(perso)+" par la douleur et subit "+dmg+" DM");
+          let perso = {
+            token,
+            charId
+          };
+          let {
+            dmg
+          } = dealDamage(perso, dm, [], evt, optIgnoreRD);
+          sendPerso(perso, " est rattrapé" + eForFemale(perso) + " par la douleur et subit " + dmg + " DM");
         });
       }
       deleteAttribute(attr, evt);
@@ -30454,12 +30489,19 @@ var COFantasy2 = COFantasy2 || function() {
     ilds.forEach(function(attr) {
       let total = toInt(attr.get('current'), 0);
       if (total) {
-        let dm = {total};
+        let dm = {
+          total
+        };
         let charId = attr.get('characterid');
         iterTokensOfAttribute(charId, combat.pageId, 'memPasMalIgnore', attr.get('name'), function(token) {
-          let perso = {token, charId};
-          let {dmg} = dealDamage(perso, dm, [], evt, optIgnoreRD);
-          sendPerso(perso, " est rattrapé"+eForFemale(perso)+" par la douleur et subit "+dmg+" DM");
+          let perso = {
+            token,
+            charId
+          };
+          let {
+            dmg
+          } = dealDamage(perso, dm, [], evt, optIgnoreRD);
+          sendPerso(perso, " est rattrapé" + eForFemale(perso) + " par la douleur et subit " + dmg + " DM");
         });
       }
       deleteAttribute(attr, evt);
@@ -37929,10 +37971,10 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       }
     }
-      if (f.boutonExclusif && options.acteur && !peutController(options.acteur, playerId)) {
-        sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-        return;
-      }
+    if (f.boutonExclusif && options.acteur && !peutController(options.acteur, playerId)) {
+      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+      return;
+    }
     if (indexOpt > 0) {
       let optionString = apiMsg.content.substring(indexOpt + 3);
       options = parseOptions(optionString, pageId, options);
