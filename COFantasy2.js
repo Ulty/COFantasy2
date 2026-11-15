@@ -1,4 +1,4 @@
-//Dernière modification : ven. 13 nov. 2026,  02:45
+//Dernière modification : dim. 15 nov. 2026,  12:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2934,8 +2934,8 @@ var COFantasy2 = COFantasy2 || function() {
     return defense;
   }
 
-  //evt et attaquant sont optionnels
-  function defenseOfPerso(perso, pageId, options = {}, evt = undefined, attaquant = undefined) {
+  //attaquant sont optionnels
+  function defenseOfPerso(perso, pageId, options = {}, attaquant = undefined) {
     if (options.difficultePVmax) {
       return pvPerso(perso).pvMax;
     } else if (options.difficultePV) {
@@ -3029,8 +3029,10 @@ var COFantasy2 = COFantasy2 || function() {
       }
     }
     if (getState(perso, 'etourdi')) defense -= 5;
-    if (getState(perso, 'invisible') && attaquant && !attributeAsBool(attaquant, 'detectionDeLInvisible')) {
-      if (options.distance) {
+    if (getState(perso, 'invisible') && attaquant && !getState(attaquant, 'aveugle')) {
+      if (attributeAsBool(attaquant, 'detectionDeLInvisible')) {
+          explications.push("Cible invisible, mais " + nomPerso(attaquant) + " détecte sa présence");
+    } else if (options.distance) {
         if (options.tirAveugle) {
           explications.push("Cible invisible, mais " + nomPerso(attaquant) + " sait tirer à l'aveugle");
         } else {
@@ -3317,6 +3319,7 @@ var COFantasy2 = COFantasy2 || function() {
       defense += 1;
     }
     if (attaquant && predicateAsBool(attaquant, 'ignoreOrdres')) defense += 10;
+    defense += predicateAsBool(perso, 'bonusDivination', 0);
     return defense;
   }
 
@@ -3823,7 +3826,9 @@ var COFantasy2 = COFantasy2 || function() {
     let attBonus = 0;
     if (target.bonusAttaque) attBonus += target.bonusAttaque;
     if (getState(attaquant, 'aveugle')) {
-      if (options.distance) {
+      if (attributeAsBool(attaquant, 'detectionDeLInvisible')) {
+          explications.push(nomPerso(attaquant) + " aveuglé"+eForFemale(attaquant)+", mais "+onGenre('il', 'elle')+" détecte ses adversaires");
+      } else if (options.distance) {
         if (options.tirAveugle) {
           explications.push("Attaquant aveuglé, mais il sait tirer à l'aveugle");
         } else {
@@ -4088,8 +4093,9 @@ var COFantasy2 = COFantasy2 || function() {
     //D'abord les options d'attaque qui n'ont de sens que si on a à la fois
     //un jet et qu'on fait des DM
     if (!options.pasDeDmg && !options.feinte) {
-      if (!options.auto && !options.sortilege) {
-        if (!options.attaqueAssuree && !options.attaqueViolente & !options.attaquePrecise) {
+      if (!options.auto) {
+        if (!options.sortilege &&
+          !options.attaqueAssuree && !options.attaqueViolente & !options.attaquePrecise) {
           let tactique = ficheAttributeAsInt(attaquant, 'tactique', 0);
           switch (tactique) {
             case 1: //attaque assurée +5 attaque et DM/2, seulement contact et distance
@@ -5331,7 +5337,7 @@ var COFantasy2 = COFantasy2 || function() {
             }
           }
         } else if (!options.auto) {
-          defense = defenseOfPerso(target, pageId, options, evt, attaquant);
+          defense = defenseOfPerso(target, pageId, options, attaquant);
           if (interchange && interchange.result) {
             defense += 3;
           }
@@ -6170,7 +6176,7 @@ var COFantasy2 = COFantasy2 || function() {
     removePreDmg(options, cible, "encaisserUnCoup");
   }
 
-  function commandeEncaisserUnCoup(cmd, playerId, pageId, optionsEncaisser) {
+  function commandeEncaisserUnCoup(cmd, playerId, pageId, optionsEncaisser, chevalier) {
     let evt;
     if (cmd.length > 1) { //On relance pour un événement particulier
       evt = findEvent(cmd[1]);
@@ -6180,13 +6186,6 @@ var COFantasy2 = COFantasy2 || function() {
       }
     } else {
       evt = lastEvent();
-    }
-    let {
-      selected
-    } = getSelected(pageId, optionsEncaisser);
-    if (selected.length === 0) {
-      error("Personne n'est sélectionné pour encaisser un coup", cmd);
-      return;
     }
     if (evt === undefined) {
       sendPlayer("Historique d'actions vide, pas d'action trouvée pour encaisser un coup", playerId);
@@ -6201,14 +6200,8 @@ var COFantasy2 = COFantasy2 || function() {
       sendPlayer("Impossible d'encaisser le dernier coup, ce n'était pas une attaque au contact", playerId);
       return;
     }
-    let toProceed;
-    iterSelected(selected, function(chevalier) {
       if (!attributeAsBool(chevalier, 'encaisserUnCoup')) {
         sendPerso(chevalier, "n'est pas placé " + eForFemale(chevalier) + " pour encaisser un coup");
-        return;
-      }
-      if (!peutController(chevalier, playerId)) {
-        sendPlayer("pas le droit d'utiliser ce bouton", playerId);
         return;
       }
       let cible = args.cibles.find(function(target) {
@@ -6221,11 +6214,7 @@ var COFantasy2 = COFantasy2 || function() {
       args.choices = args.choices || {};
       args.choices[chevalier.token.id] = args.choices[chevalier.token.id] || {};
       args.choices[chevalier.token.id].encaisserUnCoup = true;
-      toProceed = true;
-    }); //fin iterSelected
-    if (toProceed) {
       resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
-    }
   }
 
   // asynchrone : on fait les jets du personnage en opposition
@@ -6392,10 +6381,6 @@ var COFantasy2 = COFantasy2 || function() {
       sendChat('', "Historique d'actions vide, pas d'action trouvée pour " + action);
       return;
     }
-    if (!peutController(perso, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let args = getEvtArgs(evt);
     if (evt.type != 'Attaque' || evt.succes === false || !args) {
       sendPlayer("la dernière action n'est pas une attaque réussie, trop tard pour " + action + " d'une action précédente", playerId);
@@ -6433,10 +6418,6 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function commandeIntercepter(cmd, playerId, pageId, optionsIntercepter, chevalier) {
-    if (!peutController(chevalier, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let test = testLimiteUtilisationsCapa(chevalier, 'intercepter', 'tour', "a déjà intercepté une attaque ce tour", "ne sait pas utiliser intercepter les attaques");
     if (!test) return;
     const evt = findEvent(cmd[1]);
@@ -6489,10 +6470,6 @@ var COFantasy2 = COFantasy2 || function() {
   //cof2-chair-a-canon id1 id2 evtid
   //id1 est le PNJ frécurrent et id2 la chair à canon
   function commandeChairACanon(cmd, playerId, pageId, optionsParade, pnjRec) {
-    if (!peutController(pnjRec, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let test = testLimiteUtilisationsCapa(pnjRec, 'chairACanon', 'tour', "a déjà utilisé un sous-fifre ce tour", "ne sait pas utiliser ses sous-fifres pour se défendre");
     if (!test) return;
     const evt = findEvent(cmd[3]);
@@ -6544,10 +6521,6 @@ var COFantasy2 = COFantasy2 || function() {
     let evt = findEvent(cmd[2]);
     if (evt === undefined) {
       error("L'action est trop ancienne ou a été annulée", cmd);
-      return;
-    }
-    if (!peutController(guerrier, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
       return;
     }
     let args = getEvtArgs(evt);
@@ -6735,14 +6708,58 @@ var COFantasy2 = COFantasy2 || function() {
     });
   }
 
-  function commandeChatimentDivin(cmd, playerId, pageId, options, pretre) {
-    let evt = findEvent(cmd[2]);
-    if (evt === undefined) {
-      error("L'attaque est trop ancienne ou a été annulée", cmd);
+  function commandeIgnorerLaDouleur(cmd, playerId, pageId, optionsParade, chevalier) {
+    let evtDM = findEvent(cmd[2]);
+    if (!evtDM) {
+      sendPlayer("L'attaque est trop ancienne, il est trop tard pour ignorer la douleur", playerId);
       return;
     }
-    if (!peutController(pretre, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+    let dm = toInt(cmd[3], 0);
+    let pvPerdus = toInt(cmd[4], 0);
+    let tempDmg = toInt(cmd[5], 0);
+    if (dm < 1) {
+      dm = pvPerdus + tempDmg;
+      if (dm < 1) {
+        error("Pas de DM reçus", cmd);
+        return;
+      }
+    }
+    if (pvPerdus < 1 && tempDmg < 1) pvPerdus = dm;
+    let test = testLimiteUtilisationsCapa(chevalier, 'ignorerLaDouleur', 'combat', "ne peut plus ignorer la douleur");
+    if (!test) return;
+    if (attributeAsBool(chevalier, 'douleurIgnoree', 0)) {
+      sendPlayer(nomPerso(chevalier) + " a déjà ignoré la douleur pendant ce combat", playerId);
+      return;
+    }
+        const evt= {
+          type: 'ignorer la douleur'
+        };
+        addEvent(evt);
+        utiliseCapacite(chevalier, test, evt);
+      let {pv, pvMax} = pvPerso(chevalier);
+    let mort = pv <= 0;
+      let bar4 = toInt(chevalier.token.get('bar4_value'), 0);
+    let assomme = !mort && bar4 >= pv;
+    if (pvPerdus) {
+      pv += pvPerdus;
+      if (pv > pvMax) pv = pvMax;
+      updateCurrentBar(chevalier, 1, pv, evt);
+      if (mort) setState(chevalier, 'mort', false, evt);
+    }
+    if (tempDmg) {
+      bar4 -= tempDmg;
+      if (bar4 < 0) bar4 = 0;
+      updateCurrentBar(chevalier, 4, bar4, evt);
+    }
+    if (assomme && bar4 < pv) setState(chevalier, 'assomme', false);
+    setTokenAttr(chevalier, 'douleurIgnoree', dm);
+    sendPerso(chevalier, ' ignore la douleur');
+  }
+
+  function commandeChatimentDivin(cmd, playerId, pageId, options, pretre) {
+    let evt = findEvent(cmd[2]);
+    if (!evt) {
+      error("L'attaque est trop ancienne ou a été annulée", cmd);
       return;
     }
     let mana = toInt(cmd[3], 0);
@@ -8297,7 +8314,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (preDmgToken.encaisserUnCoup) {
             line += "<br/>" +
               boutonSimple(
-                "!cof2-encaisser-un-coup " + evt.id + ' --select ' + target.token.id,
+                "!cof2-encaisser-un-coup " + target.token.id + ' ' + evt.id + ' --select ',
                 "encaisser le coup");
             nbBoutons++;
           }
@@ -8503,12 +8520,12 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
       cibles.forEach(function(target) {
-        if (!options.pasDeDmg && target.touche &&
-          predicateAsBool(target, 'ignorerLaDouleur') &&
+        if (!options.pasDeDmg && target.touche && !target.crit && target.dmgTotal > 0 &&
+          capaciteDisponible(target, 'ignorerLaDouleur', 'combat') &&
           attributeAsInt(target, 'douleurIgnoree', 0) === 0) {
-          addLineToFramedDisplay(display, nomPerso(target) + " peut " +
-            boutonSimple("!cof-ignorer-la-douleur " + evt.id + ' --select ' + target.token.id, "ignorer la douleur")
-          );
+         let cmd = "!cof2-ignorer-la-douleur " + target.token.id + evt.d + ' ' + target.dmgTotal + ' ' + target.pvPerdus;
+          if (target.tempDmg) cmd += ' ' + target.tempDmg;
+          addLineToFramedDisplay(display, nomPerso(target) + " peut " + boutonSimple(cmd, "ignorer la douleur"));
         }
         if (target.touche && attaquant && options.repousseCible) {
           addLineToFramedDisplay(display, nomPerso(target) + " doit reculer de " + options.repousseCible + " m.");
@@ -8605,7 +8622,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Poser une cible pour faire une aoe
   function commandePoserCible(cmd, playerId, pageId, options, perso) {
-              let charCible = trouveOuCreeCible();
+    let charCible = trouveOuCreeCible();
     if (!charCible) {
       error("Impossible de trouver ou créer la cible", cmd);
       return;
@@ -8621,8 +8638,9 @@ var COFantasy2 = COFantasy2 || function() {
         error("Le personnage Cible n'a pas de token", cmd);
         return;
       }
-      const evt = {type: 'poser cible',
-        tokens:[token.id]
+      const evt = {
+        type: 'poser cible',
+        tokens: [token.id]
       };
       addEvent(evt);
     });
@@ -11881,6 +11899,10 @@ var COFantasy2 = COFantasy2 || function() {
         description: "En milieu naturel: discrétion et vigilance",
         competences: ['discrétion', 'vigilance'],
       },
+      education: {
+        nom: 'Bonne éducation',
+        description: "histoire, héraldique, géographie et comportement dans la haute société",
+      },
       equitation: {
         nom: "Équitation",
         description: "Tests d'équitation et de dressage",
@@ -11898,6 +11920,11 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Évaluation d'objets précieux",
         description: "Évaluer la valeur de joyaux, bijous, etc.",
         carac: "INT",
+      },
+      haranguer: {
+        nom: "Parler à une foule",
+        description: "haranguer et convaincre les foules (au moins 15 individus)",
+        carac: 'CHA',
       },
       injonction: {
         nom: "Persuasion de l'envoûteur",
@@ -12694,7 +12721,10 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     //Voie du preux
-    'ignorer la douleur': {},
+    'ignorer la douleur': {
+      bonusTestEvolutif_haranguer: true,
+      ignorerLaDouleur: 1,
+    },
     //Voie du meneur d'hommes
     'sans peur': {
       sansPeur: true,
@@ -12714,6 +12744,10 @@ var COFantasy2 = COFantasy2 || function() {
         debutDuTour: true,
         cmd: '!cof2-effet chargeFantastique 1 --select @{selected|token_id} --alliesEnVue --limiteParCombat 1 chargeFantastique --message lance une charge fantastique !',
       },
+    },
+    //Voie de la noblesse
+    'eduque': {
+      bonusTestEvolutif_education: true,
     },
     //Voies de guerrier ////////////////////////////////////////////
     //Voie du bouclier
@@ -12907,6 +12941,33 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 5,
         cmd: '!cof2-effet intangible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}',
+      },
+    },
+    //Voie de la divination
+    'divination': {
+      bonusDivination: 'SELONRANG(1,1,2,2,2)',
+      plusParVoieDeRang: {
+        predicat: 'bonusDivination',
+        profil: 'ensorceleur',
+        rang: 5,
+        def: 0,
+      },
+      profil: 'ensorceleur',
+      action: {
+        nom: 'Divination',
+        type: 'L',
+        mana: 1,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Divination --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10 --if NC < @{selected|niveau} --message divination réussie --else --message la cible est trop puissante --endif",
+      }
+    },
+    "detection de l'invisible": {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Détection de l'invisible",
+        type: 'L',
+        man: 2,
+        bufPersonnelNonCumulable: 'detectionDeLInvisible',
+        cmd: "!cof2-effet detectionDeLInvisible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}",
       },
     },
     //Voie de l'envoûteur
@@ -13487,6 +13548,7 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 3,
         armeEnMain: 'arc',
         limiteArmure: 'druide',
+        optionsTactiques: true,
         cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} -1 --effet flecheVivante 1 --valeur 3d4E',
       },
     },
@@ -14979,6 +15041,7 @@ var COFantasy2 = COFantasy2 || function() {
       picto = '<span style="font-family: \'Pictos Custom\'">t</span> ';
       style = 'background-color:#cc0000;';
     }
+    style += BASIC_BUTTON_STYLE;
     return {
       picto,
       style
@@ -15013,7 +15076,7 @@ var COFantasy2 = COFantasy2 || function() {
         return pictoOfAttack(attackStats, options);
       case 'confirmer-attaque':
         picto = '<span style="font-family: \'Pictos Custom\'">]</span> ';
-        style = 'background-color:#cc0000';
+        style = 'background-color:#cc0000;';
         break;
       case 'injonction':
       case 'injonction-mortelle':
@@ -15023,7 +15086,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'enkystement-lointain':
       case 'prison-vegetale':
         picto = '<span style="font-family: \'Pictos Three\'">g</span> ';
-        style = 'background-color:#9900ff';
+        style = 'background-color:#9900ff;';
         break;
       case 'soin':
       case 'transe-guerison':
@@ -15032,30 +15095,30 @@ var COFantasy2 = COFantasy2 || function() {
       case 'guerison':
       case 'zone-de-vie':
         picto = '<span style="font-family: \'Pictos\'">k</span> ';
-        style = 'background-color:#ffe599;color:#333';
+        style = 'background-color:#ffe599;color:#333;';
         break;
       case 'action':
       case 'effet':
       case 'lumiere':
         if (options && options.mana !== undefined) {
           picto = '<span style="font-family: \'Pictos Three\'">g</span> ';
-          style = 'background-color:#9900ff';
+          style = 'background-color:#9900ff;';
         } else {
           picto = '<span style="font-family: \'Pictos\'">S</span> ';
-          style = 'background-color:#4a86e8';
+          style = 'background-color:#4a86e8;';
         }
         break;
       case 'fortifiant':
         picto = '<span style="font-family: \'Pictos\'">S</span> ';
-        style = 'background-color:#4a86e8';
+        style = 'background-color:#4a86e8;';
         break;
       case 'enduire-poison':
         picto = '<span style="font-family: \'Pictos Three\'">i</span> ';
-        style = 'background-color:#05461c';
+        style = 'background-color:#05461c;';
         break;
       case 'desarmer':
         picto = '<span style="font-family: \'Pictos Custom\'">t</span> ';
-        style = 'background-color:#cc0000';
+        style = 'background-color:#cc0000;';
         break;
       case 'surprise':
         picto = '<span style="font-family: \'Pictos\'">e</span> ';
@@ -15074,15 +15137,15 @@ var COFantasy2 = COFantasy2 || function() {
       case 'dmg':
       case 'bouton-echec-total':
         picto = '<span style="font-family: \'Pictos\'">\'</span> ';
-        style = 'background-color:#cc0000';
+        style = 'background-color:#cc0000;';
         break;
       case 'peur':
         picto = '<span style="font-family: \'Pictos\'">`</span> ';
-        style = 'background-color:#B445FE';
+        style = 'background-color:#B445FE;';
         break;
       case 'consommables':
         picto = '<span style="font-family: \'Pictos\'">b</span> ';
-        style = 'background-color:#ce0f69';
+        style = 'background-color:#ce0f69;';
         break;
       case 'liste-actions':
         return PICTO_LISTE_ACTIONS;
@@ -15090,6 +15153,7 @@ var COFantasy2 = COFantasy2 || function() {
         picto = '<span style="font-family: \'Pictos\'">c</span> ';
         style = 'background-color:#48b92c;';
     }
+    style += BASIC_BUTTON_STYLE;
     return {
       picto,
       style
@@ -15257,11 +15321,11 @@ var COFantasy2 = COFantasy2 || function() {
         if (options.ressource) {
           act = "!cof-utilise-consommable " + tid + ' ' + options.ressource.id + ' ' + act;
           picto = '<span style="font-family: \'Pictos\'">b</span> ';
-          style = 'background-color:#ce0f69';
+          style = 'background-color:#ce0f69;';
         } else {
           act = "!cof2-action " + act;
           picto = '<span style="font-family: \'Pictos Three\'">g</span> ';
-          style = 'background-color:#9900ff';
+          style = 'background-color:#9900ff;';
         }
       }
       act = selectedToValue(act, 'selected', perso);
@@ -15870,6 +15934,14 @@ var COFantasy2 = COFantasy2 || function() {
         b = picto + "violente";
         c = att + " --attaqueViolente";
         line += boutonSimple(c, b, style + ' title="-7 en attaque et +2d4° DM"') + '<br/>';
+        //Actions pour lesquelles on autorise d'utiliser des options tactiques
+        let infos = getInfos(perso);
+        if (infos.actions) {
+          infos.actions.forEach(function(action) {
+            if (!action.optionsTactiques) return;
+            line = ajouterAction(perso, action, line, true, false, false, " ?{Option tactique|Attaque assurée,--attaqueAssuree|Attaque précise,--attaquePrecise|Attaque violente,--attaqueViolente}");
+          });
+        }
         addLineToFramedDisplay(display, line);
       }
       //Les actions de défense
@@ -16468,7 +16540,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Ajoute l'action à ligne, si elle est disponible
   // avant signifie que le personnage est avant son tour
-  function ajouterAction(perso, action, ligne, actionsEnCombat, avant = false, supplementaire = false) {
+  function ajouterAction(perso, action, ligne, actionsEnCombat, avant = false, supplementaire = false, request = '') {
     if (action.enAttente && !supplementaire) return ligne;
     if (avant && !action.enDehorsDeSonTour) return ligne;
     if (actionsEnCombat) {
@@ -16539,7 +16611,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (action.dm && predicateAsBool(perso, 'pacteTenebreux') && (action.mana > 0 || action.sortilege)) {
       command += " ?{Pacte ténébreux ?|Non,&#32;|Oui,--sacrifiePVPourDM}";
     }
-    let request;
     if (action.mana > 0 && !persoEstPNJ(perso)) {
       if (action.type == 'A' && typeActionPossible(perso, 'L')) {
         //Possibilité de se concentrer pour diminuer le coût
@@ -16553,7 +16624,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (command.startsWith('!cof2-soin ')) opt.pasDeBrulureDeMana = true;
           let depMana = depenseManaPossible(perso, action.mana, false, opt);
           if (depMana) {
-            request = " ?{Concentration|Oui(L),--typeAction L --mana " + manaL + "|Non(A),--typeAction A --mana " + action.mana + "}";
+            request += " ?{Concentration|Oui(L),--typeAction L --mana " + manaL + "|Non(A),--typeAction A --mana " + action.mana + "}";
           } else {
             let depMana = manaL == 0 || depenseManaPossible(perso, manaL, false, opt);
             if (!depMana) return ligne;
@@ -16577,7 +16648,7 @@ var COFantasy2 = COFantasy2 || function() {
     let b = boutonComplexe(command, action.nom, perso, bopt);
     if (!bopt.actionImpossible) {
       if (action.aoe) {
-        command = "!cof2-poser-cible "+perso.token.id;
+        command = "!cof2-poser-cible " + perso.token.id;
         ligne += boutonSimple(command, IMG_HTML_CIBLE, BS_CIBLE);
         //ligne += boutonSimple(command, '<span style="font-family: \'Pictos Custom\'">[</span>', BS_BUTTON);
       }
@@ -17834,10 +17905,6 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Remplit un champ mouvementEnCours de combat
   function commandeMvt(cmd, playerId, pageId, options, perso) {
-    if (!peutController(perso)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let vitesse = toInt(cmd[2], vitessePerso(perso));
     if (vitesse <= 0) {
       sendPlayer("Distance de déplacement nulle", playerId);
@@ -17856,10 +17923,6 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function commandeSprinter(cmd, playerId, pageId, options, perso) {
-    if (!peutController(perso)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let mvt;
     if (cmd.length > 2 && cmd[2] == 'mvt') { //on transforme un mouvement en sprint
       let combat = stateCOF.combat;
@@ -21301,6 +21364,11 @@ var COFantasy2 = COFantasy2 || function() {
       dm: true,
       generic: 'arme',
       plusieurs: true,
+    },
+    detectionDeLInvisible: {
+      activation: "lance un sort de détection de l'invisible",
+      actif: "peut détecter l'invisible",
+      fin: "ne peut plus détecter l'invisible",
     },
     domination: {
       activation: "perd le contrôle de ses actions",
@@ -24768,10 +24836,6 @@ var COFantasy2 = COFantasy2 || function() {
       error("Un point de chance déjà dépensé pour ce jet, impossible d'en faire plus", roll);
       return;
     }
-    if (!peutController(perso, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let chance = pointsDeChance(perso);
     if (chance <= 0) {
       sendPerso(perso, "n'a plus de point de chance à dépenser...");
@@ -24811,10 +24875,6 @@ var COFantasy2 = COFantasy2 || function() {
       error("Type d'évènement pas encore géré pour la chance", evt);
       return;
     }
-    if (!peutController(perso, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     undoEvent(evt);
     let ex = args.choix.exemplaire;
     if (!ex) {
@@ -24837,10 +24897,6 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function commandeBoutonProuesse(cmd, playerId, pageId, options, perso) {
-    if (!peutController(perso, playerId)) {
-      sendPlayer("pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let testProuesse = testLimiteUtilisationsCapa(perso, 'prouesse', 'tour', "ne peut plus utiliser sa prouesse");
     if (testProuesse === undefined) {
       return;
@@ -24931,10 +24987,6 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (perso === undefined) {
         error("Erreur interne du bouton de rune d'énergie : l'évenement n'a pas de personnage", evtARefaire);
-        return;
-      }
-      if (!peutController(perso, playerId)) {
-        sendPlayer("pas le droit d'utiliser ce bouton", playerId);
         return;
       }
       if (!persoUtiliseRuneEnergie(perso, evt)) return;
@@ -25956,7 +26008,7 @@ var COFantasy2 = COFantasy2 || function() {
   //   - etat quand le save est contre un état particulier
   //   - sortilege
   //   - augmenteAvecMargeDeToucher
-  function save(s, target, saveId, expliquer, options, evt, afterSave) {
+  function save(s, target, saveId, expliquer, options, evt) {
     if (options.type && immuniseAuType(target, options.type, options.attaquant, options)) {
       if (!target['msgImmunite_' + options.type] && !options.silencieuxSiPasAffecte) {
         expliquer(nomPerso(target) + " ne semble pas affecté par " + stringOfType(options.type));
@@ -27227,6 +27279,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (predicateAsBool(perso, 'bonusTerrainDifficile') && estEnTerrainDifficile(perso)) init += 3;
     if (aUnCapitaine(perso, undefined, pageId)) init += 2;
     if (capaciteDisponible(perso, 'instinctDeSurviePNJ', 'combat') && !persoImmobilise(perso)) init += 10;
+    init += predicateAsBool(perso, 'bonusDivination', 0);
     return init;
   }
 
@@ -29103,7 +29156,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (atkcac === undefined) {
           if (atk === undefined)
-            atkcac = niveauPerso(attaquant) + modCarac(attaquant, 'force');
+            atkcac = Math.floor(niveauPerso(attaquant)) + modCarac(attaquant, 'force');
           else atkcac = atk;
         }
         return atkcac;
@@ -29125,7 +29178,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (atktir === undefined) {
           if (atk === undefined)
-            atktir = niveauPerso(attaquant) + modCarac(attaquant, 'agi');
+            atktir = Math.floor(niveauPerso(attaquant)) + modCarac(attaquant, 'agi');
           else atktir = atk;
         }
         return atktir;
@@ -29140,7 +29193,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (atkmag === undefined) {
           //Alors c'est forcément NC + VOL
-          atkmag = niveauPerso(attaquant) + modCarac(attaquant, 'vol');
+          atkmag = Math.floor(niveauPerso(attaquant)) + modCarac(attaquant, 'vol');
         }
         atkmag += predicateAsInt(attaquant, 'bonusAttaqueMagique', 0);
         return atkmag;
@@ -30360,90 +30413,33 @@ var COFantasy2 = COFantasy2 || function() {
     });
     //Effet de ignorerLaDouleur
     let ilds = allAttributesNamed(attrs, 'douleurIgnoree');
-    ilds = ilds.concat(allAttributesNamed(attrs, 'memePasMalIgnore'));
-    ilds.forEach(function(ild) {
-      let douleur = parseInt(ild.get('current'));
-      if (isNaN(douleur)) {
-        error("La douleur ignorée n'est pas un nombre", douleur);
-        return;
-      }
-      let charId = ild.get('characterid');
-      if (charId === undefined || charId === '') {
-        error("Attribut sans personnage", ild);
-        return;
-      }
-      let ildName = ild.get('name');
-      if (ildName == 'douleurIgnoree' || ildName == 'memePasMalIgnore') {
-        let pvAttr = findObjs({
-          _type: 'attribute',
-          _characterid: charId,
-          name: 'pv'
-        }, {
-          caseInsensitive: true
+    ilds.forEach(function(attr) {
+      let total = toInt(attr.get('current'), 0);
+      if (total) {
+        let dm = {total};
+        let charId = attr.get('characterid');
+        iterTokensOfAttribute(charId, combat.pageId, 'douleurIgnoree', attr.get('name'), function(token) {
+          let perso = {token, charId};
+          let {dmg} = dealDamage(perso, dm, [], evt, optIgnoreRD);
+          sendPerso(perso, " est rattrapé"+eForFemale(perso)+" par la douleur et subit "+dmg+" DM");
         });
-        if (pvAttr.length === 0) {
-          error("Personnage sans PV ", charId);
-          return;
-        }
-        pvAttr = pvAttr[0];
-        let pv = parseInt(pvAttr.get('current'));
-        if (isNaN(pv)) {
-          error("PV mal formés ", pvAttr);
-          return;
-        }
-        addAttributeToEvt(pvAttr, evt, pv);
-        let newPv = pv - douleur;
-        if (newPv < 0) newPv = 0;
-        pvAttr.set('current', newPv);
-        if (pv > 0 && newPv === 0) {
-          sendChar(charId, "s'écroule. Il semble sans vie. La douleur qu'il avait ignorée l'a finalement rattrapé...", true);
-        } else {
-          let tempDmg = ficheAttributeAsInt({
-            charId
-          }, 'temp_dm', 0);
-          if (pv > tempDmg && newPv <= tempDmg) {
-            sendChar(charId, "s'écroule, assommé. La douleur qu'il avait ignorée l'a finalement rattrapé...", true);
-          } else {
-            sendChar(charId, "subit le contrecoup de la douleur qu'il avait ignorée", true);
-          }
-        }
-      } else { // ignorer la douleur d'un token
-        let tokName = ildName.substring(ildName.indexOf('_MOOK_') + 6);
-        let tokensIld = findObjs({
-          _type: 'graphic',
-          _subtype: 'token',
-          represents: charId,
-          name: tokName
-        });
-        if (tokensIld.length === 0) {
-          error("Pas de token nommé " + tokName + " qui aurait ignoré la douleur", ild);
-          return;
-        }
-        if (tokensIld.length > 1) {
-          sendChar(charId, "a plusieurs tokens nommés " + tokName + ". Un seul d'entre eux subira l'effet d'ignorer la douleur", true);
-        }
-        let tokPv = parseInt(tokensIld[0].get('bar1_value'));
-        let tokNewPv = tokPv - douleur;
-        if (tokNewPv < 0) tokNewPv = 0;
-        let perso = {
-          charId: charId,
-          token: tokensIld[0]
-        };
-        updateCurrentBar(perso, 1, tokNewPv, evt);
-        //TODO: faire mourrir, assommer
       }
-    }); // end forEach on all attributes ignorerLaDouleur
-    ilds.forEach(function(ild) {
-      deleteAttribute(ild, evt);
+      deleteAttribute(attr, evt);
     });
-    if (ilds.length > 0) {
-      attrs = attrs.filter(function(attr) {
-        let ind = ilds.findIndex(function(nattr) {
-          return nattr.id == attr.id;
+    ilds = allAttributesNamed(attrs, 'memePasMalIgnore');
+    ilds.forEach(function(attr) {
+      let total = toInt(attr.get('current'), 0);
+      if (total) {
+        let dm = {total};
+        let charId = attr.get('characterid');
+        iterTokensOfAttribute(charId, combat.pageId, 'memPasMalIgnore', attr.get('name'), function(token) {
+          let perso = {token, charId};
+          let {dmg} = dealDamage(perso, dm, [], evt, optIgnoreRD);
+          sendPerso(perso, " est rattrapé"+eForFemale(perso)+" par la douleur et subit "+dmg+" DM");
         });
-        return (ind == -1);
-      });
-    }
+      }
+      deleteAttribute(attr, evt);
+    });
     //Attributs qu'on veut enlever en dernier
     let removedLaterAttrs = [];
     // fin des effets temporaires (durée en tours, ou durée = combat)
@@ -31004,9 +31000,6 @@ var COFantasy2 = COFantasy2 || function() {
     if (!options.sortilege && attributeAsBool(target, 'dephase')) {
       div++;
       expliquer(nomPerso(target) + " se désincarne par intermittence");
-    }
-    if (!options.energiePositive && dmgType != 'energie' && !options.spectral) {
-      div++;
     }
     if (options.attaqueMentale && predicateAsBool(target, 'bouclierPsi')) {
       div++;
@@ -31630,12 +31623,14 @@ var COFantasy2 = COFantasy2 || function() {
       expliquer("La nuée est constituée de très nombreuses cibles, l'attaque ne lui fait qu'1 DM");
     }
     let pvPerdus = dmgTotal;
+    target.dmgTotal = dmgTotal;
     if (target.tempDmg) {
       tempDmg += dmgTotal;
       if (tempDmg > pvMax) {
         pvPerdus -= tempDmg - pvMax;
         tempDmg = pvMax;
       }
+      target.tempDmg = tempDmg;
       updateCurrentBar(target, 4, tempDmg, evt);
     } else {
       //On enlève les points de vie
@@ -32594,11 +32589,6 @@ var COFantasy2 = COFantasy2 || function() {
     let perso2 = persoOfId(cmd[2], cmd[2], pageId);
     if (perso2 === undefined) {
       sendPlayer("Impossible de trouver la personne à qui donner l'objet", playerId);
-      return;
-    }
-    //On regarde si le joueur contrôle le token
-    if (!peutController(perso1, playerId)) {
-      sendPlayer("Pas les droits pour ça", playerId);
       return;
     }
     //on récupère l'attribut à échanger de perso1
@@ -36659,10 +36649,6 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function commandeTerminerMvt(cmd, playerId, pageId, options, perso) {
-    if (!peutController(perso, playerId)) {
-      sendPlayer("Vous n'avez pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let evt = {
       type: "Fin de déplacement"
     };
@@ -37064,10 +37050,6 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function commandeUndoDernierMvt(cmd, playerId, pageId, options, perso) {
-    if (!peutController(perso, playerId)) {
-      sendPlayer("Vous n'avez pas le droit d'utiliser ce bouton", playerId);
-      return;
-    }
     let combat = stateCOF.combat;
     if (!combat) {
       sendPlayer("Le combat est terminé, trop tard pour annuler le mouvement", playerId);
@@ -37501,21 +37483,25 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeBoutonChance,
       minArgs: 3,
       acteur: 1,
+      boutonExclusif: true,
     },
     'bouton-exemplaire': {
       fn: commandeBoutonExemplaire,
       minArgs: 3,
       acteur: 1,
+      boutonExclusif: true,
     },
     'bouton-prouesse': {
       fn: commandeBoutonProuesse,
       minArgs: 3,
       acteur: 1,
+      boutonExclusif: true,
     },
     'bouton-rune-energie': {
       fn: commandeBoutonRuneEnergie,
       minArgs: 1,
-      acteur: 1
+      acteur: 1,
+      boutonExclusif: true,
     },
     'centrer-sur-token': {
       fn: commandeCentrerSurToken,
@@ -37525,11 +37511,13 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeChairACanon,
       minArgs: 2,
       acteur: 1,
+      boutonExclusif: true,
     },
     'chatiment-divin': {
       fn: commandeChatimentDivin,
       minArgs: 3,
       acteur: 1,
+      boutonExclusif: true,
     },
     'clean-global-state': {
       fn: commandeCleanGlobalState
@@ -37553,6 +37541,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeIntercepter,
       minArgs: 3,
       acteur: 2,
+      boutonExclusif: true,
     },
     'confirmer-attaque': {
       fn: commandeConfirmerAttaque,
@@ -37573,7 +37562,8 @@ var COFantasy2 = COFantasy2 || function() {
     'donner-consommable': {
       fn: commandeDonnerConsommable,
       minArgs: 3,
-      acteur: 1
+      acteur: 1,
+      boutonExclusif: true,
     },
     'effet': {
       fn: commandeEffet,
@@ -37581,6 +37571,9 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'encaisser-un-coup': {
       fn: commandeEncaisserUnCoup,
+      minArgs: 2,
+      acteur: 1,
+      boutonExclusif: true,
     },
     'equiper-bouclier': {
       fn: commandeEquiperBouclier
@@ -37629,6 +37622,12 @@ var COFantasy2 = COFantasy2 || function() {
     'jouer-son': {
       fn: commandeJouerSon
     },
+    'ignorer-la-douleur': {
+      fn: commandeIgnorerLaDouleur,
+      minArgs: 4,
+      acteur: 1,
+      boutonExclusif: true,
+    },
     'init': {
       fn: commandeInit
     },
@@ -37675,6 +37674,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeMvt,
       minArgs: 1,
       acteur: 1,
+      boutonExclusif: true,
     },
     'montrer-resultats-attaque': {
       fn: commandeMontrerResultatsAttaque,
@@ -37703,12 +37703,14 @@ var COFantasy2 = COFantasy2 || function() {
     'parade-projectiles': {
       fn: commandeParadeProjectiles,
       minArgs: 1,
-      acteur: 1
+      acteur: 1,
+      boutonExclusif: true,
     },
     'parer-un-coup-au-bouclier': {
       fn: commandeParerUnCoupAuBouclier,
       minArgs: 2,
       acteur: 1,
+      boutonExclusif: true,
     },
     'passer-minutes': {
       fn: commandePasserMinutes,
@@ -37739,6 +37741,7 @@ var COFantasy2 = COFantasy2 || function() {
       fn: commandeProtegerAuBouclier,
       minArgs: 3,
       acteur: 1,
+      boutonExclusif: true,
     },
     'ramasser-arme': {
       fn: commandeRamasserArme,
@@ -37759,7 +37762,8 @@ var COFantasy2 = COFantasy2 || function() {
     'resistance-a-la-magie-naine': {
       fn: commandeResistanceALaMagieNaine,
       minArgs: 1,
-      acteur: 1
+      acteur: 1,
+      boutonExclusif: true,
     },
     'retarder-tour': {
       fn: commandeRetarderTour,
@@ -37791,7 +37795,8 @@ var COFantasy2 = COFantasy2 || function() {
     'sprinter': {
       fn: commandeSprinter,
       minArgs: 1,
-      acteur: 1
+      acteur: 1,
+      boutonExclusif: true,
     },
     'surprise': {
       fn: commandeSurprise
@@ -37819,7 +37824,8 @@ var COFantasy2 = COFantasy2 || function() {
     'terminer-mvt': {
       fn: commandeTerminerMvt,
       minArgs: 1,
-      acteur: 1
+      acteur: 1,
+      boutonExclusif: true,
     },
     'test-oppose': {
       fn: commandeTestOppose,
@@ -37840,7 +37846,8 @@ var COFantasy2 = COFantasy2 || function() {
     'undo-dernier-mvt': {
       fn: commandeUndoDernierMvt,
       minArgs: 1,
-      acteur: 1
+      acteur: 1,
+      boutonExclusif: true,
     },
   };
 
@@ -37898,6 +37905,10 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       }
     }
+      if (f.boutonExclusif && options.acteur && !peutController(options.acteur, playerId)) {
+        sendPlayer("pas le droit d'utiliser ce bouton", playerId);
+        return;
+      }
     if (indexOpt > 0) {
       let optionString = apiMsg.content.substring(indexOpt + 3);
       options = parseOptions(optionString, pageId, options);

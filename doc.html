@@ -1226,7 +1226,7 @@ tr {line-height: 25px;}
                 </ol>
                 <h4 class="text-secondary">Voie du preux</h4>
                 <ol>
-                  <li></li>
+                  <li><strong>Ignorer la douleur :</strong> le script propose d'ignorer la douleur sur les dégâts non critiques.</li>
                   <li></li>
                   <li></li>
                   <li><strong>Charisme héroïque :</strong> le script ajoute un buff sur l'augmentation de caractéristique, et donne un dé bonus aux tests (sans toucher au champ de caractéristique héroïque sur la fiche)</li>
@@ -1237,6 +1237,10 @@ tr {line-height: 25px;}
                   <li><strong>Intercepter :</strong> le script propose d'intercepter.</li>
                   <li><strong>Exemplaire :</strong> le script propose de donner le dé bonus.</li>
                   <li><strong>Charge fantastique :</strong> le script propose l'action en début de tour. Si vous souhaitez le faire après avoir agi, sélectionner le token et faire <code>!cof2-effet chargeFantastique 1 --acteur @{selected|token_id} --alliesEnVue --limiteParCombat 1 chargeFantastique --message lance une charge fantastique !</code></li>
+                </ol>
+                <h4 class="text-secondary">Voie de la noblesse</h4>
+                <ol>
+                  <li><strong>Éduqué :</strong> le script ne rajoute que le bonus évolutif, il faut gérer à la main la langue supplémentaire et penser que le chevalier sait lire et écrire.</li>
                 </ol>
               </div>
                 <h3 class="text-info" id="druide">Druide</h3>
@@ -1279,6 +1283,11 @@ tr {line-height: 25px;}
                   <li><strong>Télékinésie :</strong> le script ne propose qu'une action qui fait dépenser la mana. Il faudra gérer les déplacements à la main. L'attaque contre les cibles surprises n'est pas gérée.</li>
                   <li><strong>Foudre :</strong> propose le sort dans la liste d'actions.</li>
                   <li><strong>Forme éthérée :</strong> propose le sort dans la liste d'actions.</li>
+                </ol>
+                <h4 class="text-secondary">Voie de la divination</h4>
+                <ol>
+                  <li><strong>Divination :</strong> le script propose le sort, et ajoute les bonus d'init et de DEF, mais pas sur la fiche.</li>
+                  <li><strong>Détection de l'invisible :</strong> le script propose le sort, mais le seul effet du sort est d'ignorer les malus contre les adversaires qu'on ne voit pas. Au MJ de prévenir en cas de clairvoyance ou d'indiquer la position des adversaires invisibles.</li>
                 </ol>
                 <h4 class="text-secondary">Voie de l'envoûteur</h4>
                 <ol>
