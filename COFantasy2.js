@@ -1,4 +1,4 @@
-//Dernière modification : dim. 15 nov. 2026,  12:47
+//Dernière modification : dim. 15 nov. 2026,  01:09
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13088,6 +13088,30 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         entrerEnCombat: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Exécution mentale --sortilege --attaqueMagiqueOpposee --portee 20 --attaqueMentale --pasDeDmg --if NC < @{selected|niveau} --etat mort --else --effet etourdi 1 --endif --limiteCibleParJour 1 cibleExecutionMentale",
+      },
+    },
+    //Voie de l'invocation
+    'choc': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Choc",
+        type: 'A',
+        mana: 1,
+        limiteArmure: 'ensorceleur',
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Choc --sortilege --dm 1d4E+@{selected|CHA} --portee 20 --if NC < RANG --etat renverse --save FOR 10 --endif",
+      },
+    },
+    'serviteur invisible': {
+      profil: 'ensorceleur',
+      action: {
+        nom: "Serviteur invisible",
+        type: 'L',
+        mana: 2,
+        limiteArmure: 'ensorceleur',
+        horsCombat: true,
+        cmd: "!cof2-action invoque un serviteur invisible --messageMJ le sort dure @{selected|CHA} minutes",
       },
     },
     //Voies de magicien /////////////////////////////////////////////
