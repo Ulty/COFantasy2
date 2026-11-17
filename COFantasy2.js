@@ -1,4 +1,4 @@
-//Dernière modification : mar. 17 nov. 2026,  03:09
+//Dernière modification : mar. 17 nov. 2026,  03:30
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -14644,6 +14644,11 @@ var COFantasy2 = COFantasy2 || function() {
           };
           predicatsDeCapacite(perso, nom, 0, 5, capacites, actions, {}, {}, opt);
         }
+    ficheAttribute(perso, 'immudm', '').trim().split(',').forEach(function(r) {
+      r = r.trim();
+      if (r === '') return;
+      capacites['immunite_'+r] = true;
+    });
       } else {
         let armesMaitrisees = {};
         let armes = ficheAttribute(perso, 'maitrises_armes', '');
@@ -30826,13 +30831,11 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function immuniseAuType(target, dmgType, attaquant, options) {
-    if (predicateAsBool(target, 'immunite_' + dmgType)) {
-      return true;
-    }
+    if (predicateAsBool(target, dmgType)) return true;
     if (attributeAsBool(target, 'immuniteA' + dmgType)) return true;
-    if (options.tranchant && predicateAsBool(target, 'immunite_tranchant')) return true;
-    if (options.contondant && predicateAsBool(target, 'immunite_contondant')) return true;
-    if (options.perforant && predicateAsBool(target, 'immunite_perforant')) return true;
+    if (options.tranchant && predicateAsBool(target, 'tranchant')) return true;
+    if (options.contondant && predicateAsBool(target, 'contondant')) return true;
+    if (options.perforant && predicateAsBool(target, 'perforant')) return true;
     //TODO: revoir cette liste
     switch (dmgType) {
       case 'acide':
@@ -30853,7 +30856,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (predicateAsBool(target, 'vegetatif')) return true;
         return attributeAsBool(target, 'sangDeLArbreCoeur');
     }
-    if (options.attaqueMentale && predicateAsBool(target, 'immunite_mental')) return true;
+    if (options.attaqueMentale && predicateAsBool(target, 'mental')) return true;
     return false;
   }
 
@@ -37579,7 +37582,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   const attributeQuiAffecteMaitriseArmes = new RegExp('^v[1-9]r2$|^v[1-9]profil$|^maitrises_armes$');
-  const attributeQuiAffecteCapacite = new RegExp('^v[1-9]r[1-9](|_param)$|^repeating_npcrolls_[^_]*_npcroll-name');
+  const attributeQuiAffecteCapacite = new RegExp('^v[1-9]r[1-9](|_param)$|^repeating_npcrolls_[^_]*_npcroll-name$|^immudm$');
   const attributeQuiAffectePredEquip = new RegExp('^repeating_equipement_[^_]*_equip-predicats');
 
   function activateSheetWorkerCompagnon(perso, compagnon) {
