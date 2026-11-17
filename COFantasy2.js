@@ -1,4 +1,4 @@
-//Dernière modification : dim. 15 nov. 2026,  05:47
+//Dernière modification : mar. 17 nov. 2026,  03:09
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4077,7 +4077,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   //Bonus en Attaque qui ne dépendent pas du défenseur
   //Remplit le champs options.bonusDM (en partant de 0)
-  //TODO: revoir les effets
+  //weaponStats est optionnel
   function bonusAttaqueA(attaquant, weaponStats, evt, explications, options) {
     let attBonus = 0;
     if (options.bonusAttaque) attBonus += options.bonusAttaque;
@@ -12096,6 +12096,7 @@ var COFantasy2 = COFantasy2 || function() {
       nom: "Manteau d'ombre",
       type: 'L',
       mana: 4,
+      bufPersonnelNonCumulable: 'manteauDOmbre',
       cmd: '!cof2-effet manteauDOmbre --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
     }
   };
@@ -12106,10 +12107,30 @@ var COFantasy2 = COFantasy2 || function() {
       nom: "Détection de l'invisible",
       type: 'L',
       man: 2,
+      utilitaire: true,
       bufPersonnelNonCumulable: 'detectionDeLInvisible',
       cmd: "!cof2-effet detectionDeLInvisible --dureeEnMinutes @{selected|CHA} --select @{selected|token_id}",
     },
   };
+
+  const capaciteOuvertureFermeture = {
+      profil: 'forgesort',
+      actions: [{
+        nom: 'Ouverture',
+        limiteArmure: 'forgesort',
+        type: 'M',
+        mana: 2,
+        utilitaire: true,
+        cmd: "!cof2-jet VOL --competence attaque magique --sortilege --difficulte ?{Difficulté de crochetage} --succes réussit à ouvrir la porte --titre Sort d'ouverture",
+      }, {
+        nom: 'Fermeture',
+        limiteArmure: 'forgesort',
+        type: 'M',
+        mana: 2,
+        utilitaire: true,
+        cmd: "!cof2-action scelle une ouverture --messageMJ le sort va durer @{selected|INT}, et le mot de passe est ?{Mot de passe?}",
+      }],
+    };
 
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
@@ -12123,6 +12144,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  - combat : si true, l'action n'est affichée qu'en combat
   //  - entrerEnCombat: l'action fait entrer en combat. Inutile si dm, car ça fait toujours entrer en combat
   //  - horsCombat: si true, l'action n'est affichée qu'hors combat
+  //  - utilitaire : l'action peut être utilisée en combat, mais plutôt rarement
   //  - debutDuTour: l'action n'est plus proposée si le pesonnage a déjà agit ce tour
   //  - debutOuFinDuTour: l'action n'est plus proposée si le pesonnage a déjà agit ce tour, sauf à la fin du tour
   //  - premierRound: seulement au premier round de combat
@@ -12239,12 +12261,13 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Détecter la magie',
         type: 'L',
         mana: 2,
-        horsCombat: true,
+        utilitaire: true,
         cmd: '!cof2-action détecte la présence de magie dans un rayon de 10 m --secret',
       }, {
         nom: 'Dissiper la magie',
         type: 'L',
         mana: 2,
+        utilitaire: true,
         cmd: "!cof2-attaque  @{selected|token_id} @{target|Cible|token_id} Dissipation de magie --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10000 --if touche --message Le sort est dissipé --endif",
       }],
     },
@@ -12356,6 +12379,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 4,
         aoe: true,
+        utilitaire: true,
         //TODO: utiliser une zone d'effet, dont l'effet soit dynamique en fonction des mouvements
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Zone de silence --sortilege --auto --pasDeDmg --portee 30 --disque 3 --effet zoneDeSilence --dureeEnMinutes @{selected|CHA}",
       },
@@ -12802,11 +12826,10 @@ var COFantasy2 = COFantasy2 || function() {
       }],
       vivacite: 3, //Bonus aux save contre immobilise et renverse. On n'utilise pas bonusSaveContre_ pour pouvoir limiter aux armures de guerrier
       Restriction_vivacite: 'armure_guerrier',
-      mouvementVivacite: true,
       action: {
-        nom: '<span title="Action de mouvement suppélementaire">Vivacité</span>',
-        limitArmure: 'guerrier',
-        cmd: "!cof2-action est très vif --donneAction EM --decrLimitePredicatParCombat mouvementVivacite --select @{selected|token_id}"
+        nom: '<span title="Action de mouvement supplémentaire">Vivacité</span>',
+        limiteArmure: 'guerrier',
+        cmd: "!cof2-action est très vif --donneAction EM --limiteParCombat 1 mouvementVivacite --select @{selected|token_id}"
       }
     },
     'manoeuvre': { //TODO: vérifier carac quand copié-collé
@@ -12910,7 +12933,7 @@ var COFantasy2 = COFantasy2 || function() {
       profil: 'ensorceleur',
       action: {
         nom: 'Murmures dans le vent',
-        horsCombat: true,
+        utilitaire: true,
         type: 'G',
         mana: 1,
         limiteArmure: 'ensorceleur',
@@ -12942,6 +12965,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Télékinésie',
         type: 'A',
         mana: 3,
+        utilitaire: true,
         cmd: "!cof2-action déplace un objet de moins de [[50*RANG]] kg dans les airs",
       }
     },
@@ -12980,6 +13004,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Divination',
         type: 'L',
         mana: 1,
+        utilitaire: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Divination --sortilege --pasDeDmg --attaqueMagiqueOpposee --portee 10 --if NC < @{selected|niveau} --message divination réussie --else --message la cible est trop puissante --endif",
       }
     },
@@ -13046,6 +13071,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Mirage',
         type: 'L',
         mana: 1,
+        utilitaire: true,
         limiteArmure: 'ensorceleur',
         cmd: '!cof2-action crée une illusion --select @{selected|token_id}',
       }
@@ -13089,6 +13115,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Imitation",
         type: 'A',
         mana: 4,
+        utilitaire: true,
         limiteArmure: 'ensorceleur',
         cmd: "!cof2-effet imitation --dureeEnMinutes @{selected|CHA} --valeur @{target|Cible|token_id} --message prend l'apparence de @{target|Cible|token_name} --messageMJ test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}.",
       },
@@ -13125,7 +13152,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 2,
         limiteArmure: 'ensorceleur',
-        horsCombat: true,
+        utilitaire: true,
         cmd: "!cof2-action invoque un serviteur invisible --messageMJ le sort dure @{selected|CHA} minutes",
       },
     },
@@ -13142,6 +13169,8 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|token_id} -1 --toucher @{selected|atkmag} --dm 2d4E+@{selected|INT} --magique --titre Éclair d'énergie",
       },
     },
+    'ouverture ‑ fermeture': capaciteOuvertureFermeture,
+    'ouverture - fermeture': capaciteOuvertureFermeture,
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
     'projectile de mana': {
@@ -13170,6 +13199,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'M',
         mana: 2,
         limiteArmure: 'magicien',
+        utilitaire: true,
         bufPersonnelNonCumulable: 'levitation',
         cmd: "!cof2-effet levitation --dureeEnMinutes @{selected|INT} --select @{selected|token_id}"
       },
@@ -13181,6 +13211,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 3,
         limiteArmure: 'magicien',
+        utilitaire: true,
         bufPersonnelNonCumulable: 'formeGazeuse',
         cmd: "!cof2-effet formeGazeuse --dureeEnMinutes 1 --select @{selected|token_id}"
       },
@@ -13269,8 +13300,8 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Respiration aquatique',
         type: 'A',
         mana: 3,
+        utilitaire: true,
         limiteArmure: 'magicien',
-        //TODO: proposer dans une liste de sorts utilitaires, plus rarement utilisés ?
         cmd: "!cof2-effet respirationAquatique --dureeEnMinutes 10 --select @{selected|token_id} INT_TARGETS",
       },
     },
@@ -13299,6 +13330,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Chute ralentie',
         type: 'G',
         mana: 2,
+        utilitaire: true,
         limiteArmure: 'magicien',
         cmd: '!cof2-action lance un sort de chute ralentie sur INT_TARGETS_NAMES --portee 10 --noSelect --message chute beaucoup moins vite',
       },
@@ -13324,6 +13356,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 1,
         limiteArmure: 'magicien',
+        utilitaire: true,
         cmd: '!cof2-lumiere @{target|token_id} 10 --portee 10',
       }, {
         nom: 'Lumière dans les yeux',
@@ -13369,6 +13402,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'A',
         mana: 3,
         limiteArmure: 'magicien',
+        utilitaire: true,
         cmd: '!cof2-effet invisible oui --dureeEnMinutes 1d4E+@{selected|INT} --select @{selected|token_id}',
       }, {
         aPartirDeRang: 5,
@@ -13386,6 +13420,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'magicien',
         type: 'A',
         mana: 4,
+        utilitaire: true,
         cmd: '!cof2-effet peutVoler oui --dureeEnMinutes 2d4E+@{selected|INT} --select @{selected|token_id}',
       }
     },
@@ -13396,6 +13431,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'magicien',
         type: 'L',
         mana: 5,
+        utilitaire: true,
         cmd: '!cof2-action se téléporte --messageMJ à moins de [[@{selected|niveau}*@{selected|INT}]] km dans un lieu en vue ou parfaitement connu',
       },
     },
@@ -13417,6 +13453,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Reptation',
         type: 'M',
         mana: 2,
+        utilitaire: true,
         cmd: '!cof2-effet reptation --dureeEnMinutes @{selected|INT} --select @{selected|token_id}',
       }
     },
@@ -13548,7 +13585,7 @@ var COFantasy2 = COFantasy2 || function() {
       profil: 'druide',
       action: {
         nom: 'Baies magiques',
-        horsCombat: true,
+        utilitaire: true,
         type: 'L',
         mana: 1,
         limiteArmure: 'druide',
@@ -13559,7 +13596,7 @@ var COFantasy2 = COFantasy2 || function() {
       profil: 'druide',
       action: {
         nom: 'Forêt vivante',
-        horsCombat: true,
+        utilitaire: true,
         type: 'L',
         mana: 2,
         limiteArmure: 'druide',
@@ -13672,6 +13709,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'L',
         mana: 1,
+        bufPersonnelNonCumulable: 'benediction',
         cmd: '!cof2-effet benediction SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --alliesEnVue',
       }
     },
@@ -13712,6 +13750,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Vigueur divine",
         type: 'L',
         mana: 2,
+        utilitaire: true,
         cmd: "!cof2-action soigne @{target|Cible|token_name} d'un poison ou d'une maladie --cible @{target|Cible|token_id} --portee 0 --noSelect",
       },
     },
@@ -13744,6 +13783,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Augure",
         type: 'L',
         mana: 2,
+        utilitaire: true,
         cmd: "!cof2-jet CHA --titre Augure --difficulte 10 --select @{selected|token_id}",
       },
     },
@@ -13886,7 +13926,7 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: '!cof2-effet chantDesHeros SELONRANG(1,1,1,1,2) --dureeEnMinutes @{selected|CHA} --select @{selected|token_id} --allies',
       }, {
         nom: "Chant de réconfort",
-        horsCombat: true,
+        utilitaire: true,
         type: 'L',
         cmd: "!cof2-soin SELONRANG(1,1,1,2,2)d4E --select @{selected|token_id} --allies --portee 10 --message chante pendant une demi-heure --titre Chant de réconfort",
       }, {
@@ -13990,7 +14030,7 @@ var COFantasy2 = COFantasy2 || function() {
     "voie de l'air": {
       actions: [{
         nom: 'Murmures dans le vent',
-        horsCombat: true,
+        utilitaire: true,
         sortilege: true,
         type: 'G',
         cmd: "!cof2-action chuchote un message à quelqu'un --select @{selected|token_id}"
@@ -15152,6 +15192,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'action':
       case 'effet':
       case 'lumiere':
+      case 'jet':
         if (options && options.mana !== undefined) {
           picto = '<span style="font-family: \'Pictos Three\'">g</span> ';
           style = 'background-color:#9900ff;';
@@ -16765,6 +16806,34 @@ var COFantasy2 = COFantasy2 || function() {
     };
   }
 
+  function actionsDeSortsUtilitaires(perso, options) {
+    let infos = getInfos(perso);
+    if (!infos.actions) {
+      error("Aucune action trouvée pour " + nomPerso(perso), perso);
+      return;
+    }
+    let ligne = '';
+    infos.actions.forEach(function(action) {
+      if (!action.utilitaire || !(action.mana || action.sortilege)) return;
+      ligne = ajouterAction(perso, action, ligne);
+    });
+    return ligne;
+  }
+
+  function actionsUtilitaires(perso, options) {
+    let infos = getInfos(perso);
+    if (!infos.actions) {
+      error("Aucune action trouvée pour " + nomPerso(perso), perso);
+      return;
+    }
+    let ligne = '';
+    infos.actions.forEach(function(action) {
+      if (!action.utilitaire || action.mana || action.sortilege) return;
+      ligne = ajouterAction(perso, action, ligne);
+    });
+    return ligne;
+  }
+
   function avantSonTour(perso, combat) {
     if (!combat || combat.activeTokenId == perso.token.id) return false;
     let {
@@ -17216,9 +17285,40 @@ var COFantasy2 = COFantasy2 || function() {
     //TODO: mettre à part les actions qui demandent une brûlure de mana, voire aussi celles qui redonnent un effet déjà actif
     let infos = getInfos(perso);
     if (infos.actions) {
-      infos.actions.forEach(function(action) {
+      //On va d'abord trier les actions normales, les sorts utilitaires et les autres actions utilitaires;
+      let sortsUtilitaires = [];
+      let actionsUtilitaires = [];
+      let actionsNormales = infos.actions;
+      let sortsDeCombat;
+      if (actionsEnCombat) {
+        actionsNormales = infos.actions.filter(function(action) {
+          if (!action.utilitaire) {
+            sortsDeCombat = sortsDeCombat || action.mana || action.sortilege;
+            return true;
+          }
+          if (action.mana || action.sortilege) sortsUtilitaires.push(action);
+          else actionsUtilitaires.push(action);
+          return false;
+        });
+      }
+      actionsNormales.forEach(function(action) {
         ligne = ajouterAction(perso, action, ligne, actionsEnCombat, avant);
       });
+      if (sortsUtilitaires.length > 1) {
+        let command = "!cof2-liste-actions sorts-utilitaires-script --select " + perso.token.id;
+        let titre = '';
+        if (sortsDeCombat) titre = "Plus de sorts";
+        else titre = "Sortilèges";
+        ligne += boutonSimple(command, PICTO_LISTE_ACTIONS.picto + titre, BS_LISTE_ACTIONS) + '<br/>';
+      } else if (sortsUtilitaires.length == 1) {
+        ligne = ajouterAction(perso, sortsUtilitaires[0], ligne, actionsEnCombat, avant);
+      }
+      if (actionsUtilitaires.length > 1) {
+        let command = "!cof2-liste-actions actions-utilitaires-script --select " + perso.token.id;
+        ligne += boutonSimple(command, PICTO_LISTE_ACTIONS.picto + "Autres actions", BS_LISTE_ACTIONS) + '<br/>';
+      } else if (actionsUtilitaires.length == 1) {
+        ligne = ajouterAction(perso, actionsUtilitaires[0], ligne, actionsEnCombat, avant);
+      }
     }
     if (combat && actionsEnCombat) {
       let actions = actionsDisponibles(perso, combat);
@@ -17358,6 +17458,14 @@ var COFantasy2 = COFantasy2 || function() {
           title,
           ligne
         } = actionsDeGrimoire(perso, listActions, options));
+        fait = true;
+      } else if (listActions.startsWith("sorts-utilitaires-script")) {
+        title = "Sorts utilitaires";
+        ligne = actionsDeSortsUtilitaires(perso, options);
+        fait = true;
+      } else if (listActions.startsWith("actions-utilitaires-script")) {
+        title = 'Autres actions';
+        ligne = actionsUtilitaires(perso, options);
         fait = true;
       } else {
         title = listActions;
@@ -25781,9 +25889,19 @@ var COFantasy2 = COFantasy2 || function() {
     let testRes = {
       explications
     };
-    let bonusCarac = bonusTestCarac(carac, perso, options, evt, explications);
     let jetCache = ficheAttributeAsBool(perso, 'togm', false);
-    options.deBonus = options.deBonus || caracHeroique(carac, perso);
+    let bonusCarac = 0;
+    if (options.competence == 'attaque magique') {
+      bonusCarac = attaquePerso(perso, 'atkmag');
+      let opt = {
+        pasDeDmg: true,
+        ignoreObstacles: true,
+      };
+      bonusCarac += bonusAttaqueA(perso, undefined, evt, explications, opt);
+    } else {
+      bonusCarac = bonusTestCarac(carac, perso, options, evt, explications);
+      options.deBonus = options.deBonus || caracHeroique(carac, perso);
+    }
     let de = {
       dice: 20
     };
@@ -26394,9 +26512,19 @@ var COFantasy2 = COFantasy2 || function() {
   // - explications
   function jetCaracteristique(perso, carac, options, testId, evt) {
     let explications = [];
-    let bonusCarac = bonusTestCarac(carac, perso, options, evt, explications);
-    options.deBonus = options.deBonus || caracHeroique(carac, perso);
     let jetCache = ficheAttributeAsBool(perso, 'togm', false);
+    let bonusCarac = 0;
+    if (options.competence == 'attaque magique') {
+      bonusCarac = attaquePerso(perso, 'atkmag');
+      let opt = {
+        pasDeDmg: true,
+        ignoreObstacles: true,
+      };
+      bonusCarac += bonusAttaqueA(perso, undefined, evt, explications, opt);
+    } else {
+      bonusCarac = bonusTestCarac(carac, perso, options, evt, explications);
+      options.deBonus = options.deBonus || caracHeroique(carac, perso);
+    }
     let bonusText = '';
     if (bonusCarac > 0) {
       bonusText = ' + ' + bonusCarac;
