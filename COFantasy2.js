@@ -1,4 +1,4 @@
-//Dernière modification : mer. 18 nov. 2026,  02:16
+//Dernière modification : mer. 18 nov. 2026,  05:42
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -925,6 +925,11 @@ var COFantasy2 = COFantasy2 || function() {
     visibleto: '',
     istokenaction: false,
     inBar: true
+  }, {
+    name: 'Donner',
+    action: "!cof2-donner-equipement @{selected|token_id}",
+    visibleto: 'all',
+    istokenaction: true,
   }, ];
 
   // Tout ce qui doit survivre est dans state.COFantasy --------------------------------------
@@ -15928,8 +15933,11 @@ var COFantasy2 = COFantasy2 || function() {
       if (armeADegainer.unique && !labelArmePrincipale && !labelArmeGauche)
         ligneArme += armeADegainer.nom;
     } else {
-      if (ligneArme)
-        ligneArme += boutonSimple('!cof2-degainer --montreActions --select ' + perso.token.id + " --typeAction M", '<span style="font-family:Pictos">}</span>', BS_BUTTON + ' title="Rengainer";');
+      if (ligneArme) {
+        let command = '!cof2-degainer --select ' + perso.token.id;
+      if (stateCOF.combat) command += ' --montreActions --typeAction M';
+        ligneArme += boutonSimple(command, '<span style="font-family:Pictos">}</span>', BS_BUTTON + ' title="Rengainer";');
+      }
     }
     return ligneArme;
   }
@@ -17457,10 +17465,10 @@ var COFantasy2 = COFantasy2 || function() {
       //Premiers soins si un PJ est au sol et qu'on n'est plus en combat
       if (!combat && !actionsEnCombat) {
         let tokens = findObjs({
-        _type: 'graphic',
-        _subtype: 'token',
-        _pageid: pageId,
-        layer: 'objects',
+          _type: 'graphic',
+          _subtype: 'token',
+          _pageid: pageId,
+          layer: 'objects',
         });
         let vus = new Set();
         let persoATerre = tokens.some(function(token) {
@@ -17468,14 +17476,17 @@ var COFantasy2 = COFantasy2 || function() {
           let charId = token.get('represents');
           if (charId === '' || vus.has(charId)) return false;
           vus.add(charId);
-          let perso = {token, charId};
+          let perso = {
+            token,
+            charId
+          };
           if (persoEstPNJ(perso)) return false;
           return getState(perso, 'mort') && !attributeAsBool(perso, 'inconscientApresPremiersSoins');
         });
-       if (persoATerre) {
-         let command = "!cof2-premiers-soins "+perso.token.id+" @{target|token_id}";
-         ligne += boutonSimple(command, PREMIERS_SOINS + " Premiers soins", BS_SOINS)+'<br/>';
-       }
+        if (persoATerre) {
+          let command = "!cof2-premiers-soins " + perso.token.id + " @{target|token_id}";
+          ligne += boutonSimple(command, PREMIERS_SOINS + " Premiers soins", BS_SOINS) + '<br/>';
+        }
       }
       //Les actions de grimoires de pouvoir et d'objets de pouvoir
       let equipement = listAllEquipment(perso);
@@ -30014,10 +30025,33 @@ var COFantasy2 = COFantasy2 || function() {
     if (estMook(perso)) {
       setTokenAttr(perso, a, val, evt);
     } else {
+      let prev = getEnMain(perso, cote);
       let optDef = {
         default: '0'
       };
       setFicheAttr(perso, a, val, evt, optDef);
+      const listeAttaques = listAllAttacks(perso);
+      if (prev && prev.label) {
+        let arme = listeAttaques[prev.label];
+        if (arme) {
+          let gid = arme['arme-gearid'];
+          if (gid) {
+            setFicheAttr(perso, 'repeating_equipement_' + gid + '_equip-on', 0, evt, optDef);
+          }
+        }
+      }
+      if (val) {
+        let arme = parseArmeEnMain(val);
+        if (arme.label) {
+          arme = listeAttaques[arme.label];
+          if (arme) {
+            let gid = arme['arme-gearid'];
+            if (gid) {
+              setFicheAttr(perso, 'repeating_equipement_' + gid + '_equip-on', 1, evt, optDef);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -32770,7 +32804,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function creerPotion(perso, nom, effet, nb, emplacement, evt) {
+  function ajouterPotion(perso, nom, effet, nb, emplacement, evt) {
     if (nb < 1) return;
     //On regarde déjà si on a la même potion en stock
     let {
@@ -32793,6 +32827,10 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       }
     }
+    creerPotion(perso, nom, effet, nb, emplacement, evt);
+  }
+
+  function creerPotion(perso, nom, effet, nb, emplacement, evt) {
     let pref = 'repeating_potions_' + generateRowID() + '_';
     let attre = createObj('attribute', {
       name: pref + 'potion-nom',
@@ -32998,7 +33036,7 @@ var COFantasy2 = COFantasy2 || function() {
       effet = replaceStringSelonRang(effet, rang);
     }
     effet += " --elixir";
-    creerPotion(perso, elixir.nom, effet, 1, 'ceinture', evt);
+    ajouterPotion(perso, elixir.nom, effet, 1, 'ceinture', evt);
     sendPerso(perso, "crée un " + elixir.nom, true);
     options.testeRessources = true;
     if (stateCOF.combat) return;
@@ -33188,6 +33226,110 @@ var COFantasy2 = COFantasy2 || function() {
     // le MJ est notifié :
     sendChat('COF', "/w GM " + nomPerso(perso1) + " vient de donner <strong>1</strong> " + consName + " à " + nomPerso(perso2) + ".");
     addEvent(evt);
+  }
+
+  function commandeDonnerEquipement(cmd, playerId, pageId, options, perso) {
+    if (cmd.length < 3) {
+      //On affiche la liste de l'équipement pour proposer un équipement à donner
+      let display = startFramedDisplay(playerId, 'Équipement :', perso, {
+        chuchote: true
+      });
+      let equipement = listAllEquipment(perso);
+      let command = "!cof2-donner-equipement " + perso.token.id + " @{target|token_id} ";
+      let id_armure = ficheAttribute(perso, 'armor_gearid', '');
+      if (id_armure) id_armure = 'repeating_equipement_' + id_armure + '_';
+      let id_arme;
+      let mainDroite = getEnMain(perso);
+      if (mainDroite.lineId) {
+        id_arme = ficheAttribute(perso, 'repeating_armes_' + mainDroite.lineId + '_arme-gearid', false);
+        if (id_arme) id_arme = 'repeating_equipement_' + id_arme + '_';
+      }
+      for (let pref in equipement) {
+        let eq = equipement[pref];
+        let nom = eq['equip-nom'];
+        if (!nom || nom === '') continue;
+        let nb = toInt(eq['equip-qte'], 1);
+        if (nb < 1) return;
+        let ligne = nb + ' ' + boutonSimple(command + pref, nom, BS_BUTTON);
+        if (eq['equip-on']) {
+          let p = pref.toLowerCase();
+          if (p == id_armure || p == id_arme || (eq['equip-predicats'] && eq['equipe-predicats'].trim() !== '')) {
+            ligne += ' (équipé)';
+          }
+        }
+        addLineToFramedDisplay(display, ligne);
+      }
+      sendFramedDisplay(display);
+      return;
+    }
+    let cible = persoOfId(cmd[2], cmd[2], pageId);
+    if (!cible) {
+      sendPlayer("Cible à laquelle donner l'équipement non valide", playerId);
+      return;
+    }
+    if (estMook(cible)) {
+      sendPlayer(nomPerso(cible)+ " est un personnage générique, le transfert d'équipement n'est pas encore géré", playerId);
+      return;
+    }
+    let prefix = cmd[3];
+    let fields = [];
+    let nom = ficheAttribute(perso, prefix+'equip-nom', '');
+    if (!nom || nom === '') {
+      error("Impossible de trouver l'équipement de préfixe "+prefix, cmd);
+      return;
+    }
+    let nb = ficheAttributeAsInt(perso, prefix+'equip-qte', 1);
+    if (nb < 1) {
+      sendPlayer(nomPerso(perso)+"n'a pas de "+nom+" à donner", playerId);
+      return;
+    }
+    const evt = {type: 'Transfert equipement'};
+    addEvent(evt);
+    let msg = "donne "+nom;
+    let prefatk;
+    if (nb == 1) {
+    //On commence par se déséquiper si besoin
+    if (ficheAttributeAsInt(perso, prefix+'equip-on')) {
+      msg = "enlève "+nom+" et le donne";
+      setFicheAttr(perso, prefix+'equip-on', 0);
+    }
+    //On enlève la ligne d'attaque si elle existe
+      let atkid = ficheAttribute(perso, prefix+'equip-atkid', '');
+      if (atkid !== '') {log(atkid);
+        prefatk = 'repeating_armes_'+atkid+'_';
+      }
+    }
+    let attrsPerso = findObjs({
+      _type: 'attribute',
+      _characterid: perso.charId,
+    });
+    attrsPerso.forEach(function(a) {
+      let an = a.get('name');
+      if (an.startsWith(prefix)) {
+        let name = an.substring(prefix.length);
+        //On filtre les attributes caches
+        if (name == 'equip-modprops' || name == 'equip-atklbl' || name == 'equip-atkid' || name == 'equip-on') {
+          if (nb ==1) deleteAttribute(a, evt);
+        } else if (name == 'equip-qte') {
+          if (nb > 2) {
+            addAttributeToEvt(a, evt, nb);
+            a.set('current', nb-1);
+          } else deleteAttribute(a, evt);//On peut aussi effacer si nb devient 1
+        } else {
+          let current = a.get('current');
+          fields.push({name, current});
+          if (nb == 1) deleteAttribute(a, evt);
+        }
+      } else if (prefatk && an.startsWith(prefatk)) {
+        deleteAttribute(a, evt);
+      }
+    });
+    //On crée les attributs chez le destinataire;
+    prefix = 'repeating_equipement_'+generateRowID()+'_';
+    fields.forEach(function(f) {
+      setFicheAttr(cible, prefix+f.name, f.current, evt);
+    });
+    sendPerso(perso, msg+" à "+nomPerso(cible));
   }
 
   function ajouterConsommable(perso, nom, action, nb, evt) {
@@ -38072,6 +38214,12 @@ var COFantasy2 = COFantasy2 || function() {
     'donner-consommable': {
       fn: commandeDonnerConsommable,
       minArgs: 3,
+      acteur: 1,
+      boutonExclusif: true,
+    },
+    'donner-equipement': {
+      fn: commandeDonnerEquipement,
+      minArgs: 1,
       acteur: 1,
       boutonExclusif: true,
     },
