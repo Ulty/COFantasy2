@@ -1,4 +1,4 @@
-//Dernière modification : mer. 18 nov. 2026,  01:51
+//Dernière modification : mer. 18 nov. 2026,  02:16
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -857,7 +857,7 @@ var COFantasy2 = COFantasy2 || function() {
     name: PREMIERS_SOINS,
     action: "!cof2-premiers-soins @{selected|token_id} @{target|token_id}",
     visibleto: 'all',
-    istokenaction: true,
+    istokenaction: false,
     inBar: false
   }, {
     name: PASSER_TEMPS,
@@ -15160,12 +15160,18 @@ var COFantasy2 = COFantasy2 || function() {
     style: 'background-color:#272751;',
   };
 
+  const PICTO_SOINS = {
+    picto: '<span style="font-family: \'Pictos\'">k</span> ',
+    style: 'background-color:#ffe599;color:#333;',
+  };
+
   function buttonStyleOfPicto(p) {
     return ' style="' + p.style + BASIC_BUTTON_STYLE + '"';
   }
 
   const BS_ATTENDRE = buttonStyleOfPicto(PICTO_ATTENDRE);
   const BS_LISTE_ACTIONS = buttonStyleOfPicto(PICTO_LISTE_ACTIONS);
+  const BS_SOINS = buttonStyleOfPicto(PICTO_SOINS);
 
   function pictoOfAttack(attackStats, options = {}) {
     let picto;
@@ -15240,9 +15246,7 @@ var COFantasy2 = COFantasy2 || function() {
       case 'guerir':
       case 'guerison':
       case 'zone-de-vie':
-        picto = '<span style="font-family: \'Pictos\'">k</span> ';
-        style = 'background-color:#ffe599;color:#333;';
-        break;
+        return PICTO_SOINS;
       case 'action':
       case 'effet':
       case 'lumiere':
@@ -17449,6 +17453,29 @@ var COFantasy2 = COFantasy2 || function() {
             ligne += boutonSimple(command, "Transformation régénératrice") + '(L)<br/>';
           }
         }
+      }
+      //Premiers soins si un PJ est au sol et qu'on n'est plus en combat
+      if (!combat && !actionsEnCombat) {
+        let tokens = findObjs({
+        _type: 'graphic',
+        _subtype: 'token',
+        _pageid: pageId,
+        layer: 'objects',
+        });
+        let vus = new Set();
+        let persoATerre = tokens.some(function(token) {
+          if (token.get('bar1_link') === '') return false;
+          let charId = token.get('represents');
+          if (charId === '' || vus.has(charId)) return false;
+          vus.add(charId);
+          let perso = {token, charId};
+          if (persoEstPNJ(perso)) return false;
+          return getState(perso, 'mort') && !attributeAsBool(perso, 'inconscientApresPremiersSoins');
+        });
+       if (persoATerre) {
+         let command = "!cof2-premiers-soins "+perso.token.id+" @{target|token_id}";
+         ligne += boutonSimple(command, PREMIERS_SOINS + " Premiers soins", BS_SOINS)+'<br/>';
+       }
       }
       //Les actions de grimoires de pouvoir et d'objets de pouvoir
       let equipement = listAllEquipment(perso);
