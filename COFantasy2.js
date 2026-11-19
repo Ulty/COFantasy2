@@ -1,4 +1,4 @@
-//Dernière modification : mer. 18 nov. 2026,  05:42
+//Dernière modification : jeu. 19 nov. 2026,  01:04
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -15935,7 +15935,7 @@ var COFantasy2 = COFantasy2 || function() {
     } else {
       if (ligneArme) {
         let command = '!cof2-degainer --select ' + perso.token.id;
-      if (stateCOF.combat) command += ' --montreActions --typeAction M';
+        if (stateCOF.combat) command += ' --montreActions --typeAction M';
         ligneArme += boutonSimple(command, '<span style="font-family:Pictos">}</span>', BS_BUTTON + ' title="Rengainer";');
       }
     }
@@ -33228,14 +33228,172 @@ var COFantasy2 = COFantasy2 || function() {
     addEvent(evt);
   }
 
+  const monnaie = ['pp', 'po', 'pa', 'pc'];
+
+  function commandeDonnerMonnaie(cmd, playerId, pageId, options, perso) {
+    let cible = persoOfId(cmd[2], cmd[2], pageId);
+    if (!cible) {
+      sendPlayer("Cible à laquelle donner de l'argent non valide", playerId);
+      return;
+    }
+    if (estMook(cible)) {
+      sendPlayer(nomPerso(cible) + " est un personnage générique, le transfert d'argent n'est pas encore géré", playerId);
+      return;
+    }
+    if (cmd[3] == 'tout') {
+      const evt = {
+        type: 'donner argent'
+      };
+      addEvent(evt);
+      for (let i in monnaie) {
+        let attrName = 'tresor_' + monnaie[i];
+        let n = ficheAttributeAsInt(perso, attrName, 0);
+        if (n) {
+          removeFicheAttr(perso, attrName, evt);
+          let c = ficheAttributeAsInt(cible, attrName, 0);
+          setFicheAttr(cible, attrName, c + n, evt);
+        }
+      }
+      sendPerso(perso, "donne tout son argent à " + nomPerso(cible));
+      return;
+    }
+    const i = toInt(cmd[3], 3);
+    if (i < 0 || i > monnaie.length) {
+      error("Argument de monnaie de !cof2-donner-monnaie incorrect", cmd);
+      return;
+    }
+    let donne = toInt(cmd[4], 0);
+    if (donne < 1) {
+      sendPlayer("Rien à donner", playerId);
+      return;
+    }
+    let attrName = 'tresor_' + monnaie[i];
+    let n = ficheAttributeAsInt(perso, attrName, 0);
+    if (donne <= n) {
+      const evt = {
+        type: 'donner argent'
+      };
+      addEvent(evt);
+      if (donne == n) {
+        removeFicheAttr(perso, attrName, evt);
+      } else {
+        setFicheAttr(perso, attrName, n - donne, evt);
+      }
+      let c = ficheAttributeAsInt(cible, attrName, 0);
+      setFicheAttr(cible, attrName, c + donne, evt);
+      sendPerso(perso, "donne " + donne + ' ' + monnaie[i].toUpperCase() + " à " + nomPerso(cible));
+      return;
+    }
+    //On va essayer de faire l'appoint avec les autres pièces.
+    let p = [0, 0, 0, 0]; //monnaie du perso
+    p[i] = n;
+    for (let j in monnaie) {
+      if (j != i) p[j] = ficheAttributeAsInt(perso, 'tresor_' + monnaie[j], 0);
+    }
+    let t = [0, 0, 0, 0]; //argent donné
+    for (let j = i - 1; j >= 0; j--) donne = donne / 10;
+    for (let j = 0; j < monnaie.length; j++) {
+      if (j == i) donne = Math.round(donne);
+      if (donne === 0) break;
+      let f = donne;
+      if (j < i) f = Math.floor(f);
+      if (p[j] < f) {
+        donne -= p[j];
+        t[j] = p[j];
+        p[j] = 0;
+      } else {
+        donne -= f;
+        t[j] = f;
+        p[j] -= f;
+      }
+      donne = donne * 10;
+    }
+    if (donne > 0) {
+      let reste = p.some(function(x) {
+        return x > 0;
+      });
+      if (reste) {
+        sendPlayer("Impossible de faire l'appoint de " + cmd[4] + ' ' + monnaie[i].toUpperCase(), playerId);
+      } else {
+        sendPlayer(nomPerso(perso) + " n'a pas assez d'argent pour donner " + cmd[4] + ' ' + monnaie[i].toUpperCase(), playerId);
+      }
+      return;
+    }
+    //On essaie d'écouler la petite monnaie
+    for (let j = 1; j <= i; j++) {
+      if (p[j] > 20 && t[j - 1] > 0) {
+        let b = Math.floor(p[j] / 20);
+        if (b > t[j - 1]) b = t[j - 1];
+        t[j - 1] -= b;
+        p[j - 1] += b;
+        t[j] += 10 * b;
+        p[j] -= 10 * b;
+      }
+    }
+    const evt = {
+      type: 'donner argent'
+    };
+    addEvent(evt);
+    let msg = "donne ";
+    let last = 0;
+    for (let j = monnaie.length; j > 0; j--) {
+      if (t[j] > 0) {
+        last = j;
+        break;
+      }
+    }
+    let deja;
+    for (let j in monnaie) {
+      if (t[j] < 1) continue;
+      let attrName = 'tresor_' + monnaie[j];
+      if (p[j] > 0) setFicheAttr(perso, attrName, p[j], evt);
+      else removeFicheAttr(perso, attrName, evt);
+      let c = ficheAttributeAsInt(cible, attrName, 0);
+      setFicheAttr(cible, attrName, c + t[j], evt);
+      if (deja) {
+        if (j == last) msg += 'et ';
+        else msg += ', ';
+      } else {
+        deja = true;
+      }
+      msg += t[j] + ' ' + monnaie[j].toUpperCase();
+    }
+    sendPerso(perso, msg + " à " + nomPerso(cible));
+  }
+
   function commandeDonnerEquipement(cmd, playerId, pageId, options, perso) {
     if (cmd.length < 3) {
-      //On affiche la liste de l'équipement pour proposer un équipement à donner
       let display = startFramedDisplay(playerId, 'Équipement :', perso, {
         chuchote: true
       });
+      let zero;
+      let ligne_monnaie = '';
+      let command = "!cof2-donner-monnaie " + perso.token.id + " @{target|token_id} ";
+      for (let i = 0; i < monnaie.length; i++) {
+        let m = monnaie[i];
+        let n = ficheAttributeAsInt(perso, 'tresor_' + m, 0);
+        if (n) {
+          if (zero) {
+            for (let j = zero; j < i; j++) {
+              let M = monnaie[j].toUpperCase();
+              ligne_monnaie += '0 ' + boutonSimple(command + j + ' ?{Combien de ' + M + '}', M, BS_BUTTON);
+            }
+            zero = 0;
+          }
+          ligne_monnaie += '  ';
+          let M = m.toUpperCase();
+          ligne_monnaie += n + ' ' + boutonSimple(command + i + ' ?{Combien de ' + M + '}', M, BS_BUTTON);
+        } else if (ligne_monnaie !== '' && !zero) {
+          zero = i;
+        }
+      }
+      if (ligne_monnaie !== '') {
+        ligne_monnaie += ' &nbsp; ' + boutonSimple(command + 'tout', 'Tout', BS_BUTTON);
+        addLineToFramedDisplay(display, ligne_monnaie);
+      }
+      //On affiche la liste de l'équipement pour proposer un équipement à donner
       let equipement = listAllEquipment(perso);
-      let command = "!cof2-donner-equipement " + perso.token.id + " @{target|token_id} ";
+      command = "!cof2-donner-equipement " + perso.token.id + " @{target|token_id} ";
       let id_armure = ficheAttribute(perso, 'armor_gearid', '');
       if (id_armure) id_armure = 'repeating_equipement_' + id_armure + '_';
       let id_arme;
@@ -33249,7 +33407,7 @@ var COFantasy2 = COFantasy2 || function() {
         let nom = eq['equip-nom'];
         if (!nom || nom === '') continue;
         let nb = toInt(eq['equip-qte'], 1);
-        if (nb < 1) return;
+        if (nb < 1) continue;
         let ligne = nb + ' ' + boutonSimple(command + pref, nom, BS_BUTTON);
         if (eq['equip-on']) {
           let p = pref.toLowerCase();
@@ -33257,6 +33415,21 @@ var COFantasy2 = COFantasy2 || function() {
             ligne += ' (équipé)';
           }
         }
+        addLineToFramedDisplay(display, ligne);
+      }
+      //TODO: n'afficher que s'il y a des consommables
+      let commandr = "!cof2-lister-ressource @{selected|token_id}";
+      let b = boutonSimple(commandr, CONSOMMABLES + " Donner un consommable", BS_LISTE_ACTIONS);
+      addLineToFramedDisplay(display, b + '<br/>');
+      //Maintenant les munitions
+      let munitions = listAllMunitions(perso);
+      for (let prefix in munitions) {
+        let m = munitions[prefix];
+        let nom = m['ammo-nom'];
+        if (!nom) continue;
+        let nb = toInt(m['ammo-qte'], 1);
+        if (nb < 1) continue;
+        let ligne = nb + ' ' + boutonSimple(command + prefix + ' ?{nombre} munition', nom, BS_BUTTON);
         addLineToFramedDisplay(display, ligne);
       }
       sendFramedDisplay(display);
@@ -33268,68 +33441,125 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     if (estMook(cible)) {
-      sendPlayer(nomPerso(cible)+ " est un personnage générique, le transfert d'équipement n'est pas encore géré", playerId);
+      sendPlayer(nomPerso(cible) + " est un personnage générique, le transfert d'équipement n'est pas encore géré", playerId);
       return;
     }
     let prefix = cmd[3];
     let fields = [];
-    let nom = ficheAttribute(perso, prefix+'equip-nom', '');
-    if (!nom || nom === '') {
-      error("Impossible de trouver l'équipement de préfixe "+prefix, cmd);
-      return;
-    }
-    let nb = ficheAttributeAsInt(perso, prefix+'equip-qte', 1);
-    if (nb < 1) {
-      sendPlayer(nomPerso(perso)+"n'a pas de "+nom+" à donner", playerId);
-      return;
-    }
-    const evt = {type: 'Transfert equipement'};
-    addEvent(evt);
-    let msg = "donne "+nom;
-    let prefatk;
-    if (nb == 1) {
-    //On commence par se déséquiper si besoin
-    if (ficheAttributeAsInt(perso, prefix+'equip-on')) {
-      msg = "enlève "+nom+" et le donne";
-      setFicheAttr(perso, prefix+'equip-on', 0);
-    }
-    //On enlève la ligne d'attaque si elle existe
-      let atkid = ficheAttribute(perso, prefix+'equip-atkid', '');
-      if (atkid !== '') {log(atkid);
-        prefatk = 'repeating_armes_'+atkid+'_';
+    if (cmd.length > 5 && cmd[5] == 'munition') {
+      let nom = ficheAttribute(perso, prefix + 'ammo-nom', '');
+      if (!nom || nom === '') {
+        error("Impossible de trouver la munition de préfixe " + prefix, cmd);
+        return;
       }
-    }
-    let attrsPerso = findObjs({
-      _type: 'attribute',
-      _characterid: perso.charId,
-    });
-    attrsPerso.forEach(function(a) {
-      let an = a.get('name');
-      if (an.startsWith(prefix)) {
-        let name = an.substring(prefix.length);
-        //On filtre les attributes caches
-        if (name == 'equip-modprops' || name == 'equip-atklbl' || name == 'equip-atkid' || name == 'equip-on') {
-          if (nb ==1) deleteAttribute(a, evt);
-        } else if (name == 'equip-qte') {
-          if (nb > 2) {
-            addAttributeToEvt(a, evt, nb);
-            a.set('current', nb-1);
-          } else deleteAttribute(a, evt);//On peut aussi effacer si nb devient 1
-        } else {
-          let current = a.get('current');
-          fields.push({name, current});
-          if (nb == 1) deleteAttribute(a, evt);
+      let nb = ficheAttributeAsInt(perso, prefix + 'ammo-qte', 1);
+      if (nb < 1) {
+        sendPlayer(nomPerso(perso) + "n'a pas de " + nom + " à donner", playerId);
+        return;
+      }
+      let donne = toInt(cmd[4], 0);
+      if (donne < 1) return;
+      if (donne > nb) donne = nb;
+      const evt = {
+        type: 'Transfert munition'
+      };
+      addEvent(evt);
+      let attrsPerso = findObjs({
+        _type: 'attribute',
+        _characterid: perso.charId,
+      });
+      attrsPerso.forEach(function(a) {
+        let an = a.get('name');
+        if (an.startsWith(prefix)) {
+          let name = an.substring(prefix.length);
+          if (name == 'ammo-qte') {
+            if (donne < nb + 1) {
+              addAttributeToEvt(a, evt, nb);
+              a.set('current', nb - donne);
+            } else {
+              deleteAttribute(a, evt);
+            }
+          } else {
+            let current = a.get('current');
+            fields.push({
+              name,
+              current
+            });
+            if (donne == nb) deleteAttribute(a, evt);
+          }
         }
-      } else if (prefatk && an.startsWith(prefatk)) {
-        deleteAttribute(a, evt);
+      });
+      //On crée les attributs chez le destinataire;
+      prefix = 'repeating_ammos_' + generateRowID() + '_';
+      fields.forEach(function(f) {
+        setFicheAttr(cible, prefix + f.name, f.current, evt);
+      });
+      sendPerso(perso, " donne " + donne + " " + nom + " à " + nomPerso(cible));
+    } else { //équipement normal
+      let nom = ficheAttribute(perso, prefix + 'equip-nom', '');
+      if (!nom || nom === '') {
+        error("Impossible de trouver l'équipement de préfixe " + prefix, cmd);
+        return;
       }
-    });
-    //On crée les attributs chez le destinataire;
-    prefix = 'repeating_equipement_'+generateRowID()+'_';
-    fields.forEach(function(f) {
-      setFicheAttr(cible, prefix+f.name, f.current, evt);
-    });
-    sendPerso(perso, msg+" à "+nomPerso(cible));
+      let nb = ficheAttributeAsInt(perso, prefix + 'equip-qte', 1);
+      if (nb < 1) {
+        sendPlayer(nomPerso(perso) + "n'a pas de " + nom + " à donner", playerId);
+        return;
+      }
+      const evt = {
+        type: 'Transfert equipement'
+      };
+      addEvent(evt);
+      let msg = "donne " + nom;
+      let prefatk;
+      if (nb == 1) {
+        //On commence par se déséquiper si besoin
+        if (ficheAttributeAsInt(perso, prefix + 'equip-on')) {
+          msg = "enlève " + nom + " et le donne";
+          setFicheAttr(perso, prefix + 'equip-on', 0);
+        }
+        //On enlève la ligne d'attaque si elle existe
+        let atkid = ficheAttribute(perso, prefix + 'equip-atkid', '');
+        if (atkid !== '') {
+          log(atkid);
+          prefatk = 'repeating_armes_' + atkid + '_';
+        }
+      }
+      let attrsPerso = findObjs({
+        _type: 'attribute',
+        _characterid: perso.charId,
+      });
+      attrsPerso.forEach(function(a) {
+        let an = a.get('name');
+        if (an.startsWith(prefix)) {
+          let name = an.substring(prefix.length);
+          //On filtre les attributes caches
+          if (name == 'equip-modprops' || name == 'equip-atklbl' || name == 'equip-atkid' || name == 'equip-on') {
+            if (nb == 1) deleteAttribute(a, evt);
+          } else if (name == 'equip-qte') {
+            if (nb > 2) {
+              addAttributeToEvt(a, evt, nb);
+              a.set('current', nb - 1);
+            } else deleteAttribute(a, evt); //On peut aussi effacer si nb devient 1
+          } else {
+            let current = a.get('current');
+            fields.push({
+              name,
+              current
+            });
+            if (nb == 1) deleteAttribute(a, evt);
+          }
+        } else if (prefatk && an.startsWith(prefatk)) {
+          deleteAttribute(a, evt);
+        }
+      });
+      //On crée les attributs chez le destinataire;
+      prefix = 'repeating_equipement_' + generateRowID() + '_';
+      fields.forEach(function(f) {
+        setFicheAttr(cible, prefix + f.name, f.current, evt);
+      });
+      sendPerso(perso, msg + " à " + nomPerso(cible));
+    }
   }
 
   function ajouterConsommable(perso, nom, action, nb, evt) {
@@ -38220,6 +38450,12 @@ var COFantasy2 = COFantasy2 || function() {
     'donner-equipement': {
       fn: commandeDonnerEquipement,
       minArgs: 1,
+      acteur: 1,
+      boutonExclusif: true,
+    },
+    'donner-monnaie': {
+      fn: commandeDonnerMonnaie,
+      minArgs: 3,
       acteur: 1,
       boutonExclusif: true,
     },
