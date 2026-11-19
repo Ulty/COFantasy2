@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 19 nov. 2026,  03:46
+//Dernière modification : jeu. 19 nov. 2026,  05:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13275,6 +13275,38 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'forgesort',
       }],
       grosseTete: true,
+    },
+    'golem': {
+      compagnonGolem: 'PARAM.nom', //Le nom du golem
+      compagnon: {
+        id: 'compagnonGolemId',
+        avatar: "https://files.d20.io/images/111554669/E4hmlAnbQH-59k5r21eF7A/max.jpg?1585050580",
+        token: "https://files.d20.io/images/111554406/nGV8a7ki6iBkjWvNzX4AAA/max.png?1585050499",
+        name: 'PARAM.nom',
+        pvParNiveau: 5,
+        attributesFiche: {
+          taille: 'Moyenne',
+          agi: -1,
+          con: 10,
+          for: 1,
+          per: 3,
+          cha: -4,
+          int: -3,
+          vol: 4,
+          comp_def: '10+[rang_voieNUMEROVOIE]',
+          comp_pv_max: '[niveau]*5',
+          comp_init: '[init]',
+          comp_pnjatk: '[atkmag]',
+        },
+        attaques: [{
+          nom: 'Attaque au contact',
+          //atk va etre être donné par comp_pnjatk au-dessus
+          dm: '1d4E',
+          dmdiv: 1,
+          dmtype: 'coup',
+          atktype: 'naturel',
+        }]
+      },
     },
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
