@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 19 nov. 2026,  03:22
+//Dernière modification : jeu. 19 nov. 2026,  03:46
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12025,6 +12025,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Occultisme',
         description: "connaissance et érudition en rapport avec la magie",
       },
+      science: {
+        nom: "Grosse tête",
+        description: "Tests de bricolage ou de science",
+      },
       survieRodeur: {
         nom: 'Survie en milieu naturel',
         descripion: "s'orienter, trouver un abris et de la nourriture, ...",
@@ -13261,6 +13265,17 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|token_id} Métal brûlant --sortilege --attaqueMagiqueOpposee --portee 20 --pasDeDmg --effet ?{Chauffer|une arme,armeBrulante [[1d4+@{selected|INT}]]|une armure,armureBrulante [[1d4+@{selected|INT}]] --valeur 1d4E}"
       },
     },
+    //Voie du golem
+    'grosse tete': {
+      bonusTestEvolutif_science: true,
+      buffsSurFiche: [{
+        nom: 'Grosse tête',
+        attrib: 'pv',
+        value: 'GROSSETETE',
+        limiteArmure: 'forgesort',
+      }],
+      grosseTete: true,
+    },
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
     'projectile de mana': {
@@ -14408,6 +14423,12 @@ var COFantasy2 = COFantasy2 || function() {
             log("Il manque le nom du buff sur fiche pour la capacité " + capacite);
             log(b);
             return;
+          }
+          if (b.value == 'GROSSETETE') {
+            let mod_con = ficheAttributeAsInt(perso, 'con', 0);
+            let mod_int = ficheAttributeAsInt(perso, 'int', 0);
+            if (mod_int <= mod_con) return;
+            b.value = mod_int - mod_con;
           }
           let buffPresent = buffs[b.nom];
           if (buffPresent) {
