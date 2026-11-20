@@ -1,4 +1,4 @@
-//Dernière modification : ven. 20 nov. 2026,  03:59
+//Dernière modification : ven. 20 nov. 2026,  04:50
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5232,7 +5232,6 @@ var COFantasy2 = COFantasy2 || function() {
         target.ignoreRD = target.ignoreRD || options.ignoreRD;
         target.ignoreMoitieRD = target.ignoreMoitieRD || options.ignoreMoitieRD;
         target.tempDmg = target.tempDmg || options.tempDmg;
-        target.malediction = target.malediction || options.malediction;
         target.pietine = target.pietine || options.pietine;
         target.maxDmg = target.maxDmg || options.maxDmg;
         //Les bonus d'attaque qui dépendent de la cible
@@ -5621,7 +5620,6 @@ var COFantasy2 = COFantasy2 || function() {
               spawnFxBetweenPoints(p1, p2, options.fx, pageId);
             }
             evt.succes = false;
-            diminueMalediction(attaquant, evt);
             if (predicateAsBool(attaquant, 'teigne')) {
               setTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', true, evt);
             }
@@ -7772,10 +7770,6 @@ var COFantasy2 = COFantasy2 || function() {
         });
         additionalDmg = correctAdditionalDmg;
         if (target.touche) { //Devrait être inutile ?
-          if (target.malediction) {
-            setTokenAttr(target, 'malediction', 3, evt);
-            target.messages.push(nomPerso(target) + " est maudit" + eForFemale(target) + "...");
-          }
           if (options.draineMana) {
             let manaAttr = findObjs({
               _type: 'attribute',
@@ -7911,6 +7905,16 @@ var COFantasy2 = COFantasy2 || function() {
             });
           }
           // Ajoute les effets à la cible
+          if (options.limiteCibleEffetParCombat) {
+      let ressource = options.limiteCibleEffetParCombat.ressource || weaponStats.name;
+      ressource = "limiteParCombat_" + ressource;
+        let utilisations = attributeAsInt(target, ressource, options.limiteCibleEffetParCombat.val);
+        if (utilisations === 0) {
+          sendPerso(target, "ne peut plus être affecté" + eForFemale(target) + "par cette attaque pendant ce combat", options.secret);
+          return;
+        }
+        setTokenAttr(target, ressource, utilisations - 1, evt);
+          }
           let effets = options.effets;
           if (target.effets) {
             if (effets) effets = effets.concat(target.effets);
@@ -7935,7 +7939,6 @@ var COFantasy2 = COFantasy2 || function() {
               target.messages.push(msg);
             });
             if (tr.reussite) {
-              diminueMalediction(attaquant, evt);
               target.messages.push(nomPerso(target) + " n'est pas " + pietine + "." + tr.modifiers);
             } else {
               target.messages.push(nomPerso(target) + " est " + pietine + " par " + nomPerso(attaquant) + ", dommages doublés" + tr.rerolls + tr.modifiers);
@@ -13599,6 +13602,17 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     //Voies de sorcier /////////////////////////////////////////////
+    //Voie du démon
+    'malediction': {
+      profil: 'sorcier',
+      action: {
+        nom: 'Malédiction',
+        type: 'M',
+        mana: 1,
+        combat: true,
+        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Malédiction --attaqueMagiqueOpposee --sortilege --portee 20 --pasDeDmg --effet malediction ?{utiliser une action|M,1|L,3 --typeAction L} --limiteCibleEffetParCombat 1 malediction',
+      },
+    },
     //Voie de la sombre magie
     'tenebres': {
       profil: 'sorcier',
@@ -21958,6 +21972,16 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "maîtrise les éléments",
       fin: "ne maîtrise plus aussi bien les éléments",
     },
+    malediction: {
+      //courant: le nombre de tests avec dé malus
+      activation: "est maudit",
+      activationF: "est maudite",
+      actif: "est maudit",
+      actifF: "est maudite",
+      fin: "n'est plus maudit",
+      finF: "n'est plus maudite",
+      prejudiciable: true,
+    },
     manteauDOmbre: {
       activation: "s'enveloppe d'ombre",
       actif: "est enveloppé d'ombre",
@@ -25596,20 +25620,6 @@ var COFantasy2 = COFantasy2 || function() {
     resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
   }
 
-  function diminueMalediction(lanceur, evt, attr) {
-    let attrMalediction = attr || tokenAttribute(lanceur, 'malediction');
-    if (attrMalediction.length > 0) {
-      attrMalediction = attrMalediction[0];
-      let nbMaudit = parseInt(attrMalediction.get('current'));
-      if (isNaN(nbMaudit) || nbMaudit < 2) {
-        deleteAttribute(attrMalediction, evt);
-      } else {
-        addAttributeToEvt(attrMalediction, evt, nbMaudit);
-        attrMalediction.set('current', nbMaudit - 1);
-      }
-    }
-  }
-
   //expliquer est optionnel, et si présent, il faut msg
   function malusArmure(perso, expliquer, msg) {
     let malusArmure = 0;
@@ -26211,9 +26221,17 @@ var COFantasy2 = COFantasy2 || function() {
         deMalus++;
         explications.push(nomPerso(perso) + " affaibli => dé malus");
       }
-      if (attributeAsBool(perso, 'malediction')) {
+      let malediction = attributeAsInt(perso, 'malediction', 0, 1);
+      if (malediction > 0) {
         explications.push(nomPerso(perso) + " maudit" + eForFemale(perso) + " => dé malus");
         deMalus++;
+        if (evt) {
+            if (malediction > 1) {
+              setTokenAttr(perso, 'malediction', malediction - 1, evt);
+            } else {
+              finDEffetPerso(perso, 'malediction', evt);
+            }
+        }
       }
       if (attributeAsBool(perso, 'sprint')) {
         explications.push(nomPerso(perso) + " sprinte => dé malus");
@@ -26351,12 +26369,10 @@ var COFantasy2 = COFantasy2 || function() {
     } else if (d20roll <= plageEC && (!roll.chance || jetTotal < seuil)) {
       testRes.reussite = false;
       testRes.echecCritique = true;
-      diminueMalediction(perso, evt);
     } else if (jetTotal >= seuil) {
       testRes.reussite = true;
       testRes.reussiteAvecComplications = roll.chance && d20roll <= plageEC;
     } else {
-      diminueMalediction(perso, evt);
       testRes.reussite = false;
       if (prouessePossible(perso, carac, jetTotal, seuil)) {
         testRes.rerolls += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso.token.id + ' ' + evt.id + " " + testId, "Prouesse");
@@ -27056,11 +27072,6 @@ var COFantasy2 = COFantasy2 || function() {
       rt.explications.forEach(function(m) {
         addLineToFramedDisplay(display, m, 80);
       });
-      // Maintenant, on diminue la malédiction
-      let attrMalediction = tokenAttribute(perso, 'malediction');
-      if (attrMalediction.length > 0) {
-        diminueMalediction(perso, evt, attrMalediction);
-      }
       let boutonsReroll = '';
       boutonChance(perso, rt.roll, evt, function(m) {
         boutonsReroll += '<br/>' + m;
@@ -27397,14 +27408,6 @@ var COFantasy2 = COFantasy2 || function() {
     } else if (rt2.critique) {
       resultat = 2;
       crit = 1;
-    }
-    switch (resultat) {
-      case 1:
-        diminueMalediction(perso2, evt);
-        break;
-      case 2:
-        diminueMalediction(perso1, evt);
-        break;
     }
     let texte1 = "Jet " + deCarac(carac1) + " de " + nom1 + " : " + rt1.texte;
     if (resultat == 2) {
@@ -34357,9 +34360,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (attributeAsBool(perso, 'etatExsangue')) {
         addLineToFramedDisplay(display, "est exsangue");
       }
-      if (attributeAsBool(perso, 'malediction')) {
-        addLineToFramedDisplay(display, "est maudit" + eForFemale(perso) + "...");
-      }
       const allAttrs = findObjs({
         _type: 'attribute',
         _characterid: charId
@@ -36703,6 +36703,9 @@ var COFantasy2 = COFantasy2 || function() {
     limiteCibleParJour: {
       fn: limiteOption,
     },
+    limiteCibleEffetParCombat: {
+      fn: limiteOption,
+    },
     limiteParCombat: {
       fn: limiteOption,
     },
@@ -36719,10 +36722,6 @@ var COFantasy2 = COFantasy2 || function() {
     },
     maladie: {
       fn: dmgTypeOption
-    },
-    malediction: {
-      fn: booleanOption,
-      local: true,
     },
     mana: {
       fn: integerOption,
