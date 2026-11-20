@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 19 nov. 2026,  05:47
+//Dernière modification : ven. 20 nov. 2026,  12:52
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -1822,19 +1822,22 @@ var COFantasy2 = COFantasy2 || function() {
         }
       });
     }
-    if (_.has(evt, 'combat')) {
-      let combat = stateCOF.combat;
-      //regarde si le token actif a changé
-      if (evt.combat &&
-        (!combat || evt.combat.activeTokenId != combat.activeTokenId) &&
-        stateCOF.options.affichage.val.init_dynamique.val) {
-        let activeToken = getObj('graphic', evt.combat.activeTokenId);
-        if (activeToken) {
-          threadSync++;
-          activateRoundMarker(threadSync, activeToken);
+    if (evt.combat) {
+      if (evt.combat.horsCombat) {
+        delete stateCOF.combat;
+      } else {
+        let combat = stateCOF.combat;
+        //regarde si le token actif a changé
+        if ((!combat || evt.combat.activeTokenId != combat.activeTokenId) &&
+          stateCOF.options.affichage.val.init_dynamique.val) {
+          let activeToken = getObj('graphic', evt.combat.activeTokenId);
+          if (activeToken) {
+            threadSync++;
+            activateRoundMarker(threadSync, activeToken);
+          }
         }
+        stateCOF.combat = evt.combat;
       }
-      stateCOF.combat = evt.combat;
     }
     if (_.has(evt, 'updateNextInitSet'))
       updateNextInitSet = new Set(evt.updateNextInitSet);
@@ -3348,6 +3351,10 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (attaquant && predicateAsBool(attaquant, 'ignoreOrdres')) defense += 10;
     defense += predicateAsInt(perso, 'bonusDivination', 0);
+    if (predicateAsBool(perso, 'golem')) {
+      let maitre = compagnonDe(perso, pageId);
+      if (maitre) defense += predicateAsInt(maitre, 'runesDeDefense', 0, 2);
+    }
     return defense;
   }
 
@@ -13297,6 +13304,7 @@ var COFantasy2 = COFantasy2 || function() {
           comp_pv_max: '[niveau]*5',
           comp_init: '[init]',
           comp_pnjatk: '[atkmag]',
+          predicats_script: 'golem',
         },
         attaques: [{
           nom: 'Attaque au contact',
@@ -13307,6 +13315,20 @@ var COFantasy2 = COFantasy2 || function() {
           atktype: 'naturel',
         }]
       },
+    },
+    //Voie des runes
+    'runes de defense': {
+      runesDeDefense: 'SELONRANG(2,2,3,3,4)', //Le bonus pour le golem
+      buffsSurFiche: [{
+        nom: 'Runes de défense (base)',
+        attrib: 'def',
+        value: 'SELONRANG(1,1,1,1,2)',
+      }, {
+        nom: 'Runes de défense (si armure cuir)',
+        attrib: 'def',
+        limiteArmure: 'forgesort',
+        value: 'SELONRANG(1,1,2,2,2)',
+      }]
     },
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
@@ -27996,7 +28018,9 @@ var COFantasy2 = COFantasy2 || function() {
     if (!Campaign().get('initiativepage')) evt.initiativepage = false;
     let debutCombat = false;
     if (!stateCOF.combat) { //actions de début de combat
-      evt.combat = false;
+      evt.combat = {
+        horsCombat: true,
+      };
       stateCOF.combat = {
         tour: 1,
         init: 1000
@@ -33516,6 +33540,23 @@ var COFantasy2 = COFantasy2 || function() {
     }
     sendPerso(perso, msg + " à " + nomPerso(cible));
   }
+  const hiddenEquipAttrs = ['equip-modprops', 'equip-atklbl', 'equip-atkid', 'equip-on'];
+  const hiddenArmeAttrs = ['arme-new', 'arme-label', 'arme-buffatk', 'arme-buffdm', 'arme-portees', 'arme-gearid', 'armeopt', 'arme-main', 'jet-resid'];
+
+  //retourne true si on ne matche pas
+  function collectRepeatingFields(prefix, attr, attrName, dest, hidden, del, evt, filter) {
+    if (!attrName.startsWith(prefix)) return true;
+    let name = attrName.substring(prefix.length);
+    if (filter && filter(name)) return;
+    if (!hidden.includes(name)) {
+      let current = attr.get('current');
+      dest.push({
+        name,
+        current
+      });
+    }
+    if (del) deleteAttribute(attr, evt);
+  }
 
   function commandeDonnerEquipement(cmd, playerId, pageId, options, perso) {
     if (cmd.length < 3) {
@@ -33564,7 +33605,9 @@ var COFantasy2 = COFantasy2 || function() {
         if (!nom || nom === '') continue;
         let nb = toInt(eq['equip-qte'], 1);
         if (nb < 1) continue;
-        let ligne = nb + ' ' + boutonSimple(command + pref, nom, BS_BUTTON);
+        let c = command + pref;
+        if (nb > 2) c += ' ?{combien ?}';
+        let ligne = nb + ' ' + boutonSimple(c, nom, BS_BUTTON);
         if (eq['equip-on']) {
           let p = pref.toLowerCase();
           if (p == id_armure || p == id_arme || (eq['equip-predicats'] && eq['equipe-predicats'].trim() !== '')) {
@@ -33585,7 +33628,11 @@ var COFantasy2 = COFantasy2 || function() {
         if (!nom) continue;
         let nb = toInt(m['ammo-qte'], 1);
         if (nb < 1) continue;
-        let ligne = nb + ' ' + boutonSimple(command + prefix + ' ?{nombre} munition', nom, BS_BUTTON);
+        let c = command + prefix;
+        if (nb ==1) c += ' 1';
+        else c += ' ?{nombre}';
+        c += ' munition';
+        let ligne = nb + ' ' + boutonSimple(c, nom, BS_BUTTON);
         addLineToFramedDisplay(display, ligne);
       }
       sendFramedDisplay(display);
@@ -33603,6 +33650,7 @@ var COFantasy2 = COFantasy2 || function() {
     let prefix = cmd[3];
     let fields = [];
     if (cmd.length > 5 && cmd[5] == 'munition') {
+      // ** munitions ***
       let nom = ficheAttribute(perso, prefix + 'ammo-nom', '');
       if (!nom || nom === '') {
         error("Impossible de trouver la munition de préfixe " + prefix, cmd);
@@ -33651,7 +33699,10 @@ var COFantasy2 = COFantasy2 || function() {
         setFicheAttr(cible, prefix + f.name, f.current, evt);
       });
       sendPerso(perso, " donne " + donne + " " + nom + " à " + nomPerso(cible));
-    } else { //équipement normal
+    } else {
+      let donne = toInt(cmd[4], 1);
+      if (donne < 1) return;
+      // ** équipement normal ***
       let nom = ficheAttribute(perso, prefix + 'equip-nom', '');
       if (!nom || nom === '') {
         error("Impossible de trouver l'équipement de préfixe " + prefix, cmd);
@@ -33662,58 +33713,64 @@ var COFantasy2 = COFantasy2 || function() {
         sendPlayer(nomPerso(perso) + "n'a pas de " + nom + " à donner", playerId);
         return;
       }
+      if (donne > nb) donne = nb;
+      let prefatk;
+      let fieldsAtk = [];
+      //On trouve la ligne d'attaque si elle existe
+      let atkid = ficheAttribute(perso, prefix + 'equip-atkid', '');
+      if (atkid !== '') {
+        prefatk = 'repeating_armes_' + atkid + '_';
+      }
       const evt = {
         type: 'Transfert equipement'
       };
       addEvent(evt);
-      let msg = "donne " + nom;
-      let prefatk;
+      let msg = "donne ";
+      if (donne > 1) msg += donne + ' ';
+      msg += nom;
       if (nb == 1) {
         //On commence par se déséquiper si besoin
         if (ficheAttributeAsInt(perso, prefix + 'equip-on')) {
           msg = "enlève " + nom + " et le donne";
           setFicheAttr(perso, prefix + 'equip-on', 0);
         }
-        //On enlève la ligne d'attaque si elle existe
-        let atkid = ficheAttribute(perso, prefix + 'equip-atkid', '');
-        if (atkid !== '') {
-          log(atkid);
-          prefatk = 'repeating_armes_' + atkid + '_';
-        }
       }
+      let donneTout = nb == donne;
       let attrsPerso = findObjs({
         _type: 'attribute',
         _characterid: perso.charId,
       });
       attrsPerso.forEach(function(a) {
         let an = a.get('name');
-        if (an.startsWith(prefix)) {
-          let name = an.substring(prefix.length);
-          //On filtre les attributes caches
-          if (name == 'equip-modprops' || name == 'equip-atklbl' || name == 'equip-atkid' || name == 'equip-on') {
-            if (nb == 1) deleteAttribute(a, evt);
-          } else if (name == 'equip-qte') {
-            if (nb > 2) {
+        let notFound = collectRepeatingFields(prefix, a, an, fields, hiddenEquipAttrs, donneTout, evt, function(name) {
+          if (name == 'equip-qte') {
+            if (nb > donne + 1) {
               addAttributeToEvt(a, evt, nb);
-              a.set('current', nb - 1);
+              a.set('current', nb - donne);
             } else deleteAttribute(a, evt); //On peut aussi effacer si nb devient 1
-          } else {
-            let current = a.get('current');
-            fields.push({
-              name,
-              current
-            });
-            if (nb == 1) deleteAttribute(a, evt);
+            return true;
           }
-        } else if (prefatk && an.startsWith(prefatk)) {
-          deleteAttribute(a, evt);
+        });
+        if (notFound && prefatk) {
+          collectRepeatingFields(prefatk, a, an, fieldsAtk, hiddenArmeAttrs, nb == 1, evt);
         }
       });
       //On crée les attributs chez le destinataire;
-      prefix = 'repeating_equipement_' + generateRowID() + '_';
+      let id_eq = generateRowID();
+      let prefix_eq = 'repeating_equipement_' + id_eq + '_';
       fields.forEach(function(f) {
-        setFicheAttr(cible, prefix + f.name, f.current, evt);
+        setFicheAttr(cible, prefix_eq + f.name, f.current, evt);
       });
+      if (donne > 1) setFicheAttr(cible, prefix_eq + 'equip-qte', donne, evt);
+      if (prefatk) {
+        let id_atk = generateRowID();
+        prefix = 'repeating_arme_' + id_atk + '_';
+        fieldsAtk.forEach(function(f) {
+          setFicheAttr(cible, prefix + f.name, f.current, evt);
+        });
+        setFicheAttr(cible, prefix_eq + 'equip-atkid', id_atk, evt);
+        setFicheAttr(cible, prefix + 'arme-gearid', id_eq, evt);
+      }
       sendPerso(perso, msg + " à " + nomPerso(cible));
     }
   }
