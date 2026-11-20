@@ -1,4 +1,4 @@
-//Dernière modification : ven. 20 nov. 2026,  12:52
+//Dernière modification : ven. 20 nov. 2026,  03:59
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5774,10 +5774,12 @@ var COFantasy2 = COFantasy2 || function() {
             options.preDmg[target.token.id] = options.preDmg[target.token.id] || {};
             options.preDmg[target.token.id].chairACanon = target.chairACanon;
           }
-          if (!(options.auto || options.attaqueMagiqueOpposee || options.attaqueContactOpposee)) collecteAlliesDeCibleAvecReaction(attaquant, cibles, target, 'protegerUnAllie', 'alliesAvecProtectionBouclier', function(perso) {
-            //condition: porter un bouclier
-            return ficheAttributeAsBool(perso, 'bouclier_eqp', false);
-          }, pageId, options);
+          if (!(options.auto || options.attaqueMagiqueOpposee || options.attaqueContactOpposee)) {
+            collecteAlliesDeCibleAvecReaction(attaquant, cibles, target, 'protegerUnAllie', 'alliesAvecProtectionBouclier', function(perso) {
+              //condition: porter un bouclier
+              return ficheAttributeAsBool(perso, 'bouclier_eqp', false);
+            }, pageId, options);
+          }
           //Interception par un allié
           if (!options.sortilege) {
             collecteAlliesDeCibleAvecReaction(attaquant, cibles, target, 'intercepter', 'alliesAvecInterception', function(perso) {
@@ -5798,16 +5800,6 @@ var COFantasy2 = COFantasy2 || function() {
         }
         count--;
         if (count === 0) {
-          if (ciblesTouchees.length > 0 && !options.maxDmg && weaponStats) {
-            let al = weaponStats.label;
-            if ((options.runeDePuissance &&
-                attributeAsInt(attaquant, 'attributDeCombat_runeDePuissance' + al, 1)) ||
-              (attributeAsBool(attaquant, 'runeForgesort_puissance(' + al + ')') &&
-                attributeAsInt(attaquant, 'attributDeCombat_runeForgesort_puissance(' + al + ')', 1))) {
-              options.preDmg = options.preDmg || {};
-              options.preDmg.runeDePuissance = al;
-            }
-          }
           //Premier appel à resolvePreDmgOption, on sauvegarde
           args.echecCritique = echecCritique;
           args.attackd20roll = d20roll;
@@ -6869,7 +6861,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       };
       let preDmgToken = args.choices[cible.token.id];
-      if (preDmgToken !== undefined) {
+      if (preDmgToken) {
         let termineCible = false;
         if (preDmgToken.encaisserUnCoup) {
           appliquerEncaisserUnCoup(cible, options, evt);
@@ -6993,7 +6985,7 @@ var COFantasy2 = COFantasy2 || function() {
       nbDe,
       dice,
       bonus,
-      maxResult: target.maxDmg || options.maxDmg || options.runeDePuissance,
+      maxResult: target.maxDmg || options.maxDmg,
     };
     if (!res.maxResult) {
       if (options.flecheMagique) {
@@ -7281,6 +7273,22 @@ var COFantasy2 = COFantasy2 || function() {
         //Les points de mana sont dépensés dans l'appel à !cof2-chatiment-divin
         ajouteDesEvolutifs(attaquant, args.choices.chatimentDivin, options, 'magique');
         explications.push("Châtiment divin => +" + args.choices.chatimentDivin + "d4° DM");
+      }
+    }
+    if (!options.maxDmg && weaponStats) {
+      if (!args.choices || args.choices.runeDePuissance === undefined) {
+        let al = weaponStats.label;
+        if ((options.runeDePuissance || al == attributeAsInt(attaquant, 'runeDePuissance', -1)) &&
+          attributeAsInt(attaquant, 'limiteParCombat_runeDePuissance', 1)) {
+          let cmd = "!cof2-bouton-rune-puissance " + attaquant.token.id + ' ' + evt.id + ' ';
+          let msg = "Attaque " + boutonSimple(cmd + 'non', 'normale', BS_BUTTON) +
+            ' ou en activant la ' + boutonSimple(cmd + 'oui', 'rune de puissance', BS_BUTTON);
+          sendPerso(attaquant, msg, true, true); //On envoie aussi au MJ pour décoincer, si besoin.
+          return;
+        }
+      } else if (args.choices.runeDePuissance) {
+        options.maxDmg = true;
+        explications.push("Rune de puissance => DM maximum");
       }
     }
     let mainDmgType = options.type || 'normal';
@@ -7740,19 +7748,12 @@ var COFantasy2 = COFantasy2 || function() {
         additionalDmg = additionalDmg.filter(function(dmSpec) {
           dmSpec.type = dmSpec.type || 'normal';
           if (dmSpec.type != mainDmgType || dmSpec.nbDe) {
-            if (options.maxDmg || options.runeDePuissance) dmSpec.maxResult = true;
             return true;
           }
           // Même type et valeur constante -> va dans les mainDmgRollDice, qui est multiplié en cas de critique 
           mainDmgRollDice.bonus += dmSpec.bonus;
           return false;
         });
-        // On ajoute le jet pour les dégâts de critiques supplémentaires
-        if (target.critique && options.additionalCritDmg) {
-          options.additionalCritDmg.forEach(function(dmSpec) {
-            if (dmSpec.nbDe && (options.maxDmg || options.runeDePuissance)) dmSpec.maxResult = true;
-          });
-        }
         mainDmgRollDice.type = mainDmgType;
         let rollId = "DM " + target.token.id;
         let mainDmgRoll = rollDePlus(mainDmgRollDice, rollId, evt);
@@ -8460,13 +8461,6 @@ var COFantasy2 = COFantasy2 || function() {
             cercle.nom + " peut " + boutonSimple("!cof-cercle-protection " + cercle.target.token.id + ' ' + evt.id,
               "activer le Cercle de Protection"));
         });
-      }
-      if (options.preDmg.runeDePuissance) {
-        let al = options.preDmg.runeDePuissance;
-        let permanent = options.runeDePuissance ? ' permanent' : '';
-        addLineToFramedDisplay(display,
-          boutonSimple("!cof-bouton-rune-puissance " + al + ' ' + evt.id + permanent,
-            "Rune de puissance"));
       }
       addLineToFramedDisplay(display, boutonSimple("!cof2-confirmer-attaque " + evt.id, "Continuer"));
     } else {
@@ -12643,7 +12637,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Arme gauche en défense',
         combat: true,
         debutDuTour: true,
-        cmd: '!cof2-effet paradeCroiseeDoublee 1',
+        cmd: '!cof2-effet paradeCroiseeDoublee 1 --select @{selected|token_id}',
       }
     },
     //Voies de voleur /////////////////////////////////////////////
@@ -13092,7 +13086,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         mana: 2,
         aoe: true,
-        cmd: "!cof2-effet endormiEnMinutes true --controleMental --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
+        cmd: "!cof2-effet endormiEnMinutes true --controleMental --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant --noSelect",
       },
     },
     'confusion': {
@@ -13179,7 +13173,7 @@ var COFantasy2 = COFantasy2 || function() {
         mana: 4,
         utilitaire: true,
         limiteArmure: 'ensorceleur',
-        cmd: "!cof2-effet imitation --dureeEnMinutes @{selected|CHA} --valeur @{target|Cible|token_id} --message prend l'apparence de @{target|Cible|token_name} --messageMJ test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}.",
+        cmd: "!cof2-effet imitation --dureeEnMinutes @{selected|CHA} --valeur @{target|Cible|token_id} --message prend l'apparence de @{target|Cible|token_name} --messageMJ test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}. --select @{selected|token_id}",
       },
     },
     'execution mentale': {
@@ -13329,6 +13323,17 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'forgesort',
         value: 'SELONRANG(1,1,2,2,2)',
       }]
+    },
+    'rune de puissance': {
+      profil: 'forgesort',
+      action: {
+        nom: "Rune de puissance",
+        utilitaire: true,
+        type: 'L',
+        mana: 2,
+        limiteArmure: 'forgesort',
+        cmd: "!cof2-effet runeDePuissance armeEnMain --dureeEnMinutes 1440 --cible @{target|Bénéficiaire|token_id} --noSelect",
+      },
     },
     //Voies de magicien /////////////////////////////////////////////
     //Voie de la magie des arcanes
@@ -14123,7 +14128,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         sortilege: true,
         aoe: true,
-        cmd: "!cof2-effet endormiEnMinutes true --controleMental --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant",
+        cmd: "!cof2-effet endormiEnMinutes true --controleMental --limiteParCombat 1 sommeil --dureeEnMinutes @{selected|CHA} --portee 20 --disque @{target|Centre|token_id} 5 --nombreMaximumDeCibles [[1d4E+@{selected|CHA}]] --NCInferieurA SELONRANG(1,1,1,2,3) --seulementVivant --noSelect",
       }, {
         nom: "Confusion",
         limiteArmure: 'ensorceleur',
@@ -14175,7 +14180,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Imitation",
         type: 'A',
         sortilege: true,
-        cmd: "!cof2-effet imitation --dureeEnMinutes @{selected|CHA} --valeur @{target|Cible|token_id} --message prend l'apparence de @{target|Cible|token_name} --messageMJ test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}.",
+        cmd: "!cof2-effet imitation --dureeEnMinutes @{selected|CHA} --valeur @{target|Cible|token_id} --message prend l'apparence de @{target|Cible|token_name} --messageMJ test d'INT difficulté [[10+@{selected|CHA}]] pour voir à travers l'illusion si on touche @{selected|token_name}. --select @{selected|token_id}",
       }, {
         nom: "Exécution mentale",
         type: 'A',
@@ -22019,6 +22024,12 @@ var COFantasy2 = COFantasy2 || function() {
       actif: "peut respirer sous l'eau",
       fin: "ne peut plus respirer sous l'eau",
     },
+    runeDePuissance: {
+      //Valeur courante: le label de l'attaque correspondant à l'arme
+      activation: "l'arme reçoit une rune de puissance",
+      actif: "possède une arme enchantée avec une rune de puissance",
+      fin: "la rune de puissance s'estompe",
+    },
     soinsEnAttente: {
       //courant: l'expression des soins
       activation: "va bientôt récupérer des PVs",
@@ -22994,6 +23005,10 @@ var COFantasy2 = COFantasy2 || function() {
           valeur = false;
           activer = false;
           break;
+        case 'armeEnMain':
+          valeur = 'arme en main';
+          activer = true;
+          break;
         default:
           let asDice = parseDice(cmd[2], options.acteur);
           if (asDice) {
@@ -23132,6 +23147,13 @@ var COFantasy2 = COFantasy2 || function() {
       }
       if (estInsensibleAEffet(perso, effet, mEffet, options)) return;
       if (options.NCInferieurA && niveauPerso(perso) >= options.NCInferieurA) return;
+      if (valeur == 'arme en main') {
+        let arme = armesEnMain(perso);
+        if (!arme) {
+          sendPlayer(nomPerso(perso) + " n'a pas d'arme en main, on ne peut pas lui appliquer l'effet", playerId);
+          return;
+        }
+      }
       cibles.push(perso);
     });
     if (cibles.length == 0) {
@@ -23183,6 +23205,14 @@ var COFantasy2 = COFantasy2 || function() {
         expliquerPerso(perso, s, options);
       };
       let valeurCible = valeur;
+      if (valeur == 'arme en main') {
+        let arme = armesEnMain(perso);
+        if (arme) valeurCible = arme.label;
+        else {
+          error(nomPerso(perso) + " sans arme.", cibles);
+          return;
+        }
+      }
       if (options.valeurSiNCAuMoins && niveauPerso(perso) >= options.valeurSiNCAuMoins.ncMin) {
         valeurCible = options.valeurSiNCAuMoins.valeur;
       }
@@ -25536,6 +25566,34 @@ var COFantasy2 = COFantasy2 || function() {
       }); //fin iterSelected
       addEvent(evt);
     }
+  }
+
+  //!cof2-bouton-rune-puissance tokid evtid [oui/non]
+  function commandeBoutonRunePuissance(cmd, playerId, pageId, options, perso) {
+    let evt = findEvent(cmd[2]);
+    if (!evt) {
+      error("L'attaque est trop ancienne ou a été annulée", cmd);
+      return;
+    }
+    let args = getEvtArgs(evt);
+    if (!args) {
+      sendPlayer("L'attaque est annulée ou trop ancienne", playerId);
+      return;
+    }
+    args.choices = args.choices || {};
+    if (cmd[3] == 'non') {
+      args.choices.runeDePuissance = false;
+    } else {
+      if (!attributeAsInt(perso, 'limiteParCombat_runeDePuissance', 1)) {
+        sendPlayer("Il faut attendre un repos court avant de pouvoir réutiliser une rune de puissance", playerId);
+        args.choices.runeDePuissance = false;
+      } else {
+        setTokenAttr(perso, 'limiteParCombat_runeDePuissance', 0, evt);
+        finDEffetPerso(perso, 'runeDePuissance', evt);
+      }
+      args.choices.runeDePuissance = true;
+    }
+    resolvePreDmgOptions(args, undefined, evt, args.preDmgOptions);
   }
 
   function diminueMalediction(lanceur, evt, attr) {
@@ -33629,7 +33687,7 @@ var COFantasy2 = COFantasy2 || function() {
         let nb = toInt(m['ammo-qte'], 1);
         if (nb < 1) continue;
         let c = command + prefix;
-        if (nb ==1) c += ' 1';
+        if (nb == 1) c += ' 1';
         else c += ' ?{nombre}';
         c += ' munition';
         let ligne = nb + ' ' + boutonSimple(c, nom, BS_BUTTON);
@@ -36784,6 +36842,7 @@ var COFantasy2 = COFantasy2 || function() {
       additif: true,
     },
     reroll1: boolDefaultOption,
+    runeDePuissance: boolDefaultOption,
     sacrifiePVPourDM: boolDefaultOption,
     saufAllies: {
       fn: selectionOption
@@ -38584,6 +38643,12 @@ var COFantasy2 = COFantasy2 || function() {
     'bouton-rune-energie': {
       fn: commandeBoutonRuneEnergie,
       minArgs: 1,
+      acteur: 1,
+      boutonExclusif: true,
+    },
+    'bouton-rune-puissance': {
+      fn: commandeBoutonRunePuissance,
+      minArgs: 3,
       acteur: 1,
       boutonExclusif: true,
     },

@@ -488,6 +488,7 @@ tr {line-height: 25px;}
                   <li><code>--difficultePV</code> : la difficulté du jet d'attaque est la valeur courante des PVs au lieu de la défense.</li>
                   <li><code>--difficulteCarac <i>carac</i></code> : la difficulté du jet d'attaque est une des caractéristiques de la cible (sous forme de code à 3 lettres, <code>FOR</code>, <code>DEX</code>, etc). Il est possible de prendre le meilleur de 2 caractéristiques en écrivant les 2 noms collés. Par exemple, pour viser le meilleur de l'intelligence et du charisme, on écrira <code>--difficuletCarac INTCHA</code>.</li>
                   <li><code>--affute</code> : augmente de 1 les chances de crit et +1d6 aux DM des crit.</li>
+                  <li><code>--runeDePuissance</code> : une fois par combat, le porteur peut choisir d'infliger les DM maximum.</li>
                   <li><code>--rate</code>, <code>--touche</code>, <code>--critique</code>, <code>--echecCritique</code>, <code>--pasDEchecCritique</code> : options pour tricher : le résultat des dés donne toujours le résultat voulu.</li>
                   <li><code>--ligne</code> : l'attaque porte sur toutes les cibles à portée, entre l'attaquant et le token ciblé. Si le token ciblé est plus proche que la portée de l'attaque, les tokens derrière le token ciblé sont aussi visés. Pour permettre de viser un point quelconque, on peut utiliser un personnage dédié avec un maximum de 0 pv. À chaque fois qu'un token représentant ce personnage est utilisé comme cible de <code>--ligne</code>, le token est enlevé de la carte.</li>
                   <li><code>--disque <i>r</i></code> : l'attaque porte sur toutes les cibles dans le disque de centre le token ciblé et de rayon <i>r</i>. Comme pour <code>--ligne</code>, on peut utiliser un token cible qui sera supprimé après l'attaque. À noter que l'attaquant lui-même peut prendre des dégâts, sauf si l'attaque a une portée nulle et que l'attaquant se cible lui-même (attaque centrée sur le lanceur). On peut donner en argument optionel le mot <code>souffleDeMort</code> pour ne valider l'attaque que si le centre du disque est un personnage mort depuis moins d'un tour et ne garder que les alliés de ce personnage de niveau inférieur ou égal.</li>
@@ -1337,6 +1338,7 @@ tr {line-height: 25px;}
                 <p>Le MJ doit vérifier que le personnage a au moins +1 en INT pour prendre une capacité dans cette voie, le script ne le vérifie pas.</p>
                 <ol>
                   <li><strong>Runes de défense :</strong> tout devrait être géré.</li>
+                  <li><strong>Rune de puissance :</strong> tout devrait être géré.</li>
                 </ol>
               </div>
                 <h3 class="text-info" id="guerrier">Guerrier</h3>
@@ -1791,11 +1793,12 @@ tr {line-height: 25px;}
               </div>
               <h3 class="text-info" id="index_effets_indetermines">10.1 Effets qui peuvent aussi s'appliquer en dehors des combats</h3>
               <div class="decalage">
-                <p>Pour certains effets, on peut passer un paramètre entier non nul au moment de l'activation (<code>!cof2-effet <i>effe</i> <i>parametre</i></code>). C'est dans ce cas indiqué dans la description comme valeur d'activation.
+                <p>Pour certains effets, on peut passer un paramètre entier non nul au moment de l'activation (<code>!cof2-effet <i>effe</i> <i>parametre</i></code>). C'est dans ce cas indiqué dans la description comme valeur d'activation. On peut passer un paramètre spécial <code>armeEnMain</code> pour utiliser le label de l'arme en main de la cible de l'effet.</p>
               <ul>
                 <li><strong>benediction</strong> : bonus à tous les tests, de valeur l'activation, ou 1 par défaut.</li>
                 <li><strong>bonusCouvert</strong> : bonus contre les attaques à distance, de valeur l'activation, ou 2 par défaut.</li>
                 <li><strong>peauDEcorce</strong> : bonus en DEF.</li>
+                <li><strong>runeDePuissance</strong> : label de l'arme sur laquelle la rune est posée.</li>
               </ul>
               </div>
               </div>
