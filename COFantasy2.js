@@ -1,4 +1,4 @@
-//Dernière modification : dim. 22 nov. 2026,  11:22
+//Dernière modification : dim. 22 nov. 2026,  03:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -10475,8 +10475,10 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function setToken(token, field, newValue, evt) {
-    let prevValue = token.get(field);
-    affectToken(token, field, prevValue, evt);
+    if (evt) {
+      let prevValue = token.get(field);
+      affectToken(token, field, prevValue, evt);
+    }
     token.set(field, newValue);
   }
 
@@ -13678,6 +13680,17 @@ var COFantasy2 = COFantasy2 || function() {
       siphonDesAmes: true,
       Restriction_siphonDesAmes: 'armure_sorcier',
       siphonDesAmesMana: 'SELONRANG(0,0,1,1,1)',
+    },
+    'masque mortuaire': {
+      profil: 'sorcier',
+      action: {
+        nom: "Masque mortuaire",
+        type: 'M',
+        mana: 2,
+        bufPersonnelNonCumulable: 'masqueMortuaire',
+        limiteArmure: 'sorcier',
+        cmd: "!cof2-effet masqueMortuaire --dureeEnMinutes @{selected|INT} --select @{selected|token_id}",
+      },
     },
     //Voie de la sombre magie
     'tenebres': {
@@ -19714,8 +19727,8 @@ var COFantasy2 = COFantasy2 || function() {
 
   function estNonVivant(perso) {
     return (
-    ficheAttribute(perso, 'creature') == 'Créature non vivante' ||
-    predicateAsBool(perso, 'nonVivant') ||
+      ficheAttribute(perso, 'creature') == 'Créature non vivante' ||
+      predicateAsBool(perso, 'nonVivant') ||
       attributeAsBool(perso, 'masqueMortuaire') ||
       attributeAsBool(perso, 'masqueMortuaireAmeLiee') ||
       estMortVivant(perso));
@@ -20976,6 +20989,10 @@ var COFantasy2 = COFantasy2 || function() {
     expliquerPerso(agrippant, "agrippe " + nomPerso(perso));
   }
 
+  function debutAffecteVision(perso, effet, val, pageId, evt, ef, options) {
+    setTokenVision(perso, pageId, evt);
+  }
+
   //Les fonctions à affectuer en fin d'effet. l'argument effet contient la partie générique
   function finEtatTemp(perso, effet, attr, newInit, evt, options) {
     let etat = effetEtatTemp(effet);
@@ -21156,6 +21173,13 @@ var COFantasy2 = COFantasy2 || function() {
       deleteAttribute(a, evt);
       return true;
     });
+  }
+
+  function finAffecteVision(perso, effet, attr, newInir, evt, options) {
+    let opt = {
+      ignoreAttribute: effet
+    };
+    setTokenVision(perso, perso.token.get('pageid'), evt, opt);
   }
 
   //Attributs possibles :
@@ -22049,6 +22073,14 @@ var COFantasy2 = COFantasy2 || function() {
       actifF: "est enveloppée d'ombre",
       fin: "redevient visible",
       visible: true,
+    },
+    masqueMortuaire: {
+      activation: "prend l'apparence de la mort",
+      actif: "ressemble à un cadavre",
+      fin: "reprend des couleurs",
+      visible: true,
+      debutFun: debutAffecteVision,
+      finFun: finAffecteVision,
     },
     morsureDeLaForge: {
       //Valeur: les DM de feu
@@ -31535,7 +31567,16 @@ var COFantasy2 = COFantasy2 || function() {
     let dmgParType = {};
     otherDmg.forEach(function(d) {
       if (_.has(dmgParType, d.type)) dmgParType[d.type].push(d);
-      else dmgParType[d.type] = [d];
+      else {
+        if (immuniseAuType(target, d.type, options.attaquant, options)) {
+          if (expliquer && !target['msgImmunite_' + d.type]) {
+            expliquer(nomPerso(target) + " ne semble pas affecté par " + stringOfType(d.type));
+            target['msgImmunite_' + d.type] = true;
+          }
+        } else {
+          dmgParType[d.type] = [d];
+        }
+      }
     });
     // Dommages de même type que le principal, mais à part, donc non affectés par les critiques
     let dmgExtra = dmgParType[mainDmgType];
@@ -31844,6 +31885,13 @@ var COFantasy2 = COFantasy2 || function() {
       dmgTotal = 0;
       dmgDisplay = '0';
       showTotal = false;
+      if (Object.keys(dmgParType).length === 0) {
+        return {
+          dmgDisplay,
+          dmg: 0,
+          dmgDrain: 0
+        };
+      }
     } else if (!(target.ignoreTouteRD || options.ignoreTouteRD)) {
       rd = getRDS(target);
       let rdMain = typeRD(rd, mainDmgType);
@@ -32048,16 +32096,7 @@ var COFantasy2 = COFantasy2 || function() {
       }
     };
     for (let dt in dmgParType) {
-      if (immuniseAuType(target, dt, options.attaquant, options)) {
-        if (expliquer && !target['msgImmunite_' + dt]) {
-          expliquer(nomPerso(target) + " ne semble pas affecté par " + stringOfType(dt));
-          target['msgImmunite_' + dt] = true;
-        }
-      } else if (dt == mainDmgType) {
-        continue; //déjà fait avant
-      } else {
-        dealOneType(dt, dmgParType[dt]);
-      }
+      if (dt != mainDmgType) dealOneType(dt, dmgParType[dt]);
     }
     return dealDamageAfterOthers(target, crit, options, evt, expliquer, dmgTotal, dmgDisplay, showTotal, dmSuivis);
   }
@@ -32161,7 +32200,6 @@ var COFantasy2 = COFantasy2 || function() {
       if (!options.sortilege && rdTarget.projectiles)
         rd += rdTarget.projectiles;
     }
-    if (attributeAsBool(target, 'masqueMortuaire')) rd += 2;
     if (attributeAsBool(target, 'masqueMortuaireAmeLiee')) rd += 1;
     if (rdTarget.nature > 0 && dmgNaturel(options)) rd += rdTarget.nature;
     if (dmgTotal > rd && rdTarget.sauf[1]) {
@@ -32485,8 +32523,12 @@ var COFantasy2 = COFantasy2 || function() {
   // options:
   // - saufDMTYpe
   // - recuperation
-  function soignePerso(perso, soins, evt, callTrue, callMax, options) {
-    options = options || {};
+  function soignePerso(perso, soins, evt, callTrue, callMax, options = {}) {
+    if (attributeAsBool(perso, 'masqueMortuaire')) {
+      sendPerso(perso, "ne peut pas être soigné"+eForFemale(perso)+" en ce moment", options.secret);
+      callTrue(0);
+      return;
+    }
     let token = perso.token;
     let {
       pv: bar1,
@@ -37046,16 +37088,20 @@ var COFantasy2 = COFantasy2 || function() {
     return options;
   }
 
-  function setTokenVision(perso, pageId) {
+  //evt est optionnel
+  function setTokenVision(perso, pageId, evt, options = {}) {
     //let sens = ficheAttribute(perso, 'sens', '');
     let visionNoir = predicateAsInt(perso, 'visionDansLeNoir', 0);
+    if (visionNoir < 30 && options.ignoreAttribute != 'masqueMortuaire' && attributeAsBool(perso, 'masqueMortuaire')) visionNoir = 30;
     if (visionNoir > 0) {
       let vs = scaleDistance(perso, visionNoir);
-      perso.token.set('has_night_vision', true);
-      perso.token.set('night_vision_effect', 'Nocturnal');
+      setToken(perso.token, 'has_night_vision', true, evt);
+      setToken(perso.token, 'night_vision_effect', 'Nocturnal', evt);
       //token.set('night_vision_tint', '#555555');
-      perso.token.set('night_vision_distance', vs);
+      setToken(perso.token, 'night_vision_distance', vs, evt);
       forceLightingRefresh(pageId);
+    } else {
+      setToken(perso.token, 'has_night_vision', false, evt);
     }
   }
 
