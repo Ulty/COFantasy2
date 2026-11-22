@@ -1,4 +1,4 @@
-//Dernière modification : ven. 20 nov. 2026,  04:50
+//Dernière modification : dim. 22 nov. 2026,  11:22
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2604,6 +2604,48 @@ var COFantasy2 = COFantasy2 || function() {
     message += " s'écoule";
     if (duree > 1) message += 'nt';
     sendPlayer(message, playerId);
+  }
+
+  function commandeRecupererPM(cmd, playerId, pageId, options) {
+    let deMana = parseDice(cmd[1], options.acteur);
+    if (!deMana) {
+      error("L'argument '" + cmd[1] + "' de !cof2-recuperer-mana n'est pas reconnu", cmd);
+      return;
+    }
+    let {
+      total,
+      display
+    } = rollDePlus(deMana);
+    let {
+      selected
+    } = getSelected(pageId, options);
+    if (selected.length === 0) {
+      sendPlayer("Pas de cible sélectionnée pour la récupération de mana", playerId);
+      return;
+    }
+    const evt = {
+      type: 'récupération de PM'
+    };
+    addEvent(evt);
+    iterSelected(selected, function(perso) {
+      let {
+        pm,
+        pmMax
+      } = pmPerso(perso);
+      if (!pmMax) return;
+      if (pm >= pmMax) {
+        sendPerso(perso, "a déjà tous ses PM", options.secret);
+        return;
+      }
+      pm += total;
+      if (pm <= pmMax) {
+        sendPerso(perso, "récupère " + display + " PM", options.secret);
+      } else {
+        sendPerso(perso, "récupère " + (total - pm + pmMax) + " PM", options.secret);
+        pm = pmMax;
+      }
+      updateCurrentBar(perso, 2, pm, evt);
+    });
   }
 
   //!cof2-recuperation [rapide|complet] [difficulte]
@@ -7906,14 +7948,14 @@ var COFantasy2 = COFantasy2 || function() {
           }
           // Ajoute les effets à la cible
           if (options.limiteCibleEffetParCombat) {
-      let ressource = options.limiteCibleEffetParCombat.ressource || weaponStats.name;
-      ressource = "limiteParCombat_" + ressource;
-        let utilisations = attributeAsInt(target, ressource, options.limiteCibleEffetParCombat.val);
-        if (utilisations === 0) {
-          sendPerso(target, "ne peut plus être affecté" + eForFemale(target) + "par cette attaque pendant ce combat", options.secret);
-          return;
-        }
-        setTokenAttr(target, ressource, utilisations - 1, evt);
+            let ressource = options.limiteCibleEffetParCombat.ressource || weaponStats.name;
+            ressource = "limiteParCombat_" + ressource;
+            let utilisations = attributeAsInt(target, ressource, options.limiteCibleEffetParCombat.val);
+            if (utilisations === 0) {
+              sendPerso(target, "ne peut plus être affecté" + eForFemale(target) + "par cette attaque pendant ce combat", options.secret);
+              return;
+            }
+            setTokenAttr(target, ressource, utilisations - 1, evt);
           }
           let effets = options.effets;
           if (target.effets) {
@@ -13607,11 +13649,35 @@ var COFantasy2 = COFantasy2 || function() {
       profil: 'sorcier',
       action: {
         nom: 'Malédiction',
-        type: 'M',
         mana: 1,
         combat: true,
-        cmd: '!cof2-attaque @{selected|token_id} @{target|token_id} Malédiction --attaqueMagiqueOpposee --sortilege --portee 20 --pasDeDmg --effet malediction ?{utiliser une action|M,1|L,3 --typeAction L} --limiteCibleEffetParCombat 1 malediction',
+        limiteArmure: 'sorcier',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Malédiction --attaqueMagiqueOpposee --sortilege --portee 20 --pasDeDmg --typeAction M --effet malediction ?{utiliser une action|M,1|L,3 --typeAction L} --limiteCibleEffetParCombat 1 malediction',
       },
+    },
+    'beaute de la succube': {
+      profil: 'sorcier',
+      action: [{
+        nom: "Beauté de la succube",
+        type: 'L',
+        mana: 2,
+        limiteArmure: 'sorcier',
+        bufPersonnelNonCumulable: 'beauteDeLaSuccube',
+        cmd: "!cof2-effet beauteDeLaSuccube --dureeEnMinutes @{selected|INT} --select @{selected|token_id}",
+      }, {
+        nom: "Attaque de la succuble",
+        type: 'A',
+        combat: true,
+        dm: true,
+        seulementSiAttributBool: 'beauteDeLaSuccube',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque de la succube --touche @{selected|atkmag} --dm 1d4E+@{selected|INT} --portee 0 --drain',
+      }],
+    },
+    //Voie de la mort
+    'siphon des ames': {
+      siphonDesAmes: true,
+      Restriction_siphonDesAmes: 'armure_sorcier',
+      siphonDesAmesMana: 'SELONRANG(0,0,1,1,1)',
     },
     //Voie de la sombre magie
     'tenebres': {
@@ -19056,6 +19122,23 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
+  function pmPerso(perso) {
+    if (perso.token) {
+      let pmMax = toInt(perso.token.get('bar2_max'), 0);
+      let pm = toInt(perso.token.get('bar2_value'), pmMax);
+      return {
+        pm,
+        pmMax
+      };
+    } else {
+      let [pm, pmMax] = ficheAttributeAsIntWithMax(perso, 'pm', 0);
+      return {
+        pm,
+        pmMax
+      };
+    }
+  }
+
   //Envoie un message privé au joueur qui a tapé la commande
   function sendPlayer(msg, playerId) {
     let dest = 'GM';
@@ -19427,7 +19510,7 @@ var COFantasy2 = COFantasy2 || function() {
                 });
               }
             }
-            if (!estNonVivant(perso) && niveauPerso(perso) > 0) {
+            if (!estNonVivant(perso) && niveauPerso(perso) > 0 && !estPJ(perso)) {
               //Cherche si certains peuvent siphoner l'âme
               let allToks =
                 findObjs({
@@ -19436,79 +19519,55 @@ var COFantasy2 = COFantasy2 || function() {
                   _subtype: 'token',
                   layer: 'objects'
                 });
-              //On cherche d'abord si un siphon des âmes est prioritaire
-              let prioriteSiphon = [];
-              allToks = allToks.filter(function(tok) {
-                if (tok.id == token.id) return false;
+              allToks.forEach(function(tok) {
+                if (distanceCombat(token, tok, pageId) > 20) return;
                 let p = persoOfToken(tok);
-                if (p === undefined) return false;
-                if (getState(p, 'mort')) return false;
-                if (distanceCombat(token, tok, pageId) > 20) return false;
-                if (predicateAsBool(p, 'siphonDesAmes')) {
-                  prioriteSiphon.push({
-                    perso: p,
-                    priorite: predicateAsInt(p, 'siphonDesAmesPrioritaire', 0)
-                  });
+                if (p === undefined) return;
+                if (getState(p, 'mort')) return;
+                let siphon = predicateAsInt(p, 'siphonDesAmes', 0, 1);
+                if (!siphon) return;
+                let soins = Math.ceil(siphon * niveauPerso(perso));
+                let manaPossible = niveauPerso(perso) > 4 && predicateAsInt(p, 'siphonDesAmesMana', 0);
+                if (manaPossible) {
+                  let pm = toInt(tok.get('bar2_value'), 0);
+                  let pmMax = toInt(tok.get('bar2_max'), pm);
+                  if (pm < pmMax) {
+                    let manaRecup = Math.floor(niveauPerso(perso) / 5);
+                    let {
+                      pv,
+                      pvMax
+                    } = pvPerso(perso);
+                    if (pv < pvMax) {
+                      //Donner le choix entre récupérer des PV et récupérer 1 PM
+                      sendPerso(p, "utiliser l'âme de " + nomPerso(perso) + " pour récupérer " +
+                        boutonSimple("!cof2-recuperer-pm " + manaRecup + " --select " + p.token.id, manaRecup + " PM", BS_BUTTON) +
+                        ' ou ' +
+                        boutonSimple("!cof2-soin " + soins + " --select " + p.token.id, soins + " PV", BS_BUTTON),
+                        true);
+                    } else {
+                      //récupérer 1 PM
+                      pm += manaRecup;
+                      if (pm > pmMax) {
+                        manaRecup -= pm - pmMax;
+                        pm = pmMax;
+                      }
+                      updateCurrentBar(p, 2, pm, evt);
+                      sendPerso(p, "siphone l'âme de " + nomPerso(perso) + " et récupère " + manaRecup + " PM");
+                    }
+                    return;
+                  }
                 }
-                return true;
+                soignePerso(p, soins, evt,
+                  function(s) {
+                    let siphMsg = "siphone l'âme de " + nomPerso(perso) +
+                      ". " + onGenre(p, 'Il', 'Elle') + " récupère " + s + " PV.";
+                    sendPerso(p, siphMsg, true);
+                  },
+                  function() {
+                    sendPerso(p,
+                      "est déjà au maximum de point de vie. " + onGenre(p, 'Il', 'Elle') + " laisse échapper l'âme de " + nomPerso(perso));
+                  });
               });
-              if (prioriteSiphon.length > 0) {
-                let {
-                  pvMax
-                } = pvPerso(perso);
-                if (isNaN(pvMax) || pvMax < 1) pvMax = 1;
-                if (estPJ(perso)) {
-                  let siphoneur = prioriteSiphon[0].perso;
-                  let mult = predicateAsInt(siphoneur, 'siphonDesAmes', 1);
-                  sendChat('COF', "/w GM " + perso.token.get('name') + " est un personnage joueur, possible qu'il ne soit pas vraiment mort mais juste inconscient. S'il est vraiment mort, faire le siphon des âmes par " + nomPerso(siphoneur) + " à la main " + mult + "x" + niveauPerso(perso));
-                } else {
-                  prioriteSiphon.sort(function(a, b) {
-                    return b.priorite - a.priorite;
-                  });
-                  let fraction = 100;
-                  let fractionPriorite = fraction;
-                  let priorite = prioriteSiphon[0].priorite;
-                  prioriteSiphon.forEach(function(x) {
-                    if (x.priorite < priorite) {
-                      priorite = x.priorite;
-                      fractionPriorite = fraction;
-                    }
-                    let p = x.perso;
-                    if (fractionPriorite < 1) {
-                      whisperChar(p.charId, "ne réussit pas à siphoner l'âme de " + token.get('name') + " un autre pouvoir l'a siphonée avant lui");
-                      return true;
-                    }
-                    let soinTotal = predicateAsInt(p, 'siphonDesAmes', 2) * niveauPerso(perso);
-                    if (soinTotal < 1) soinTotal = 1;
-                    //Le montant total des soins ne peut excéder les pv max du personnage qui vient de mourrir.
-                    let display = true;
-                    if (soinTotal > pvMax) {
-                      soinTotal = pvMax;
-                      display = false;
-                    }
-                    let soin = Math.ceil(soinTotal * fractionPriorite / 100);
-                    soignePerso(p, soinTotal, evt,
-                      function(s) {
-                        let siphMsg = "siphone l'âme de " + token.get('name') +
-                          ". " + onGenre(p, 'Il', 'Elle') + " récupère ";
-                        if (s == soinTotal) {
-                          if (display) siphMsg += soin + " pv.";
-                          else siphMsg += s + " pv.";
-                          fraction = 0;
-                        } else {
-                          siphMsg += s + " pv (jet " + soin + ").";
-                          fraction -= Math.ceil(s * 100 / soinTotal);
-                        }
-                        pvMax -= s;
-                        whisperChar(p.charId, siphMsg);
-                      },
-                      function() {
-                        whisperChar(p.charId,
-                          "est déjà au maximum de point de vie. " + onGenre(p, 'Il', 'Elle') + " laisse échapper l'âme de " + token.get('name'));
-                      });
-                  });
-                }
-              }
             }
             break;
           }
@@ -19654,7 +19713,9 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function estNonVivant(perso) {
-    return (predicateAsBool(perso, 'nonVivant') ||
+    return (
+    ficheAttribute(perso, 'creature') == 'Créature non vivante' ||
+    predicateAsBool(perso, 'nonVivant') ||
       attributeAsBool(perso, 'masqueMortuaire') ||
       attributeAsBool(perso, 'masqueMortuaireAmeLiee') ||
       estMortVivant(perso));
@@ -20842,14 +20903,14 @@ var COFantasy2 = COFantasy2 || function() {
     }
   }
 
-  function debutAspectDeLaSuccube(perso, effet, val, pageId, evt, ef, options) {
+  function debutBeauteDeLaSuccube(perso, effet, val, pageId, evt, ef, options) {
     //On retire l'autre aspect du Nécromancien si il est présent
     finDEffetPerso(perso, "aspectDuDemon", evt);
   }
 
   function debutAspectDuDemon(perso, effet, val, pageId, evt, ef, options) {
     //On retire l'autre aspect du Nécromancien si il est présent
-    finDEffetPerso(perso, "aspectDeLaSuccube", evt);
+    finDEffetPerso(perso, "beauteDeLaSuccube", evt);
   }
 
   function debutIntangible(perso, effet, val, pageId, evt, ef, options) {
@@ -21817,11 +21878,11 @@ var COFantasy2 = COFantasy2 || function() {
       debutFun: mettreArmure,
       finFun: retirerArmure,
     },
-    aspectDeLaSuccube: {
+    beauteDeLaSuccube: {
       activation: "acquiert une beauté fascinante",
       actif: "est d'une beauté fascinante",
       fin: "retrouve son apparence normale",
-      debutFun: debutAspectDeLaSuccube,
+      debutFun: debutBeauteDeLaSuccube,
     },
     aspectDuDemon: {
       activation: "prend l'apparence d'un démon ailé",
@@ -26129,6 +26190,10 @@ var COFantasy2 = COFantasy2 || function() {
             bonus += bonusCHA;
           }
         }
+        if (attributeAsBool(perso, 'beauteDeLaSuccube')) {
+          expliquer("Beauté de la succube : dé bonus aux tests de CHA");
+          ajouteDeBonus(options);
+        }
         break;
       case 'CON':
         {
@@ -26226,11 +26291,11 @@ var COFantasy2 = COFantasy2 || function() {
         explications.push(nomPerso(perso) + " maudit" + eForFemale(perso) + " => dé malus");
         deMalus++;
         if (evt) {
-            if (malediction > 1) {
-              setTokenAttr(perso, 'malediction', malediction - 1, evt);
-            } else {
-              finDEffetPerso(perso, 'malediction', evt);
-            }
+          if (malediction > 1) {
+            setTokenAttr(perso, 'malediction', malediction - 1, evt);
+          } else {
+            finDEffetPerso(perso, 'malediction', evt);
+          }
         }
       }
       if (attributeAsBool(perso, 'sprint')) {
@@ -38926,6 +38991,10 @@ var COFantasy2 = COFantasy2 || function() {
     'recuperation': {
       fn: commandeRecuperation,
       minArgs: 1
+    },
+    'recuperer-pm': {
+      fn: commandeRecupererPM,
+      minArgs: 1,
     },
     'reinit-partie': {
       fn: commandeReinitialisePartie,
