@@ -1,4 +1,4 @@
-//Dernière modification : dim. 22 nov. 2026,  03:53
+//Dernière modification : dim. 22 nov. 2026,  06:34
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13659,7 +13659,7 @@ var COFantasy2 = COFantasy2 || function() {
     },
     'beaute de la succube': {
       profil: 'sorcier',
-      action: [{
+      actions: [{
         nom: "Beauté de la succube",
         type: 'L',
         mana: 2,
@@ -13672,7 +13672,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         dm: true,
         seulementSiAttributBool: 'beauteDeLaSuccube',
-        cmd: '!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Attaque de la succube --touche @{selected|atkmag} --dm 1d4E+@{selected|INT} --portee 0 --drain',
+        cmd: '!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Baiser de la succube --touche @{selected|atkmag} --dm 1d4E+@{selected|INT} --portee 0 --drain',
       }],
     },
     //Voie de la mort
@@ -13690,6 +13690,19 @@ var COFantasy2 = COFantasy2 || function() {
         bufPersonnelNonCumulable: 'masqueMortuaire',
         limiteArmure: 'sorcier',
         cmd: "!cof2-effet masqueMortuaire --dureeEnMinutes @{selected|INT} --select @{selected|token_id}",
+      },
+    },
+    //Voie de l'outre-tombe
+    'un pied dans la tombe': {
+      profil: 'sorcier',
+      action: {
+        nom: "Un pied dans la tombe",
+        type: 'A',
+        mana: 1,
+        limiteArmure: 'sorcier',
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Un pied dans la tombe --attaqueMagiqueOpposee --sortilege --dm 1d4E+@{selected|INT} --portee 10 --effet ralenti 1 --save CON 10",
       },
     },
     //Voie de la sombre magie
