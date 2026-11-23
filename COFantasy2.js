@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  11:06
+//Dernière modification : lun. 23 nov. 2026,  12:57
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3020,6 +3020,8 @@ var COFantasy2 = COFantasy2 || function() {
       return pvPerso(perso).pvMax;
     } else if (options.difficultePV) {
       return pvPerso(perso).pv;
+    } else if (options.difficulte) {
+      return options.difficulte;
     }
     let defDerivee = predicateAsBool(perso, 'defDeriveeDe');
     if (defDerivee) {
@@ -13736,6 +13738,19 @@ var COFantasy2 = COFantasy2 || function() {
     },
     "armure d’os": capaciteArmureDOS,
     "armure d'os": capaciteArmureDOS,
+    //Voie du sang
+    'saignements':{
+      profil: 'sorcier',
+      action: {
+        nom: "Saignements",
+        type: 'A',
+        mana: 1,
+        limiteArmure: 'sorcier',
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id}  Saignements --sortilege --difficulte [[10+@{target|Cible|CON}]] --pasDeDmg --portee 10 --effet saignementsSang @{selected|INT} --valeur 1d4E",
+      },
+    },
     //Voie de la sombre magie
     'tenebres': {
       profil: 'sorcier',
