@@ -1,4 +1,4 @@
-//Dernière modification : dim. 22 nov. 2026,  06:34
+//Dernière modification : lun. 23 nov. 2026,  11:06
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2977,6 +2977,13 @@ var COFantasy2 = COFantasy2 || function() {
       let bonusDEFArmureLourde = predicateAsInt(perso, 'bonusDEFArmureLourde', 0);
       if (bonusDEFArmureLourde > 0 && typeArmurePortee(perso) < 3) {
         defense += bonusDEFArmureLourde;
+      } else {
+        let armureDOS = predicateAsInt(perso, 'bonusArmureDOS', 0);
+        if (armureDOS) {
+          let id = ficheAttribute(perso, 'armor_gearid', '');
+          if (id && ficheAttribute(perso, 'repeating_equipement_'+id+'_equip-nom', '') == "[S] Armure d'os")
+            defense += armureDOS;
+        }
       }
     } else {
       defense = attributeAsInt(perso, 'armureDeMana', 0, 3);
@@ -12235,6 +12242,28 @@ var COFantasy2 = COFantasy2 || function() {
     },
   };
 
+  const capaciteArmureDOS = {
+      bonusArmureDOS: 0,
+      plusParVoieDeRang: {
+        predicat: 'bonusArmureDOS',
+        profil: 'sorcier',
+        rang: 4,
+        def: 0,
+      },
+      buffsSurFiche: [{
+        nom: "Armure d'os",
+        equipement: true,
+        armure: {
+          bonus: 3,
+          malus: 0,
+        },
+        props: "armure:3 \narmure-malus:0 \nagi-max:8",
+        predicats: '',
+        detail: "Une armure composée d'os, qu'il faut entretenir 10 min par jour",
+        atk: '0',
+      }],
+    };
+
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
   // action est un objet, est actions est une liste d'actions, avec les champs:
@@ -13705,6 +13734,8 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} Un pied dans la tombe --attaqueMagiqueOpposee --sortilege --dm 1d4E+@{selected|INT} --portee 10 --effet ralenti 1 --save CON 10",
       },
     },
+    "armure d’os": capaciteArmureDOS,
+    "armure d'os": capaciteArmureDOS,
     //Voie de la sombre magie
     'tenebres': {
       profil: 'sorcier',
@@ -14499,6 +14530,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   const champsDesBuffsDeFiche = ['nom', 'on', 'attrib', 'value'];
+  const champsDesEquipementsDeFiche = ['nom', 'on', 'detail', 'props', 'atk', 'predicats'];
 
   function predicatsDeCapacite(perso, capacite, numVoie, rang, capacites, actions, plusParVoieDeRang, buffs = undefined, options = {}) {
     capacite = removeAccents(capacite).toLowerCase();
@@ -14585,7 +14617,9 @@ var COFantasy2 = COFantasy2 || function() {
         if (!Array.isArray(preds.buffsSurFiche)) preds.buffsSurFiche = [preds.buffsSurFiche];
         preds.buffsSurFiche.forEach(function(b) {
           if (!b.nom) {
-            log("Il manque le nom du buff sur fiche pour la capacité " + capacite);
+            let t = "du buff";
+            if (b.equipement) t = "de l'équipemet";
+            log("Il manque le nom "+t+" sur fiche pour la capacité " + capacite);
             log(b);
             return;
           }
@@ -14595,7 +14629,7 @@ var COFantasy2 = COFantasy2 || function() {
             if (mod_int <= mod_con) return;
             b.value = mod_int - mod_con;
           }
-          let buffPresent = buffs[b.nom];
+          let buffPresent = buffs[b.nom];//TODO: distinguer les noms de buff et les noms d'équipements ?
           if (buffPresent) {
             if (buffPresent.length === 0) {
               delete buffs[b.nom];
@@ -14606,17 +14640,34 @@ var COFantasy2 = COFantasy2 || function() {
           }
           let prefix;
           if (buffPresent) prefix = buffPresent.prefix;
-          else prefix = 'repeating_buffs_' + generateRowID() + '_';
+          else {
+            let id = generateRowID();
+            prefix = 'repeating_';
+            if (b.equipement) {
+              prefix += 'equipement';
+              if (b.armure) {
+                setFicheAttr(perso, 'armor_gearid', id);
+                setFicheAttr(perso, 'armure_eqp', 1);
+                setFicheAttr(perso, 'armure_malus', b.armure.malus);
+                setFicheAttr(perso, 'armure', b.armure.bonus);
+              }
+            } else prefix += 'buffs';
+            prefix += '_' + id + '_';
+          }
           b.nom = '[S] ' + b.nom;
           b.on = '1';
+          let pb = 'buff-';
+          if (b.equipement) pb = 'equip-';
           if (b.limiteArmure) buffs.limitationsDArmures[prefix] = b.limiteArmure;
-          champsDesBuffsDeFiche.forEach(function(field) {
-            if (!b[field]) {
+          let champsDeFiche = champsDesBuffsDeFiche;
+          if (b.equipement) champsDeFiche = champsDesEquipementsDeFiche;
+          champsDeFiche.forEach(function(field) {
+            if (b[field] === undefined) {
               log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
               return;
             }
             let val = replaceSpecialStrings(b[field], numVoie, rmax, params);
-            let f = 'buff-' + field;
+            let f = pb + field;
             if (buffPresent) {
               if (buffPresent[f] == val) return;
               let attrs = charAttribute(perso.charId, prefix + f);
@@ -14931,11 +14982,11 @@ var COFantasy2 = COFantasy2 || function() {
         let rangsParProfil = {};
         let rangSortMax = {}; //pour chaque profil, le rang de sort maximum maîtrisé
         let plusParVoieDeRang = []; //Les bonus par nombre de voies d'un certain rang
-        let buffsRaw = extractRepeating(perso, 'buffs'); //Les buffs sur la fiche
-        //On extrait les buffs provenant du script (nom commance par [S])
         let buffs = {
           limitationsDArmures
         }; //map de nom vers liste de buffs qui seront enlevés par predicatsDeVoie. le champ limitationsDArmures servira à collecter les limitations d'armure (pref -> limitation)
+        let buffsRaw = extractRepeating(perso, 'buffs'); //Les buffs sur la fiche
+        //On extrait les buffs provenant du script (nom commence par [S])
         for (const idx in buffsRaw) {
           let b = buffsRaw[idx];
           let nom = b['buff-nom'];
@@ -14950,6 +15001,24 @@ var COFantasy2 = COFantasy2 || function() {
             buffs[nom].push(b);
           }
         }
+        let equipRaw = extractRepeating(perso, 'equipement'); //Les équipements sur la fiche
+        //On extrait les équipements provenant du script (nom commence par [S])
+        for (const idx in equipRaw) {
+          let b = equipRaw[idx];
+          let nom = b['equip-nom'];
+          if (nom && nom.startsWith('[S] ')) {
+            b.prefix = idx;
+            nom = nom.substring(4);
+            if (nom == 'limitationsDArmures') {
+              error("Il ne faut pas nommer un  équipement limitationsDArmures, c'est réservé!", b);
+              continue;
+            }
+            buffs[nom] = buffs[nom] || [];
+            buffs[nom].push(b);
+          }
+        }
+        let armureLiee = ficheAttribute(perso, 'armor_gearid', undefined);
+        if (armureLiee) armureLiee = 'repeating_equipement_'+armureLiee+'_';
         for (let numVoie = 1; numVoie < 10; numVoie++) {
           predicatsDeVoie(perso, numVoie, capacites, rangsParProfil, rangSortMax, armesMaitrisees, actions, plusParVoieDeRang, buffs);
         }
@@ -14970,6 +15039,12 @@ var COFantasy2 = COFantasy2 || function() {
               attr.forEach(function(a) {
                 a.remove();
               });
+            }
+            if (prefix == armureLiee) {
+                removeFicheAttr(perso, 'armor_gearid');
+                setFicheAttr(perso, 'armure_eqp', 0);
+                removeFicheAttr(perso, 'armure_malus');
+                removeFicheAttr(perso, 'armure');
             }
           }
         }
