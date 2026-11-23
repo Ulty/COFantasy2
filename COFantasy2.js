@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  06:14
+//Dernière modification : lun. 23 nov. 2026,  06:19
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -7072,7 +7072,8 @@ var COFantasy2 = COFantasy2 || function() {
       predicateAsBool(target, 'proprioception') ||
       predicateAsBool(target, 'sansEsprit') ||
       attributeAsBool(target, 'enrage') ||
-      predicateAsBool(target, 'liberteDAction')) {
+      predicateAsBool(target, 'liberteDAction') ||
+    (options.sortilege && predicateAsBool(target, 'forceDAme'))) {
       messages.push(targetName + " est insensible à la peur !");
       return;
     }
@@ -12379,7 +12380,7 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestPeuple_elfeHaut: true,
     },
     "force d'ame": {
-      immunite_peur: true,
+      forceDAme: true,
       immunite_sommeil: true,
       bonusTestOpposeAttaqueMagique: 'RANG',
     },
@@ -12421,6 +12422,9 @@ var COFantasy2 = COFantasy2 || function() {
       }],
       bonusTestPeuple_petiteTaille: true
         //TODO: limitation des armes ?
+    },
+    'resistance legendaire': {
+      bonusTestOpposeAttaqueMagique: 'RANG',
     },
     //Voie de l'humain
     'diversite': {
