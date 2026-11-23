@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  06:09
+//Dernière modification : lun. 23 nov. 2026,  06:14
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12182,6 +12182,11 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Science',
         description: "tests scientifiques, occultes ou ordinaires",
       },
+      sympathique: {
+        nom: 'Sympathique',
+        description: "tests d'interactions sociales, sauf intimidation",
+        competences: ['convaincre', 'mentir'],
+      },
       tavernes: {
         nom: 'Pilier de bar',
         descriptions: "interactions dans les tavernes ou auberges (renseignement, négiciation, séduction, ...)&#13; et résister à l'alcool"
@@ -12398,6 +12403,14 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestPeuple_science: true,
       visionDansLeNoir: 10,
       sortDeCapacite: 'PARAM.sort',
+    },
+    'petit pote': {
+      buffsSurFiche: [{
+        nom: 'Petit pote',
+        attrib: 'pc',
+        value: '1',
+      }],
+      bonusTestPeuple_sympathique: true,
     },
     //Voie du halfelin
     'petite taille': {
