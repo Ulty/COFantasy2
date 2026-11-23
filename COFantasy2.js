@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  12:57
+//Dernière modification : lun. 23 nov. 2026,  01:15
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -13751,6 +13751,17 @@ var COFantasy2 = COFantasy2 || function() {
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id}  Saignements --sortilege --difficulte [[10+@{target|Cible|CON}]] --pasDeDmg --portee 10 --effet saignementsSang @{selected|INT} --valeur 1d4E",
       },
     },
+    'sang mordant': {
+      profil: 'sorcier',
+      action: {
+        nom: "Sang mordant",
+        type: 'M',
+        mana: 2,
+        limiteArmure: 'sorcier',
+        bufPersonnelNonCumulable: 'sangMordant',
+        cmd: "!cof2-effet sangMordant --dureeEnMinutes @{selected|INT} --select @{selected|token_id}",
+      },
+    },
     //Voie de la sombre magie
     'tenebres': {
       profil: 'sorcier',
@@ -21814,17 +21825,17 @@ var COFantasy2 = COFantasy2 || function() {
       seulementVivant: true,
     },
     postureDefensive: {
+      dureeEnTours: true,
       activation: "se prépare à parer un coup avec son bouclier",
       actif: "est prêt à parer un coup avec son bouclier",
       actifF: "est prête à parer un coup avec son bouclier",
       fin: "n'est plus en position de parer le prochain coup sur son bouclier",
-      dureeEnTours: true,
     },
     saignementsSang: {
+      dureeEnTours: true,
       activation: "commence à saigner du nez, des oreilles et des yeux",
       actif: "saigne de tous les orifices du visage",
       fin: "ne saigne plus",
-      dureeEnTours: true,
       parTourFun: parTourSaignementsSang,
       msgSave: "ne plus saigner",
       prejudiciable: true,
@@ -21835,35 +21846,35 @@ var COFantasy2 = COFantasy2 || function() {
       saignement: true,
     },
     sanctuaire: {
+      dureeEnTours: true,
       activation: "est protégé par un sanctuaire",
       activationF: "est protégée par un sanctuaire",
       actif: "est protégé par un sanctuaire",
       actifF: "est protégée par un sanctuaire",
       fin: "n'est plus protégé par le sanctuaire",
       finF: "n'est plus protégée par le sanctuaire",
-      dureeEnTours: true,
     },
     soutenuContre: {
+      dureeEnTours: true,
       activation: "est soutenu pour sa prochaine attaque",
       activationF: "est soutenue pour sa prochaine attaque",
       actif: "est soutenu pour sa prochaine attaque",
       actifF: "est soutenue pour sa prochaine attaque",
       fin: '',
-      dureeEnTours: true,
       generic: true
     },
     sprint: {
+      dureeEnTours: true,
       activation: "pousse un sprint",
       actif: "est en train de sprinter",
       fin: "",
-      dureeEnTours: true,
       visible: true
     },
     strangulation: {
+      dureeEnTours: true,
       activation: "étouffe",
       actif: "étouffe sous l'effet d'une sombre magie",
       fin: "retrouve son souffle",
-      dureeEnTours: true,
       prejudiciable: true,
       visible: true,
     },
@@ -22249,6 +22260,11 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "l'arme reçoit une rune de puissance",
       actif: "possède une arme enchantée avec une rune de puissance",
       fin: "la rune de puissance s'estompe",
+    },
+    sangMordant: {
+      activation: "transforme son sang en acide",
+      actif: "du sang acide coule dans ses veines",
+      fin: "retrouve un sang normal",
     },
     soinsEnAttente: {
       //courant: l'expression des soins
