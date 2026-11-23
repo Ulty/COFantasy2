@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  04:22
+//Dernière modification : lun. 23 nov. 2026,  05:04
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3074,8 +3074,10 @@ var COFantasy2 = COFantasy2 || function() {
       explications.push("Défense totale => +5 en DEF");
     }
     let pacifisme = predicateAsInt(perso, 'pacifisme', 0, 5);
-    if (pacifisme > 0 && !attributeAsBool(perso, 'attributDeCombat_pacifismeAnnule'))
+    if (pacifisme > 0 && !attributeAsBool(perso, 'attributDeCombat_pacifismeAnnule')) {
       defense += pacifisme;
+      explications.push("Pacifisme => " + pacifisme + " en DEF");
+    }
     if (attributeAsBool(perso, 'aspectDuDemon')) {
       defense += getIntValeurOfEffet(perso, 'aspectDuDemon', 2);
     }
@@ -5269,6 +5271,9 @@ var COFantasy2 = COFantasy2 || function() {
       target.dmgCoef = 0;
       target.critCoef = 0;
       target.diviseDmg = 1;
+      if (predicateAsBool(target, 'pacifisme') && !attributeAsBool(target, 'attributDeCombat_pacifismeAnnule')) {
+        target.diviseDmg++;
+      }
       const messages = messagesCalculDesCibles[target.token.id];
       if (messages) target.messages = [...messages];
       else target.messages = [];
@@ -12061,6 +12066,10 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Pistage',
         description: "Pistage en milieu naturel",
       },
+      pacifisme: {
+        nom: 'Pacifisme',
+        description: "Tests d'empathie ou pour apaiser un auditoire ou le convaincre de ne pas être violent",
+      },
       plantes: {
         nom: 'Plantes',
         description: "identifier les plantes et connaître leurs propriétés",
@@ -14006,6 +14015,11 @@ var COFantasy2 = COFantasy2 || function() {
       Restriction_agiliteDuSinge: 'armure_moine',
     },
     //Voie de la méditation
+    'pacifisme': {
+      bonusTestEvolutif_pacifisme: true,
+      pacifisme: true,
+      Restriction_pacifisme: 'armure_moine',
+    },
     'volonte heroique': {
       VOL_heroique: true,
       buffsSurFiche: [{
@@ -14013,6 +14027,11 @@ var COFantasy2 = COFantasy2 || function() {
         attrib: 'vol',
         value: '1',
       }]
+    },
+    //Voie du poing
+    'poings de fer':{
+      mainsNuesAvecAGI: true,
+      deDMMainsNues: 'SELONRANG(6,8,10,12,14)',//14 sera transformé en 2d6
     },
     //Voies de prêtre ////////////////////////////////////////////
     //Voie de la foi
@@ -14558,12 +14577,13 @@ var COFantasy2 = COFantasy2 || function() {
   const paramRegExp = new RegExp(/PARAM\.([\w-]*)/g);
 
   //Remplace NUMEROVOIE, SELONRANG, RANG et PARAM.field
-  function replaceSpecialStrings(val, numVoie, rmax, params) {
+  function replaceSpecialStrings(val, numVoie, rmax, params, capacite) {
     val = val + '';
     val = val.replace(paramRegExp, function(matched, field) {
       let r = params[field];
       if (!r) {
-        log("Pas de paramètre " + field + " dans " + params.parametreTotal);
+        log("Pas de paramètre " + field + " pour la capacité " + capacite);
+        if (params.parametreTotal !== '') log(" le champ paramètre est : " + params.parametreTotal);
         return '';
       }
       return r;
@@ -14574,17 +14594,17 @@ var COFantasy2 = COFantasy2 || function() {
     return val;
   }
 
-  function replaceSpecialInField(obj, k, numVoie, rmax, params) {
+  function replaceSpecialInField(obj, k, numVoie, rmax, params, capacite) {
     let v = obj[k];
     if (!v) return;
     let t = typeof v;
     switch (t) {
       case 'string':
-        obj[k] = replaceSpecialStrings(v, numVoie, rmax, params);
+        obj[k] = replaceSpecialStrings(v, numVoie, rmax, params, capacite);
         return;
       case 'object':
         for (const l in v) {
-          replaceSpecialInField(v, l, numVoie, rmax, params);
+          replaceSpecialInField(v, l, numVoie, rmax, params, capacite);
         }
         return;
       default:
@@ -14653,7 +14673,7 @@ var COFantasy2 = COFantasy2 || function() {
       for (let i = 0; i < preds.actions.length; i++) {
         let limiteRangs = preds.actions[i].aPartirDeRang;
         if (limiteRangs && rmax < limiteRangs) continue;
-        replaceSpecialInField(preds.actions, i, numVoie, rmax, params);
+        replaceSpecialInField(preds.actions, i, numVoie, rmax, params, capacite);
         let act = preds.actions[i];
         actions.push(act);
         if (act.debloqueActions) {
@@ -14671,7 +14691,7 @@ var COFantasy2 = COFantasy2 || function() {
       delete preds.actions;
     }
     if (preds.plusParVoieDeRang) {
-      replaceSpecialInField(preds, 'plusParVoieDeRang', numVoie, rmax, params);
+      replaceSpecialInField(preds, 'plusParVoieDeRang', numVoie, rmax, params, capacite);
       plusParVoieDeRang.push(preds.plusParVoieDeRang);
       delete preds.plusParVoieDeRang;
     }
@@ -14729,7 +14749,7 @@ var COFantasy2 = COFantasy2 || function() {
               log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
               return;
             }
-            let val = replaceSpecialStrings(b[field], numVoie, rmax, params);
+            let val = replaceSpecialStrings(b[field], numVoie, rmax, params, capacite);
             let f = pb + field;
             if (buffPresent) {
               if (buffPresent[f] == val) return;
@@ -14772,7 +14792,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       } else {
         let rawNomCompagnon = compagnon.name;
-        replaceSpecialInField(preds, 'compagnon', numVoie, rmax, params);
+        replaceSpecialInField(preds, 'compagnon', numVoie, rmax, params, capacite);
         compagnon = preds.compagnon;
         let nomCompagnon = compagnon.name;
         if (nomCompagnon == '') {
@@ -14837,7 +14857,7 @@ var COFantasy2 = COFantasy2 || function() {
         log(nomPerso(perso) + " ne peut pas obtenir une capacité indirecte à partir d'une capacité indirecte (" + options.indirect + ")");
       } else {
         let raw = preds.capacite.nom;
-        replaceSpecialInField(preds, 'capacite', numVoie, rmax, params);
+        replaceSpecialInField(preds, 'capacite', numVoie, rmax, params, capacite);
         let cap = preds.capacite;
         if (cap === '') {
           if (raw == 'PARAM' && !warnParam) {
@@ -14857,7 +14877,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (preds.sortDeCapacite) {
       let raw = preds.sortDeCapacite;
-      let sort = replaceSpecialStrings(raw, numVoie, rmax, params);
+      let sort = replaceSpecialStrings(raw, numVoie, rmax, params, capacite);
       if (sort === '') {
         if (raw == 'PARAM' && !warnParam) {
           warnParam = false;
@@ -14894,7 +14914,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (rmax > 5) preds[p] = 7;
         else preds[p] = rmax + 2;
       } else {
-        replaceSpecialInField(preds, p, numVoie, rmax, params);
+        replaceSpecialInField(preds, p, numVoie, rmax, params, capacite);
         if (preds[p] === '') delete preds[p];
       }
     }
@@ -30090,7 +30110,9 @@ var COFantasy2 = COFantasy2 || function() {
           let carac = options.avecCarac || 'FOR';
           attCar = modCarac(attaquant, carac, options);
           let bonusAttCarac = options.bonusAttaqueCarac;
-          if (weaponStats.armeLegere && carac == 'FOR' && predicateAsBool(attaquant, 'armesLegeresAvecAGI')) {
+          if ((weaponStats.armeLegere && carac == 'FOR' && predicateAsBool(attaquant, 'armesLegeresAvecAGI')) ||
+          weaponStats.armeNaturelle && carac == 'FOR' && predicateAsBool(attaquant, 'mainsNuesAvecAGI')
+          ) {
             let bonusAgi = modCarac(attaquant, 'AGI', options);
             let swap;
             if (bonusAttCarac) {
@@ -30296,15 +30318,29 @@ var COFantasy2 = COFantasy2 || function() {
     return weaponStats;
   }
 
+  function attaqueStatsMainsNues(perso) {
+      let weaponStats = {...attaqueAMainsNues
+      };
+      if (predicateAsBool(perso, 'deEvolutifMainsNues')) weaponStats.attDice = deEvolutif(perso);
+    let de = predicateAsBool(perso, 'deDMMainsNues', 3);
+    if (de) weaponStats.options = '--choc'; //On enlève le --tempDmg
+    if (de > weaponStats.attDice) {
+      if (de == 14) {
+        weaponStats.attNbDices = 2;
+        weaponStats.attDice = 6;
+      } else {
+        weaponStats.attDice = de;
+      }
+    }
+    return weaponStats;
+  }
+
   //perso peut ne pas avoir de token
   // si strict, on retourne undefined s'il n'existe pas d'attaque de ce label
   function getWeaponStats(perso, attackLabel, strict) {
     if (attackLabel === undefined) {
       if (strict) return;
-      let weaponStats = {...attaqueAMainsNues
-      };
-      if (predicateAsBool(perso, 'deEvolutifMainsNues')) weaponStats.attDice = deEvolutif(perso);
-      return weaponStats;
+      return attaqueStatsMainsNues(perso);
     }
     let attaques = listAllAttacks(perso);
     let att = attaques[attackLabel];
@@ -30321,8 +30357,7 @@ var COFantasy2 = COFantasy2 || function() {
           return weaponStatsOfAttack(perso, label, att);
         }
       }
-      let weaponStats = {...attaqueAMainsNues
-      };
+      let weaponStats = attaqueStatsMainsNues(perso);
       if (attackLabel != -1) weaponStats.name = attackLabel;
       return weaponStats;
     }
@@ -33558,8 +33593,8 @@ var COFantasy2 = COFantasy2 || function() {
     let rang = 1;
     if (pred.action && pred.action.mana) rang = toInt(pred.action.mana, 1);
     else if (pred.actions && pred.actions[0].mana) rang = toInt(pred.actions[0].mana, 1);
-    replaceSpecialInField(pred, 'action', 0, rang, {}); //Pas de paramètre, rang 1
-    replaceSpecialInField(pred, 'actions', 0, rang, {});
+    replaceSpecialInField(pred, 'action', 0, rang, {}, pred.nom); //Pas de paramètre, rang 1
+    replaceSpecialInField(pred, 'actions', 0, rang, {}, pred.nom);
     return pred;
   }
 
