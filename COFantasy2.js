@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  05:04
+//Dernière modification : lun. 23 nov. 2026,  06:01
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12095,6 +12095,11 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Théologie',
         description: "théologie ou cosmologie",
       },
+      deplacementVent: {
+        nom: "Déplacement",
+        description: "Tests de saut, course ou escalade",
+        competences: ['course', 'saut', 'escalade'],
+      },
       medecine: {
         nom: 'Médecine',
         description: "médecine ou premiers soins",
@@ -14029,9 +14034,20 @@ var COFantasy2 = COFantasy2 || function() {
       }]
     },
     //Voie du poing
-    'poings de fer':{
+    'poings de fer': {
       mainsNuesAvecAGI: true,
-      deDMMainsNues: 'SELONRANG(6,8,10,12,14)',//14 sera transformé en 2d6
+      deDMMainsNues: 'SELONRANG(6,8,10,12,14)', //14 sera transformé en 2d6
+    },
+    //Voie du vent
+    'pas du vent': {
+      bonusTestEvolutif_deplacementVent: true,
+      Restriction_bonusTestEvolutif_deplacementVent: 'armure_moine',
+      buffsSurFiche: [{
+        nom: 'Pas du vent',
+        attrib: 'init',
+        value: '3',
+      }],
+      fractionneMvt: 1,
     },
     //Voies de prêtre ////////////////////////////////////////////
     //Voie de la foi
@@ -30111,7 +30127,7 @@ var COFantasy2 = COFantasy2 || function() {
           attCar = modCarac(attaquant, carac, options);
           let bonusAttCarac = options.bonusAttaqueCarac;
           if ((weaponStats.armeLegere && carac == 'FOR' && predicateAsBool(attaquant, 'armesLegeresAvecAGI')) ||
-          weaponStats.armeNaturelle && carac == 'FOR' && predicateAsBool(attaquant, 'mainsNuesAvecAGI')
+            weaponStats.armeNaturelle && carac == 'FOR' && predicateAsBool(attaquant, 'mainsNuesAvecAGI')
           ) {
             let bonusAgi = modCarac(attaquant, 'AGI', options);
             let swap;
@@ -30319,9 +30335,9 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function attaqueStatsMainsNues(perso) {
-      let weaponStats = {...attaqueAMainsNues
-      };
-      if (predicateAsBool(perso, 'deEvolutifMainsNues')) weaponStats.attDice = deEvolutif(perso);
+    let weaponStats = {...attaqueAMainsNues
+    };
+    if (predicateAsBool(perso, 'deEvolutifMainsNues')) weaponStats.attDice = deEvolutif(perso);
     let de = predicateAsBool(perso, 'deDMMainsNues', 3);
     if (de) weaponStats.options = '--choc'; //On enlève le --tempDmg
     if (de > weaponStats.attDice) {
@@ -38072,6 +38088,17 @@ var COFantasy2 = COFantasy2 || function() {
       let token = tokenPseudo(perso);
       let mvt = mouvementEnCours[token.id];
       if (!mvt) return;
+      if (mvt.restant > 1 && !mvt.repoussePar && (mvt.enAttente || capaciteDisponible(perso, 'fractionneMvt', 'tour'))) {
+        if (mvt.path && mvt.path.length > 0) {
+          let test = testLimiteUtilisationsCapa(perso, 'fractionneMvt', 'tour');
+          if (test) {
+            mvt.enAttente = true;
+            utiliseCapacite(perso, test, evt);
+          } else delete mvt.enAttente;
+          eraseMouvementEnCours(mvt);
+        }
+        return;
+      }
       pasDePlacement = mvt.pasDePlacement || 0;
       effaceDeplacement(perso, mvt, evt);
       delete mouvementEnCours[token.id];
