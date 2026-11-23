@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  06:28
+//Dernière modification : lun. 23 nov. 2026,  06:47
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -7898,7 +7898,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (options.fxCible && !options.aoe) {
             spawnFx(target.token.get('left'), target.token.get('top'), options.fxCible, pageId);
           }
-          if (options.manoeuvre == 'desarmer') {
+          if (options.manoeuvre == 'desarmer' || options.desarmer) {
             let arme = armesEnMain(target);
             if (arme) {
               let opt = {
@@ -12517,6 +12517,16 @@ var COFantasy2 = COFantasy2 || function() {
       bonusTestEvolutif_tavernes: true, //TODO: jets pour résister a l'alcool
       deEvolutifMainsNues: true,
       resistanceA_tempDmg: true,
+    },
+    'mort ou vif': {
+      action: {
+        nom: "Mort ou vif",
+        type: 'L',
+        limiteArmure: 'arquebusier',
+        combat: true,
+        dm: true,
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --if NC < RANG ?{Effet|Desarmer,--desarmer|Renverser,--effet renverse|Affaiblir, --effet affaibli [[1d4]]} --if critique --messageMJ choisir un autre effet à appliquer parmis désarmé, renversé et affaibli 1d4 tours --endif --endif"//TODO: permettre un effet supplémentaire en cas de critique !
+      },
     },
     //Voie du pistolero
     'plus vite que son ombre': {
@@ -36898,6 +36908,10 @@ var COFantasy2 = COFantasy2 || function() {
     deMalus: boolDefaultOption,
     deplaceDe: {
       fn: deplaceDeOption,
+    },
+    desarmer: {
+      fn: booleanOption,
+      local: true,
     },
     difficulte: {
       fn: integerOption
