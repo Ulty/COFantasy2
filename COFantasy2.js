@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  06:47
+//Dernière modification : lun. 23 nov. 2026,  06:53
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -12347,11 +12347,11 @@ var COFantasy2 = COFantasy2 || function() {
   //  - limiteArmure: limitation d'armure
   //  - aPartirDeRang: action disponible seulement à partir d'un certain rang dans la voie
   //  - debloqueActions: liste d'actions qui sont débloquées pour le tour si on exécute la cmd
+  //  - aoe: l'action est une aoe qui peut nécessiter la pose d'une cible
   // capacite : reproduit l'effet d'une capacité
   //  - nom : le nom de la capacité
   //  - profil : une liste de profils desquels la capacité peut provenir
   //  - limiteArmure : redéfinit la limite d'armure pour cette capcité
-  //  - aoe: l'action est une aoe qui peut nécessiter la pose d'une cible
   // sortDeCapacite : reproduit l'action d'une capacité
   // rang1DePeuple : donne le rang 1 de peuple du perso, en plus des effets de la capacite
   // plusParVoieDeRang : donne une valeur à un prédicat, qui dépend du nombre de voies d'un profil à un certain rang
@@ -12397,6 +12397,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'PARAM.capacite',
         profil: ['druide', 'rodeur'],
         limiteArmure: 'cuirRenforce',
+        rang: 1,
       },
     },
     'archer emerite elfe sylvain': {
@@ -12527,6 +12528,19 @@ var COFantasy2 = COFantasy2 || function() {
         dm: true,
         cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --if NC < RANG ?{Effet|Desarmer,--desarmer|Renverser,--effet renverse|Affaiblir, --effet affaibli [[1d4]]} --if critique --messageMJ choisir un autre effet à appliquer parmis désarmé, renversé et affaibli 1d4 tours --endif --endif"//TODO: permettre un effet supplémentaire en cas de critique !
       },
+    },
+    'combattant aguerri': {
+      capacite: {
+        nom: 'PARAM.capacite',
+        profil: ['guerrier', 'voleur', 'rodeur'],
+        rang: 1,
+      },
+      buffsSurFiche: [{
+        nom: 'Combattant aguerri',
+        attrib: 'def',
+        value: '1',
+        limiteArmure: 'arquebusier'
+      }]
     },
     //Voie du pistolero
     'plus vite que son ombre': {
