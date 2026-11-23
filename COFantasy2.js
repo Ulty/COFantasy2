@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  06:19
+//Dernière modification : lun. 23 nov. 2026,  06:28
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3409,6 +3409,10 @@ var COFantasy2 = COFantasy2 || function() {
       if (maitre) defense += predicateAsInt(maitre, 'runesDeDefense', 0, 2);
     }
     defense += predicateAsInt(perso, 'agiliteDuSinge', 0, 2);
+    if (attributeAsBool(perso, 'attributDeCombat_instinctDeSurvieHumain')) {
+      defense += 2;
+      explications.push("Instinct de survie => +2 en DEF");
+    }
     return defense;
   }
 
@@ -12437,6 +12441,10 @@ var COFantasy2 = COFantasy2 || function() {
       nomTestPeuple_humain: 'PARAM.origine',
       descriptionTestPeuple_humain: 'PARAM.description',
     },
+    'instinct de survie': {
+      capaciteAmbigue: true, //existe aussi dans la Voie du PNJ récurrent
+      instinctDeSurvieHumain: true,
+    },
     //Voie du nain
     'habitant des tunnels': {
       bonusTestPeuple_nain: true,
@@ -14614,12 +14622,12 @@ var COFantasy2 = COFantasy2 || function() {
   const paramRegExp = new RegExp(/PARAM\.([\w-]*)/g);
 
   //Remplace NUMEROVOIE, SELONRANG, RANG et PARAM.field
-  function replaceSpecialStrings(val, numVoie, rmax, params, capacite) {
+  function replaceSpecialStrings(val, numVoie, rmax, params, capacite, perso) {
     val = val + '';
     val = val.replace(paramRegExp, function(matched, field) {
       let r = params[field];
       if (!r) {
-        log("Pas de paramètre " + field + " pour la capacité " + capacite);
+        log("Pas de paramètre " + field + " pour la capacité " + capacite + " de "+nomPerso(perso));
         if (params.parametreTotal !== '') log(" le champ paramètre est : " + params.parametreTotal);
         return '';
       }
@@ -14631,7 +14639,7 @@ var COFantasy2 = COFantasy2 || function() {
     return val;
   }
 
-  function replaceSpecialInField(obj, k, numVoie, rmax, params, capacite) {
+  function replaceSpecialInField(obj, k, numVoie, rmax, params, capacite, perso) {
     let v = obj[k];
     if (!v) return;
     let t = typeof v;
@@ -14641,7 +14649,7 @@ var COFantasy2 = COFantasy2 || function() {
         return;
       case 'object':
         for (const l in v) {
-          replaceSpecialInField(v, l, numVoie, rmax, params, capacite);
+          replaceSpecialInField(v, l, numVoie, rmax, params, capacite, perso);
         }
         return;
       default:
@@ -14710,7 +14718,7 @@ var COFantasy2 = COFantasy2 || function() {
       for (let i = 0; i < preds.actions.length; i++) {
         let limiteRangs = preds.actions[i].aPartirDeRang;
         if (limiteRangs && rmax < limiteRangs) continue;
-        replaceSpecialInField(preds.actions, i, numVoie, rmax, params, capacite);
+        replaceSpecialInField(preds.actions, i, numVoie, rmax, params, capacite, perso);
         let act = preds.actions[i];
         actions.push(act);
         if (act.debloqueActions) {
@@ -14728,7 +14736,7 @@ var COFantasy2 = COFantasy2 || function() {
       delete preds.actions;
     }
     if (preds.plusParVoieDeRang) {
-      replaceSpecialInField(preds, 'plusParVoieDeRang', numVoie, rmax, params, capacite);
+      replaceSpecialInField(preds, 'plusParVoieDeRang', numVoie, rmax, params, capacite, perso);
       plusParVoieDeRang.push(preds.plusParVoieDeRang);
       delete preds.plusParVoieDeRang;
     }
@@ -14786,7 +14794,7 @@ var COFantasy2 = COFantasy2 || function() {
               log("Il manque le champ " + field + " aux buffs de fiche de la capacité " + capacite);
               return;
             }
-            let val = replaceSpecialStrings(b[field], numVoie, rmax, params, capacite);
+            let val = replaceSpecialStrings(b[field], numVoie, rmax, params, capacite, perso);
             let f = pb + field;
             if (buffPresent) {
               if (buffPresent[f] == val) return;
@@ -14829,7 +14837,7 @@ var COFantasy2 = COFantasy2 || function() {
         }
       } else {
         let rawNomCompagnon = compagnon.name;
-        replaceSpecialInField(preds, 'compagnon', numVoie, rmax, params, capacite);
+        replaceSpecialInField(preds, 'compagnon', numVoie, rmax, params, capacite, perso);
         compagnon = preds.compagnon;
         let nomCompagnon = compagnon.name;
         if (nomCompagnon == '') {
@@ -14894,7 +14902,7 @@ var COFantasy2 = COFantasy2 || function() {
         log(nomPerso(perso) + " ne peut pas obtenir une capacité indirecte à partir d'une capacité indirecte (" + options.indirect + ")");
       } else {
         let raw = preds.capacite.nom;
-        replaceSpecialInField(preds, 'capacite', numVoie, rmax, params, capacite);
+        replaceSpecialInField(preds, 'capacite', numVoie, rmax, params, capacite, perso);
         let cap = preds.capacite;
         if (cap === '') {
           if (raw == 'PARAM' && !warnParam) {
@@ -14914,7 +14922,7 @@ var COFantasy2 = COFantasy2 || function() {
     }
     if (preds.sortDeCapacite) {
       let raw = preds.sortDeCapacite;
-      let sort = replaceSpecialStrings(raw, numVoie, rmax, params, capacite);
+      let sort = replaceSpecialStrings(raw, numVoie, rmax, params, capacite, perso);
       if (sort === '') {
         if (raw == 'PARAM' && !warnParam) {
           warnParam = false;
@@ -14951,7 +14959,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (rmax > 5) preds[p] = 7;
         else preds[p] = rmax + 2;
       } else {
-        replaceSpecialInField(preds, p, numVoie, rmax, params, capacite);
+        replaceSpecialInField(preds, p, numVoie, rmax, params, capacite, perso);
         if (preds[p] === '') delete preds[p];
       }
     }
@@ -32615,7 +32623,10 @@ var COFantasy2 = COFantasy2 || function() {
     } else {
       //On enlève les points de vie
       if (bar1 > 0 && bar1 <= dmgTotal &&
-        predicateAsBool(target, 'instinctDeSurvieHumain')) {
+        capaciteDisponible(target, 'instinctDeSurvieHumain', 'combat')) {
+        let test = testLimiteUtilisationsCapa(target, 'instinctDeSurvieHumain', 'combat');
+        if (test) utiliseCapacite(target, 'instinctDeSurvieHumain', evt);
+        setTokenAttr(target, 'attributDeCombat_instinctDeSurvieHumain', true, evt);
         dmgTotal = Math.floor(dmgTotal / 2);
         dmSuivis = _.map(dmSuivis, function(d) {
           return Math.ceil(d / 2);
