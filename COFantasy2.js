@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  06:01
+//Dernière modification : lun. 23 nov. 2026,  06:09
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -5356,6 +5356,7 @@ var COFantasy2 = COFantasy2 || function() {
             };
             let attBonusTarget = bonusAttaqueA(target, undefined, evt, target.messages, optTarget);
             attBonusTarget += bonusAttaqueD(target, attaquant, weaponStats.portee, pageId, evt, target.messages, optTarget);
+            attBonusTarget += predicateAsInt(target, 'bonusTestOpposeAttaqueMagique', 0, 1);
             if (attributeAsBool(target, 'optionTactiqueDefenseTotale')) {
               attBonusTarget += 5;
               target.messages.push("Défense totale => +5 au jet");
@@ -12372,6 +12373,11 @@ var COFantasy2 = COFantasy2 || function() {
     'lumiere interieure': {
       bonusTestPeuple_elfeHaut: true,
     },
+    "force d'ame": {
+      immunite_peur: true,
+      immunite_sommeil: true,
+      bonusTestOpposeAttaqueMagique: 'RANG',
+    },
     //Voie de l'elfe sylvain
     'lumiere des etoiles': {
       bonusTestPeuple_elfeSylvain: true,
@@ -14115,12 +14121,10 @@ var COFantasy2 = COFantasy2 || function() {
       profil: 'pretre',
       action: {
         nom: 'Sanctuaire',
-        combat: true,
-        entrerEnCombat: true,
         bufPersonnelNonCumulable: 'sanctuaire',
         type: 'L',
         mana: 2,
-        cmd: 'cof2-effet sanctuaire 10 --select @{selected|token_id}',
+        cmd: 'cof2-effet sanctuaire --dureeEnMinutes 1 --select @{selected|token_id}',
       }
     },
     //Voie des soins
@@ -21925,15 +21929,6 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true,
       saignement: true,
     },
-    sanctuaire: {
-      dureeEnTours: true,
-      activation: "est protégé par un sanctuaire",
-      activationF: "est protégée par un sanctuaire",
-      actif: "est protégé par un sanctuaire",
-      actifF: "est protégée par un sanctuaire",
-      fin: "n'est plus protégé par le sanctuaire",
-      finF: "n'est plus protégée par le sanctuaire",
-    },
     soutenuContre: {
       dureeEnTours: true,
       activation: "est soutenu pour sa prochaine attaque",
@@ -22340,6 +22335,14 @@ var COFantasy2 = COFantasy2 || function() {
       activation: "l'arme reçoit une rune de puissance",
       actif: "possède une arme enchantée avec une rune de puissance",
       fin: "la rune de puissance s'estompe",
+    },
+    sanctuaire: {
+      activation: "est protégé par un sanctuaire",
+      activationF: "est protégée par un sanctuaire",
+      actif: "est protégé par un sanctuaire",
+      actifF: "est protégée par un sanctuaire",
+      fin: "n'est plus protégé par le sanctuaire",
+      finF: "n'est plus protégée par le sanctuaire",
     },
     sangMordant: {
       activation: "transforme son sang en acide",
