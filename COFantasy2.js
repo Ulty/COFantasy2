@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  02:30
+//Dernière modification : lun. 23 nov. 2026,  04:22
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2981,7 +2981,7 @@ var COFantasy2 = COFantasy2 || function() {
         let armureDOS = predicateAsInt(perso, 'bonusArmureDOS', 0);
         if (armureDOS) {
           let id = ficheAttribute(perso, 'armor_gearid', '');
-          if (id && ficheAttribute(perso, 'repeating_equipement_'+id+'_equip-nom', '') == "[S] Armure d'os")
+          if (id && ficheAttribute(perso, 'repeating_equipement_' + id + '_equip-nom', '') == "[S] Armure d'os")
             defense += armureDOS;
         }
       }
@@ -3406,6 +3406,7 @@ var COFantasy2 = COFantasy2 || function() {
       let maitre = compagnonDe(perso, pageId);
       if (maitre) defense += predicateAsInt(maitre, 'runesDeDefense', 0, 2);
     }
+    defense += predicateAsInt(perso, 'agiliteDuSinge', 0, 2);
     return defense;
   }
 
@@ -8780,7 +8781,7 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     if ((weaponStats.arme && predicateAsBool(attaquant, 'armeBenie')) ||
-    (weaponStats.armeNaturelle && predicateAsBool(attaquant, 'mainsNuesMagiques'))) {
+      (weaponStats.armeNaturelle && predicateAsBool(attaquant, 'mainsNuesMagiques'))) {
       let mag;
       if (options.magique === true) mag = 1;
       else mag = options.magique || 0;
@@ -11939,6 +11940,11 @@ var COFantasy2 = COFantasy2 || function() {
         description: "réaliser des acrobaties, tenir en équilibre, faire des sauts, escalader",
         competences: ['escalade', 'sauter'],
       },
+      agilite: {
+        nom: "Agilité du singe",
+        description: "acrobaties et esquives",
+        competences: ['esquive'],
+      },
       alchimie: {
         nom: "Alchimie",
         description: "alchimie, chimie ou identifier une potion",
@@ -12251,26 +12257,26 @@ var COFantasy2 = COFantasy2 || function() {
   };
 
   const capaciteArmureDOS = {
-      bonusArmureDOS: 0,
-      plusParVoieDeRang: {
-        predicat: 'bonusArmureDOS',
-        profil: 'sorcier',
-        rang: 4,
-        def: 0,
+    bonusArmureDOS: 0,
+    plusParVoieDeRang: {
+      predicat: 'bonusArmureDOS',
+      profil: 'sorcier',
+      rang: 4,
+      def: 0,
+    },
+    buffsSurFiche: [{
+      nom: "Armure d'os",
+      equipement: true,
+      armure: {
+        bonus: 3,
+        malus: 0,
       },
-      buffsSurFiche: [{
-        nom: "Armure d'os",
-        equipement: true,
-        armure: {
-          bonus: 3,
-          malus: 0,
-        },
-        props: "armure:3 \narmure-malus:0 \nagi-max:8",
-        predicats: '',
-        detail: "Une armure composée d'os, qu'il faut entretenir 10 min par jour",
-        atk: '0',
-      }],
-    };
+      props: "armure:3 \narmure-malus:0 \nagi-max:8",
+      predicats: '',
+      detail: "Une armure composée d'os, qu'il faut entretenir 10 min par jour",
+      atk: '0',
+    }],
+  };
 
   const capaciteMainsDEnergie = {
     mainsNuesMagiques: true,
@@ -13760,7 +13766,7 @@ var COFantasy2 = COFantasy2 || function() {
     "armure d’os": capaciteArmureDOS,
     "armure d'os": capaciteArmureDOS,
     //Voie du sang
-    'saignements':{
+    'saignements': {
       profil: 'sorcier',
       action: {
         nom: "Saignements",
@@ -13992,6 +13998,13 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie de l'énergie vitale
     "mains d'énergie": capaciteMainsDEnergie,
     "mains d’energie": capaciteMainsDEnergie,
+    //Voie de la maîtrise
+    'agilite du singe': {
+      bonusTestEvolutif_agilite: true,
+      Restriction_bonusTestEvolutif_agilite: 'armure_moine',
+      agiliteDuSinge: 'SELONRANG(2,2,2,3,3)',
+      Restriction_agiliteDuSinge: 'armure_moine',
+    },
     //Voie de la méditation
     'volonte heroique': {
       VOL_heroique: true,
@@ -14669,7 +14682,7 @@ var COFantasy2 = COFantasy2 || function() {
           if (!b.nom) {
             let t = "du buff";
             if (b.equipement) t = "de l'équipemet";
-            log("Il manque le nom "+t+" sur fiche pour la capacité " + capacite);
+            log("Il manque le nom " + t + " sur fiche pour la capacité " + capacite);
             log(b);
             return;
           }
@@ -14679,7 +14692,7 @@ var COFantasy2 = COFantasy2 || function() {
             if (mod_int <= mod_con) return;
             b.value = mod_int - mod_con;
           }
-          let buffPresent = buffs[b.nom];//TODO: distinguer les noms de buff et les noms d'équipements ?
+          let buffPresent = buffs[b.nom]; //TODO: distinguer les noms de buff et les noms d'équipements ?
           if (buffPresent) {
             if (buffPresent.length === 0) {
               delete buffs[b.nom];
@@ -15068,7 +15081,7 @@ var COFantasy2 = COFantasy2 || function() {
           }
         }
         let armureLiee = ficheAttribute(perso, 'armor_gearid', undefined);
-        if (armureLiee) armureLiee = 'repeating_equipement_'+armureLiee+'_';
+        if (armureLiee) armureLiee = 'repeating_equipement_' + armureLiee + '_';
         for (let numVoie = 1; numVoie < 10; numVoie++) {
           predicatsDeVoie(perso, numVoie, capacites, rangsParProfil, rangSortMax, armesMaitrisees, actions, plusParVoieDeRang, buffs);
         }
@@ -15091,10 +15104,10 @@ var COFantasy2 = COFantasy2 || function() {
               });
             }
             if (prefix == armureLiee) {
-                removeFicheAttr(perso, 'armor_gearid');
-                setFicheAttr(perso, 'armure_eqp', 0);
-                removeFicheAttr(perso, 'armure_malus');
-                removeFicheAttr(perso, 'armure');
+              removeFicheAttr(perso, 'armor_gearid');
+              setFicheAttr(perso, 'armure_eqp', 0);
+              removeFicheAttr(perso, 'armure_malus');
+              removeFicheAttr(perso, 'armure');
             }
           }
         }
@@ -16108,7 +16121,7 @@ var COFantasy2 = COFantasy2 || function() {
 
   const attaqueAMainsNues = {
     name: 'Mains nues',
-    attSkill: '@{atkcac}',
+    attSkill: 'atkcac',
     attNbDices: 1,
     attDice: 3,
     attDMBonusCommun: 0,
@@ -17561,10 +17574,12 @@ var COFantasy2 = COFantasy2 || function() {
             });
           }
         }
-        if (typeActionPossible(perso, 'A')) {
-          if (getState(perso, 'renverse')) {
-            let command = "!cof2-effet renverse false --typeAction A --select " + perso.token.id;
-            ligne += boutonSimple(command, "Se relever") + '(A)<br/>';
+        if (getState(perso, 'renverse')) {
+          let t = 'A';
+          if (predicateAsBool(perso, 'agiliteDuSinge')) t = 'G';
+          if (typeActionPossible(perso, t)) {
+            let command = "!cof2-effet renverse false --typeAction " + t + " --select " + perso.token.id;
+            ligne += boutonSimple(command, "Se relever") + '(' + t + ')<br/>';
           }
         }
         //L'arme en main et dégainer, si besoin
@@ -20058,7 +20073,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function tailleNormale(perso, def = 4) {
-    let t = tailleDeDescription(ficheAttribute(perso, 'taille', '', optTransforme));//TODO: devrait disparaître
+    let t = tailleDeDescription(ficheAttribute(perso, 'taille', '', optTransforme)); //TODO: devrait disparaître
     if (t) return t;
     t = tailleDeDescription(ficheAttribute(perso, 'cataille', '', optTransforme));
     if (t) return t;
@@ -25999,10 +26014,11 @@ var COFantasy2 = COFantasy2 || function() {
     if (res < 7 && !nomStrict) {
       let comp = competence.toLowerCase();
       for (let n in descriptionBonus.Evolutif) {
+        if (n == competence) continue;
         let db = descriptionBonus.Evolutif[n];
         let c = db.competences;
         if (c && c.includes(comp)) {
-          let be = bonusEvolutif(perso, db.nom);
+          let be = bonusEvolutif(perso, n);
           if (be > res) {
             res = be;
             competence = db.nom;
@@ -30285,7 +30301,8 @@ var COFantasy2 = COFantasy2 || function() {
   function getWeaponStats(perso, attackLabel, strict) {
     if (attackLabel === undefined) {
       if (strict) return;
-      let weaponStats = {... attaqueAMainsNues};
+      let weaponStats = {...attaqueAMainsNues
+      };
       if (predicateAsBool(perso, 'deEvolutifMainsNues')) weaponStats.attDice = deEvolutif(perso);
       return weaponStats;
     }
@@ -30304,7 +30321,8 @@ var COFantasy2 = COFantasy2 || function() {
           return weaponStatsOfAttack(perso, label, att);
         }
       }
-      let weaponStats = {... attaqueAMainsNues};
+      let weaponStats = {...attaqueAMainsNues
+      };
       if (attackLabel != -1) weaponStats.name = attackLabel;
       return weaponStats;
     }
@@ -32662,7 +32680,7 @@ var COFantasy2 = COFantasy2 || function() {
   // - recuperation
   function soignePerso(perso, soins, evt, callTrue, callMax, options = {}) {
     if (attributeAsBool(perso, 'masqueMortuaire')) {
-      sendPerso(perso, "ne peut pas être soigné"+eForFemale(perso)+" en ce moment", options.secret);
+      sendPerso(perso, "ne peut pas être soigné" + eForFemale(perso) + " en ce moment", options.secret);
       callTrue(0);
       return;
     }
