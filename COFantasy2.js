@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  01:15
+//Dernière modification : lun. 23 nov. 2026,  02:30
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3568,7 +3568,7 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function bonusArmeDePredilection(perso, weaponStats, options = {}) {
-    if (!weaponStats || !weaponStats.arme) return;
+    if (!weaponStats) return;
     let armesDePredilection = predicatesNamed(perso, 'armeDePredilection');
     let res = 0;
     armesDePredilection.forEach(function(ap) {
@@ -3586,10 +3586,13 @@ var COFantasy2 = COFantasy2 || function() {
         case 'masse':
         case 'rapiere':
         case 'lance':
-        case 'mainsNues':
         case 'armeDeJet':
           actif = options[arme];
-          if (!actif && weaponStats) actif = weaponStats[arme];
+          if (!actif && weaponStats.arme) actif = weaponStats[arme];
+          break;
+        case 'mainsNues':
+          actif = options.armeNaturelle || weaponStats.armeNaturelle;
+          break;
       }
       if (actif) res++;
     });
@@ -7022,6 +7025,8 @@ var COFantasy2 = COFantasy2 || function() {
         let bonus = predicateAsInt(attaquant, 'techniqueDuSabre', 0, 1);
         if (bonus > 2 * modForce) attCarBonus = bonus;
         else attCarBonus = modForce + Math.floor(bonus / 2);
+      } else if (weaponStats.armeNaturelle && predicateAsBool(attaquant, 'DMMainNuesAvecVOL') && weaponStats.attCarBonus == '@{for}') {
+        attCarBonus = Math.max(modCarac(attaquant, 'FOR', options), modCarac(attaquant, 'VOL', options));
       } else {
         attCarBonus = computeCarValue(attaquant, weaponStats.attCarBonus);
         if (attCarBonus === undefined) {
@@ -8774,7 +8779,8 @@ var COFantasy2 = COFantasy2 || function() {
       error("Impossible de trouver l'arme pour l'attaque", attackLabel);
       return;
     }
-    if (weaponStats.arme && predicateAsBool(attaquant, 'armeBenie')) {
+    if ((weaponStats.arme && predicateAsBool(attaquant, 'armeBenie')) ||
+    (weaponStats.armeNaturelle && predicateAsBool(attaquant, 'mainsNuesMagiques'))) {
       let mag;
       if (options.magique === true) mag = 1;
       else mag = options.magique || 0;
@@ -12266,6 +12272,20 @@ var COFantasy2 = COFantasy2 || function() {
       }],
     };
 
+  const capaciteMainsDEnergie = {
+    mainsNuesMagiques: true,
+    DMMainNuesAvecVOL: true,
+    action: {
+      nom: "Mains d'énergie",
+      type: 'L',
+      combat: true,
+      dm: true,
+      limiteArmure: 'moine',
+      mainsNues: true,
+      cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --bonusAttaque SELONRANG(3,4,5,6,7)",
+    },
+  };
+
   //Une entrée par capacités. Si 2 capacités ont le même nom, on peut ajouter un blanc puis le nom de la voie
   //Pour chaque capacité:
   // action est un objet, est actions est une liste d'actions, avec les champs:
@@ -12289,6 +12309,7 @@ var COFantasy2 = COFantasy2 || function() {
   //  - bouclier : le personnage doit porter un bouclier pour faire l'action
   //  - armeDeContact : le personnage soit tenir une arme de contact en main
   //  - armeEnMain : le personnage soit porter une arme en main du type spécifié
+  //  - mainsNues : le personnage ne doit porter aucune arme en main
   //  - predicatArmeEnMain: comme armeEnMain, mais la valeur est un prédicat qui contient ce que le perso peut porter
   //  - pasAuContactAdversaire
   //  - surMonture: le personnage doit être sur une monture
@@ -13968,6 +13989,9 @@ var COFantasy2 = COFantasy2 || function() {
       },
     },
     //Voies de moine
+    //Voie de l'énergie vitale
+    "mains d'énergie": capaciteMainsDEnergie,
+    "mains d’energie": capaciteMainsDEnergie,
     //Voie de la méditation
     'volonte heroique': {
       VOL_heroique: true,
@@ -15216,7 +15240,7 @@ var COFantasy2 = COFantasy2 || function() {
         else if (bonus <= 0) typeArmurePortee = 8;
         else typeArmurePortee = 8 - bonus;
       }
-    } else typeArmurePortee = 8;
+    } else typeArmurePortee = 10;
     perso.typeArmurePortee = typeArmurePortee;
     return typeArmurePortee;
   }
@@ -16094,6 +16118,7 @@ var COFantasy2 = COFantasy2 || function() {
     portee: 0,
     typeDegats: 'contondants',
     options: '--tempDmg',
+    armeNaturelle: true,
   };
 
   // Enlever les ?{...} des options, car on ne sait pas ce qui restera
@@ -17084,6 +17109,8 @@ var COFantasy2 = COFantasy2 || function() {
         if (!good) return ligne;
       }
       if (action.armeDeContact && armeEnMain.portee && !armeEnMain.modificateurs.includes('armeDeContact')) return ligne;
+    } else if (action.mainsNues) {
+      if (armesEnMain(perso)) return ligne;
     }
     if (action.pasAuContactAdversaire && ennemisAuContact(perso, perso.token.get('pageid')).length > 0) return ligne;
     if (action.surMonture && !attributeAsBool(perso, 'monteSur')) return ligne;
@@ -20031,7 +20058,9 @@ var COFantasy2 = COFantasy2 || function() {
   }
 
   function tailleNormale(perso, def = 4) {
-    let t = tailleDeDescription(ficheAttribute(perso, 'taille', '', optTransforme));
+    let t = tailleDeDescription(ficheAttribute(perso, 'taille', '', optTransforme));//TODO: devrait disparaître
+    if (t) return t;
+    t = tailleDeDescription(ficheAttribute(perso, 'cataille', '', optTransforme));
     if (t) return t;
     if (predicateAsBool(perso, 'bonusTestPeuple_petiteTaille')) return 3;
     switch (getRace(perso)) {
@@ -30254,22 +30283,9 @@ var COFantasy2 = COFantasy2 || function() {
   //perso peut ne pas avoir de token
   // si strict, on retourne undefined s'il n'existe pas d'attaque de ce label
   function getWeaponStats(perso, attackLabel, strict) {
-    let weaponStats = {
-      name: 'Mains nues',
-      attSkill: 'atkcac',
-      attNbDices: 1,
-      attDice: 3,
-      attDMBonusCommun: 0,
-      attCarBonus: '@{for}',
-      crit: 20,
-      divers: '',
-      portee: 0,
-      typeDegats: 'contondants',
-      options: '',
-      modificateurs: 'tempDmg',
-    };
     if (attackLabel === undefined) {
       if (strict) return;
+      let weaponStats = {... attaqueAMainsNues};
       if (predicateAsBool(perso, 'deEvolutifMainsNues')) weaponStats.attDice = deEvolutif(perso);
       return weaponStats;
     }
@@ -30287,7 +30303,9 @@ var COFantasy2 = COFantasy2 || function() {
           //if (actionImpossible(perso, options.split(' --'), label)) continue;
           return weaponStatsOfAttack(perso, label, att);
         }
-      } else weaponStats.name = attackLabel;
+      }
+      let weaponStats = {... attaqueAMainsNues};
+      if (attackLabel != -1) weaponStats.name = attackLabel;
       return weaponStats;
     }
     return weaponStatsOfAttack(perso, attackLabel, att);
