@@ -1,4 +1,4 @@
-//Dernière modification : lun. 23 nov. 2026,  06:53
+//Dernière modification : mar. 24 nov. 2026,  05:03
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -4157,6 +4157,17 @@ var COFantasy2 = COFantasy2 || function() {
       }
       attBonus += diff;
     }
+    if (options.distance && !options.sortilege && predicateAsBool(attaquant, 'ajusterLeTir') &&
+    attributeAsBool(attaquant, 'attaqueADistanceRatee')) {
+      let id = getValeurOfEffet(attaquant, 'attaqueADistanceRatee');
+      if (id !== '') {
+        if (id == target.token.id) {
+          explications.push("Ajuste le tir => +5 en attaque");
+          attBonus += 5;
+        }
+        finDEffetPerso(attaquant, 'attaqueADistanceRatee', evt);
+      }
+    }
     return attBonus;
   }
 
@@ -5688,6 +5699,13 @@ var COFantasy2 = COFantasy2 || function() {
             if (predicateAsBool(attaquant, 'teigne')) {
               setTokenAttr(attaquant, 'attributDeCombat_teigneRateAttaque', true, evt);
             }
+            if (options.distance && !options.sortilege && predicateAsBool(attaquant, 'ajusterLeTir')) {
+              let opt = {
+                valeur: target.token.id,
+                rangInit: 1,
+              };
+              activerEffetNom(attaquant, attaquant, 'attaqueADistanceRatee', 2, pageId, evt, opt);
+            }
           }
         }
         target.touche = touche;
@@ -7077,7 +7095,7 @@ var COFantasy2 = COFantasy2 || function() {
       predicateAsBool(target, 'sansEsprit') ||
       attributeAsBool(target, 'enrage') ||
       predicateAsBool(target, 'liberteDAction') ||
-    (options.sortilege && predicateAsBool(target, 'forceDAme'))) {
+      (options.sortilege && predicateAsBool(target, 'forceDAme'))) {
       messages.push(targetName + " est insensible à la peur !");
       return;
     }
@@ -12126,6 +12144,14 @@ var COFantasy2 = COFantasy2 || function() {
         nom: 'Robustesse',
         description: "résister aux efforts physiques, à la chaleur, &#013;au froid (conditions naturelles)"
       },
+      tavernes: {
+        nom: 'Pilier de bar',
+        description: "interactions dans les tavernes ou auberges (renseignement, négiciation, séduction, ...)&#13; et résister à l'alcool"
+      },
+      teigneux: {
+        nom: 'Teigneux',
+        description: "résister à l'alcool et à la privation de nourriture ou de sommeil",
+      },
       vigilance: {
         nom: 'Vigilance',
         description: "éviter d'être surpris",
@@ -12163,7 +12189,7 @@ var COFantasy2 = COFantasy2 || function() {
         nom: "Citadin",
         description: "commerce et résistance aux maladies naturelles"
       },
-      campgnard: {
+      campagnard: {
         nom: "Campagnard",
         description: "météorologie et équitation"
       },
@@ -12192,14 +12218,6 @@ var COFantasy2 = COFantasy2 || function() {
         description: "tests d'interactions sociales, sauf intimidation",
         competences: ['convaincre', 'mentir'],
       },
-      tavernes: {
-        nom: 'Pilier de bar',
-        descriptions: "interactions dans les tavernes ou auberges (renseignement, négiciation, séduction, ...)&#13; et résister à l'alcool"
-      },
-      teigneux: {
-        nom: 'Teigneux',
-        description: "résister à l'alcool et à la privation de nourriture ou de sommeil",
-      }
     },
     Prestige: {}
   };
@@ -12526,7 +12544,7 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'arquebusier',
         combat: true,
         dm: true,
-        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --if NC < RANG ?{Effet|Desarmer,--desarmer|Renverser,--effet renverse|Affaiblir, --effet affaibli [[1d4]]} --if critique --messageMJ choisir un autre effet à appliquer parmis désarmé, renversé et affaibli 1d4 tours --endif --endif"//TODO: permettre un effet supplémentaire en cas de critique !
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --if NC < RANG ?{Effet|Desarmer,--desarmer|Renverser,--effet renverse|Affaiblir, --effet affaibli [[1d4]]} --if critique --messageMJ choisir un autre effet à appliquer parmis désarmé, renversé et affaibli 1d4 tours --endif --endif" //TODO: permettre un effet supplémentaire en cas de critique !
       },
     },
     'combattant aguerri': {
@@ -12545,6 +12563,11 @@ var COFantasy2 = COFantasy2 || function() {
     //Voie du pistolero
     'plus vite que son ombre': {
       plusViteQueSonOmbre: true,
+      Restriction_plusViteQueSonOMbre: 'armure_arquebusier',
+    },
+    'ajuster le tir': {
+      ajusterLeTir: true,
+      Restriction_ajusterLeTir: 'armure_arquebusier',
     },
     'agilite heroique': {
       AGI_heroique: true,
@@ -14651,7 +14674,7 @@ var COFantasy2 = COFantasy2 || function() {
     val = val.replace(paramRegExp, function(matched, field) {
       let r = params[field];
       if (!r) {
-        log("Pas de paramètre " + field + " pour la capacité " + capacite + " de "+nomPerso(perso));
+        log("Pas de paramètre " + field + " pour la capacité " + capacite + " de " + nomPerso(perso));
         if (params.parametreTotal !== '') log(" le champ paramètre est : " + params.parametreTotal);
         return '';
       }
@@ -17799,6 +17822,7 @@ var COFantasy2 = COFantasy2 || function() {
             poudre: [],
             autre: []
           };
+          let armes;
           attributs_perso.forEach(function(attr) {
             let name = attr.get('name');
             if (!name.startsWith('attributDeCombat_charge_')) return;
@@ -17808,13 +17832,15 @@ var COFantasy2 = COFantasy2 || function() {
                 let i = label.indexOf('_MOOK_');
                 label = label.substring(0, i);
               }
-              const armes = listAllAttacks(perso);
+              armes = armes || listAllAttacks(perso);
               let arme = armes[label];
               if (!arme) {
                 log("Impossible de trouver l'arme de label " + label + " auquel on référence dans l'attribut " + name);
                 attr.remove();
                 return;
               }
+              let charge = toInt(attr.get('current'), 0);
+              if (charge >= maxChargesArme(perso, arme['arme-nom'])) return;
               if (!arme['arme-options']) {
                 log("Pas d'option pour l'arme de label " + label + " auquel on référence dans l'attribut " + name);
                 attr.remove();
@@ -21613,12 +21639,12 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true
     },
     invisibleTemp: {
+      dureeEnTours: true,
       activation: "disparaît",
       actif: "est invisible",
       fin: "réapparaît",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       msgSave: "ne pas devenir invisible",
       visible: true
     },
@@ -21632,6 +21658,7 @@ var COFantasy2 = COFantasy2 || function() {
       visible: true
     },
     immobiliseTemp: {
+      dureeEnTours: true,
       activation: "est immobilisé : aucun déplacement possible",
       activationF: "est immobilisée : aucun déplacement possible",
       actif: "est immobilisé",
@@ -21640,7 +21667,6 @@ var COFantasy2 = COFantasy2 || function() {
       finF: "n'est plus immobilisée",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       msgSave: "pouvoir bouger",
       prejudiciable: true,
       visible: true,
@@ -21648,19 +21674,20 @@ var COFantasy2 = COFantasy2 || function() {
       lock: true,
     },
     mortTemp: {
+      dureeEnTours: true,
       activation: "meurt",
       actif: "est mort",
       actifF: "est morte",
       fin: "revient à la vie !",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       msgSave: "rester en vie",
       prejudiciable: true,
       visible: true,
       lock: true,
     },
     paralyseTemp: {
+      dureeEnTours: true,
       activation: "est paralysé : aucune action ni déplacement possible",
       activationF: "est paralysée : aucune action ni déplacement possible",
       actif: "est paralysé",
@@ -21669,7 +21696,6 @@ var COFantasy2 = COFantasy2 || function() {
       finF: "n'est plus paralysée",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       msgSave: "ne plus être paralysé",
       prejudiciable: true,
       visible: true,
@@ -21677,16 +21703,17 @@ var COFantasy2 = COFantasy2 || function() {
       lock: true,
     },
     penombreTemp: {
+      dureeEnTours: true,
       activation: "ne voit plus très loin",
       actif: "est dans la pénombre",
       fin: "retrouve une vue normale",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       msgSave: "retrouver la vue",
       prejudiciable: true,
     },
     ralentiTemp: {
+      dureeEnTours: true,
       activation: "est ralenti : une seule action, pas d'action limitée",
       activationF: "est ralentie : une seule action, pas d'action limitée",
       actif: "est ralenti",
@@ -21696,24 +21723,24 @@ var COFantasy2 = COFantasy2 || function() {
       finF: "n'est plus ralentie",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       prejudiciable: true,
       visible: true,
       entrave: true
     },
     renverseTemp: {
+      dureeEnTours: true,
       activation: "tombe au sol",
       actif: "est allongé",
       actifF: "est allongée",
       fin: "se relève",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       msgSave: "rester debout",
       prejudiciable: true,
       visible: true,
     },
     surprisTemp: {
+      dureeEnTours: true,
       activation: "est surpris",
       activationF: "est surprise",
       actif: "est surpris",
@@ -21721,7 +21748,6 @@ var COFantasy2 = COFantasy2 || function() {
       fin: "retrouve ses esprits",
       debutFun: debutEtatTemp,
       finFun: finEtatTemp,
-      dureeEnTours: true,
       msgSave: "réagir à temps",
       prejudiciable: true,
       visible: true,
@@ -21774,6 +21800,13 @@ var COFantasy2 = COFantasy2 || function() {
       customStatusMarker: 'cof-asphyxie',
       dm: true,
       visible: true
+    },
+    attaqueADistanceRatee: {
+      dureeEnTours: true,
+      activation: "rate une attaque à distance",
+      actif: "a raté une attaque à distance",
+      fin: '',
+      visible: false
     },
     bloque: {
       //Valeur : l'id du token qui est bloqué
@@ -23345,6 +23378,7 @@ var COFantasy2 = COFantasy2 || function() {
       dureeEnMinutes: options.dureeEnMinutes,
       remplaceAttribut: options.remplaceAttribut,
       pasDeMessageDActivation: lanceur && options.message && lanceur.token.id == perso.token.id,
+      rangInit: options.rangInit,
     };
     setEffet(perso, effet, mEffet, valeur, pageId, evt, ef, options);
   }
@@ -28240,6 +28274,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (aUnCapitaine(perso, undefined, pageId)) init += 2;
     if (capaciteDisponible(perso, 'instinctDeSurviePNJ', 'combat') && !persoImmobilise(perso)) init += 10;
     init += predicateAsBool(perso, 'bonusDivination', 0);
+    init += bonusPlusViteQueSonOmbre(perso, armesEnMain(perso));
     return init;
   }
 
@@ -28946,7 +28981,7 @@ var COFantasy2 = COFantasy2 || function() {
       command += "?{Arme?";
       recharges.forEach(function(r) {
         //TODO: escape les caractères gênants du nom de l'arme
-        command += '|' + r.nom + "," + r.label + ' -typeAction ' + r.typeAction;
+        command += '|' + r.nom + "," + r.label + ' --typeAction ' + r.typeAction;
       });
       command += '}';
     }
