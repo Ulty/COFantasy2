@@ -1,4 +1,4 @@
-//Dernière modification : ven. 27 nov. 2026,  01:58
+//Dernière modification : ven. 27 nov. 2026,  05:49
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2940,7 +2940,7 @@ var COFantasy2 = COFantasy2 || function() {
               if (pm < pmMax) {
                 let p = 100 - 5 * (difficulte - tr.total);
                 if (p < 0) p = 0;
-                else if (p > 50 && tr.echacCritique) p = 50;
+                else if (p > 50 && tr.echecCritique) p = 50;
                 let manaRec = Math.round(pmMax * p / 100);
                 if (pm + manaRec < pmMax) pmMax = pm + manaRec;
                 updateCurrentBar(perso, 2, pmMax, evt);
@@ -12981,6 +12981,15 @@ var COFantasy2 = COFantasy2 || function() {
     'peau de pierre': {
       peauDePierre: 'SELONRANG(1,1,1,2,2)',
     },
+    'tatouages': {
+      etourdiDevientRalenti: true,
+      buffsSurFiche: [{
+        nom: 'Tatouage de PARAM.nom',
+        attrib: 'tPARAM.carac',
+        limiteArmure: 'barbare',
+        value: '3'
+      }],
+    },
     //Voie du pourfendeur
     'reflexes eclair': {
       bonusTestEvolutif_esquive: true,
@@ -19595,6 +19604,7 @@ var COFantasy2 = COFantasy2 || function() {
     let token = perso.token;
     let prev = options.affectToken ||
       affectToken(token, 'statusmarkers', token.get('statusmarkers'), evt);
+    if (value && etat == 'etourdi' && predicateAsBool(perso, 'etourdiDevientRalenti')) etat = 'ralenti';
     if (stateCOF.combat && value && etatRendInactif(etat) &&
       (options.affectToken || isActive(perso)) &&
       (etat != 'surpris')
@@ -23777,6 +23787,13 @@ var COFantasy2 = COFantasy2 || function() {
         }
         if (activer) {
           options.insensibleTeste = true;
+          if (effet == 'etourdiTemp' && predicateAsBool(perso, 'etourdiDevientRalenti')) {
+            effetC = 'ralentiTemp';
+            mEffet = messageEffet[effetC];
+          } else if (effet == 'etourdiDureeEnMinutes' && predicateAsBool(perso, 'etourdiDevientRalenti')) {
+            effetC = 'ralentiDureeEnMinutes';
+            mEffet = messageEffet[effetC];
+          }
           activerEffet(lanceur, perso, effetC, mEffet, valeurCible, pageId, evt, options);
         } else {
           finDEffetPerso(perso, effetC, evt, mEffet, options);
@@ -34507,13 +34524,13 @@ var COFantasy2 = COFantasy2 || function() {
     };
     let allies = new Set();
     if (options.acteur) {
-      if (limiteRessources(options.acteur, options, 'prisonVegetale', "faire pousser la végétation", evt)) return;
       if (options.portee !== undefined) {
         if (distanceCombat(cible.token, options.acteur.token, pageId, optDist) > options.portee) {
           sendPlayer("La cible est trop loin de " + nomPerso(options.acteur), playerId);
           return;
         }
       }
+      if (limiteRessources(options.acteur, options, 'prisonVegetale', "faire pousser la végétation", evt)) return;
       allies = alliesParPerso[options.acteur.charId];
     }
     //On affecte tous les personnages dans la zone.
@@ -34568,6 +34585,7 @@ var COFantasy2 = COFantasy2 || function() {
     tokenPrison.set('interactionManualReset', true);
     //TODO quand ce sera disponible, ajouter un send to chat de valeur
     //"!cof2-effet prisonVegetale"
+    montrerActions(playerId, pageId, options);
   }
 
   //!cof-tenebres token-lanceur token-cible
