@@ -1,4 +1,4 @@
-//Dernière modification : ven. 27 nov. 2026,  01:48
+//Dernière modification : ven. 27 nov. 2026,  01:58
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -3008,7 +3008,14 @@ var COFantasy2 = COFantasy2 || function() {
       } else {
         defense += defenseArmure(perso);
         defense += ficheAttributeAsInt(perso, 'def_buff', 0, opt);
-        defense += modCarac(perso, 'agi', opt);
+        let mc = modCarac(perso, 'agi', opt);
+        let p = predicateAsInt(perso, 'peauDePierre');
+        if (p) {
+          mc += p;
+          let c = modCarac(perso, 'con', opt);
+          if (c > p) mc = c;
+        }
+        defense += mc;
       }
     }
     return defense;
@@ -12942,7 +12949,7 @@ var COFantasy2 = COFantasy2 || function() {
     'tour de force': {
       barbareEnChemiseDeMailles: true,
       tourDeForce: true,
-      //TODO: donner la possibilité de dépenser 1d4E PV pour un bonus de +10 en cas de jet de force, avant de faire le jet. Pour l'instant, c'est toujours après le jet.
+      //TODO: donner la possibilité de dépenser 1d4E PV pour un bonus de +10 en cas de jet de force, avant de faire le jet. Pour l'instant, c'est souvent après le jet.
     },
     'attaque brutale': {
       action: {
@@ -12970,6 +12977,9 @@ var COFantasy2 = COFantasy2 || function() {
         limiteArmure: 'barbare',
         value: 'RANG',
       }],
+    },
+    'peau de pierre': {
+      peauDePierre: 'SELONRANG(1,1,1,2,2)',
     },
     //Voie du pourfendeur
     'reflexes eclair': {
