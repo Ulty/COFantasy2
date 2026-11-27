@@ -1,4 +1,4 @@
-//Dernière modification : jeu. 26 nov. 2026,  12:58
+//Dernière modification : ven. 27 nov. 2026,  01:48
 const COF2_BETA = true;
 let COF2_loaded = false;
 
@@ -2707,7 +2707,7 @@ var COFantasy2 = COFantasy2 || function() {
     let titreMJ = "Récupération " + typeRecuperation;
     if (stateCOF.milieu) {
       titreMJ += " en milieu ";
-      titreMJ += boutonSimple('!cof2-milieu ?{milieu|artificiel|naturel|indéterminé,&#32;}', stateCOF.milieu, BS_BUTTON);
+      titreMJ += boutonSimple('!cof2-milieu ?{milieu|artificiel|naturel|indéterminé,&#32;}', stateCOF.milieu);
     }
     let displayMJ = startFramedDisplay(playerId, titreMJ, undefined, {
       chuchote: 'GM'
@@ -2820,7 +2820,7 @@ var COFantasy2 = COFantasy2 || function() {
               cmd += " ?{repos en milieu naturel ?|Non,&#32;|Oui,--milieuNaturel}";
             }
           }
-          depenseDR = boutonSimple(cmd, dr + ' DR', BS_BUTTON);
+          depenseDR = boutonSimple(cmd, dr + ' DR');
           finDepenseDR = boutonSimple("!cof2-fin-depense-dr " + perso.token.id, 'X', ' title="Trop tard pour dépenser le DR"');
           addCellInFramedDisplay(displayMJ, depenseDR + ' ' + finDepenseDR, 100, false, fond, "text-align:right;");
         }
@@ -3260,7 +3260,7 @@ var COFantasy2 = COFantasy2 || function() {
             token: tok,
             charId: tokCharId,
           };
-          if (getState(pChair, 'mort')) return false;
+          if (!persoConscient(pChair)) return false;
           return true;
         });
         if (perso.chairACanon.length > 0) {
@@ -4928,6 +4928,17 @@ var COFantasy2 = COFantasy2 || function() {
         }
       }
     }
+    //Le sacrifice de PV si besoin
+    if (options.sacrifiePV) {
+      options.sacrifiePV.forEach(function(sp) {
+        let sacrifice = rollDePlus(sp, "sacrificePV", evt);
+        let {
+          dmgDisplay
+        } = dealDamage(attaquant, sacrifice, explications, evt, optIgnoreRD);
+        let dmgMsg = nomPerso(attaquant) + " sacrifie " + dmgDisplay + " PV";
+        explications.push(dmgMsg);
+      });
+    }
     //On fait les tests pour les cibles qui bénéficieraient d'un sanctuaire
     let attaqueImpossible = false;
     cibles.forEach(function(cible) {
@@ -5337,7 +5348,7 @@ var COFantasy2 = COFantasy2 || function() {
           paralyse = true;
           if (!options.attaqueAssuree)
             target.messages.push("Cible paralysée => réussite critique automatique");
-        } else if (getState(target, 'mort') || getState(target, 'endormi')) {
+        } else if (getState(target, 'mort') || getState(target, 'endormi') || getState(target, 'endormi')) {
           paralyse = true;
           if (!options.attaqueAssuree)
             target.messages.push("Cible inconsciente => réussite critique automatique");
@@ -7342,14 +7353,14 @@ var COFantasy2 = COFantasy2 || function() {
         let depMana = depenseManaPossible(attaquant, 1);
         if (depMana) {
           let cmd = "!cof2-chatiment-divin " + attaquant.token.id + ' ' + evt.id + ' ';
-          let msg = "châtiment divin " + boutonSimple(cmd + '0', 'sans mana', BS_BUTTON) + ' ou ';
+          let msg = "châtiment divin " + boutonSimple(cmd + '0', 'sans mana') + ' ou ';
           if (options.chatimentDivin < 2) cmd += '1';
           else {
             cmd += '?{Points de mana?';
             for (let i = 1; i <= options.chatimentDivin; i++) cmd += '|' + i;
             cmd += '}';
           }
-          msg += boutonSimple(cmd, 'avec mana', BS_BUTTON);
+          msg += boutonSimple(cmd, 'avec mana');
           sendPerso(attaquant, msg, true, true); //On envoie aussi au MJ pour décoincer, si besoin.
           return;
         }
@@ -7365,8 +7376,8 @@ var COFantasy2 = COFantasy2 || function() {
         if ((options.runeDePuissance || al == attributeAsInt(attaquant, 'runeDePuissance', -1)) &&
           attributeAsInt(attaquant, 'limiteParCombat_runeDePuissance', 1)) {
           let cmd = "!cof2-bouton-rune-puissance " + attaquant.token.id + ' ' + evt.id + ' ';
-          let msg = "Attaque " + boutonSimple(cmd + 'non', 'normale', BS_BUTTON) +
-            ' ou en activant la ' + boutonSimple(cmd + 'oui', 'rune de puissance', BS_BUTTON);
+          let msg = "Attaque " + boutonSimple(cmd + 'non', 'normale') +
+            ' ou en activant la ' + boutonSimple(cmd + 'oui', 'rune de puissance');
           sendPerso(attaquant, msg, true, true); //On envoie aussi au MJ pour décoincer, si besoin.
           return;
         }
@@ -8669,7 +8680,7 @@ var COFantasy2 = COFantasy2 || function() {
           let combat = stateCOF.combat;
           let actions = actionsDisponibles(target, combat);
           let b = "!cof2-riposter " + target.token.id + ' ' + attaquant.token.id + ' ' + actions.limitee + ' ' + actions.attaque + ' ' + actions.mouvement;
-          let msg = boutonSimple(b, "Riposter", BS_BUTTON) + " ?";
+          let msg = boutonSimple(b, "Riposter") + " ?";
           let init = persoInit(target);
           let initCourrante = combat.init;
           if (combat.init >= 1000) initCourrante = persoInit(attaquant);
@@ -8687,8 +8698,10 @@ var COFantasy2 = COFantasy2 || function() {
           }
           sendPerso(target, msg, true);
         }
-        if (target.attaqueBrutale) {
-          //TODO: proposer à l'attaquent de dépenser des PV pour repousser ou renverser la cible
+        if (target.attaqueBrutale && persoConscient(target)) {
+          let cmd = '!cof2-attaque ' + attaquant.token.id + ' ' + target.token.id + ' Attaque brutale --auto --pasDeDmg --sacrifiePV ';
+          let msg = "Possibilité de " + boutonSimple(cmd + '1d4E --repousseCible 3', 'faire reculer') + " ou de " + boutonSimple(cmd + "2d4E --effet renverse", "renverser") + ' ' + nomPerso(target) + " en sacrifiant des PVs";
+          sendPerso(attaquant, msg, true);
         }
       });
       if (options.annuleMvtCible) {
@@ -9906,7 +9919,7 @@ var COFantasy2 = COFantasy2 || function() {
     return rollOut;
   }
 
-  function boutonSimple(action, texte, style) {
+  function boutonSimple(action, texte, style = BS_BUTTON) {
     action = action.replace(/%/g, '&#37;').replace(/\)/g, '&#41;').replace(/\?/g, '&#63;').replace(/@/g, '&#64;').replace(/\[/g, '&#91;').replace(/]/g, '&#93;').replace(/"/g, '&#34;').replace(/{/g, '&#123;').replace(/}/g, '&#125;').replace(/\|/g, '&#124;').replace(/\*/g, '&#42;');
     action = action.replace(/\'/g, '&apos;'); // escape quotes
     action = action.replace(/:/g, '&amp;#58;'); // double escape colon
@@ -9920,7 +9933,7 @@ var COFantasy2 = COFantasy2 || function() {
     if (!roll.chance || !roll.chance[perso.token.id]) {
       let pc = pointsDeChance(perso);
       if (pc > 0) {
-        let b = boutonSimple("!cof2-bouton-chance " + perso.token.id + ' ' + evt.id + ' ' + roll.id, "Chance", BS_BUTTON);
+        let b = boutonSimple("!cof2-bouton-chance " + perso.token.id + ' ' + evt.id + ' ' + roll.id, "Chance");
         callback(b + " (reste " + pc + " PC)");
       }
     }
@@ -9942,7 +9955,7 @@ var COFantasy2 = COFantasy2 || function() {
         page = page || getObj('page', pageId);
         murs = getWalls(page, pageId, murs);
         if (murs && obstaclePresentPerso(perso, a, murs)) return;
-        let b = boutonSimple("!cof2-bouton-chance " + a.token.id + ' ' + evt.id + ' ' + roll.id + ' ' + perso.token.id, "Donner chance", BS_BUTTON);
+        let b = boutonSimple("!cof2-bouton-chance " + a.token.id + ' ' + evt.id + ' ' + roll.id + ' ' + perso.token.id, "Donner chance");
         callback(b + " de " + nomPerso(a) + " (reste " + pc + " PC)");
       }
     });
@@ -12937,8 +12950,7 @@ var COFantasy2 = COFantasy2 || function() {
         type: 'L',
         armeDeContact: true,
         limiteArmure: 'barbare',
-        //TODO: mécanique pour faire reculer ou renverser si adversaire de NC < RANG et sacrifie PV
-        cmd: "!cof2-attaque @{selected|token_di} @{target|Cible|token_id} -1 --attaqueBrutale RANG --message Attaque brutale ! ?{Puissance ?|Normale,--plus 1d4E|Très brutal,--plus 2d4E --bonusAttaque -3}"
+        cmd: "!cof2-attaque @{selected|token_id} @{target|Cible|token_id} -1 --attaqueBrutale RANG --message Attaque brutale ! ?{Puissance ?|Normale,--plus 1d4E|Très brutal,--plus 2d4E --bonusAttaque -3}"
       }
     },
     'force heroique': {
@@ -14113,6 +14125,7 @@ var COFantasy2 = COFantasy2 || function() {
         combat: true,
         type: 'L',
         mana: 2,
+        aoe: true,
         cmd: "!cof2-prison-vegetale @{target|token_id} 10 @{selected|PER} --portee 20",
       }
     },
@@ -16451,7 +16464,7 @@ var COFantasy2 = COFantasy2 || function() {
       else {
         let b = 'Dégainer';
         if (cote) b += ' à' + cote;
-        ligneArme = boutonSimple(degainer, b, BS_BUTTON);
+        ligneArme = boutonSimple(degainer, b);
       }
       if (armeADegainer.unique && !labelArmePrincipale && !labelArmeGauche)
         ligneArme += armeADegainer.nom;
@@ -16661,11 +16674,11 @@ var COFantasy2 = COFantasy2 || function() {
       let c = '!cof2-eviter-aoe-sur-allies ' + perso.token.id;
       if (attributeAsBool(perso, 'eviteAoeSurAllies')) {
         c += ' non';
-        let line = boutonSimple(c, 'Lancer les sorts de zone normalement', BS_BUTTON);
+        let line = boutonSimple(c, 'Lancer les sorts de zone normalement');
         addLineToFramedDisplay(display, line);
       } else {
         c += ' oui';
-        let line = boutonSimple(c, 'Éviter de toucher les alliés', BS_BUTTON) + " au contact des sorts de zone";
+        let line = boutonSimple(c, 'Éviter de toucher les alliés') + " au contact des sorts de zone";
         addLineToFramedDisplay(display, line);
       }
     }
@@ -16739,7 +16752,7 @@ var COFantasy2 = COFantasy2 || function() {
     let distance_recul = modCarac(perso, 'for') + 3;
     if (distance_recul > 0) {
       choix = "manoeuvre --toucher " + attaquePerso(perso, 'atkcac');
-      effet = " --repousseCible " + distance_recul + " m. --bonusCategorieDeTaille --deplaceDe " + vitesse;
+      effet = " --repousseCible " + distance_recul + " --bonusCategorieDeTaille --deplaceDe " + vitesse;
       tooltip = "cible recule de " + distance_recul + " m, si acculée, malus en DEF.&#013; peut être précédé d'un mouvement de " + vitesse + " m vers la cible";
       bt = boutonManoeuvre(picto, style, base_command, choix, effet, 'repousser', "Repousser", tooltip);
       line += bt + DIFF_TAILLE + " (+ mvt de " + vitesse + "m. max)<br/>";
@@ -17569,7 +17582,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (attributeAsInt(perso, 'limiteParTour_resisteConfusion', 1)) {
         let difficulte = getIntValeurOfEffet(perso, 'confusion', 12);
         let command = "!cof2-effet confusion 0 --save VOL " + difficulte + " --limiteParTour 1 resisteConfusion";
-        ligne += boutonSimple(command, "Essayer de retrouver ses esprits", BS_BUTTON) + '<br/>';
+        ligne += boutonSimple(command, "Essayer de retrouver ses esprits") + '<br/>';
       }
       return;
     }
@@ -17680,7 +17693,7 @@ var COFantasy2 = COFantasy2 || function() {
             } else {
               cmd = "!cof2-retirer-armure " + perso.token.id + " --typeAction L";
             }
-            ligne += boutonSimple(cmd, "Se débarasser de son armure", BS_BUTTON) + ' (L)<br/>';
+            ligne += boutonSimple(cmd, "Se débarasser de son armure") + ' (L)<br/>';
           }
           //maintenir un adversaire bloqué
           if (attributeAsBool(perso, 'bloque')) {
@@ -17858,7 +17871,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (typeActionPossible(perso, 'L') && ficheAttributeAsInt(perso, 'bouclier', 0) && !ficheAttributeAsBool(perso, 'bouclier_eqp', false, optTransforme)) {
           let armePrincipale = armesEnMain(perso);
           if (!(armePrincipale && armePrincipale.deuxMains) && !perso.armeGauche) {
-            ligne += boutonSimple('!cof2-equiper-bouclier --select ' + perso.token.id + " --typeAction L", '<span style="font-family:\'Pictos Custom\'">e</span> Équiper le bouclier (L)', BS_BUTTON) + '<br />';
+            ligne += boutonSimple('!cof2-equiper-bouclier --select ' + perso.token.id + " --typeAction L", '<span style="font-family:\'Pictos Custom\'">e</span> Équiper le bouclier (L)') + '<br />';
           }
         }
         //Les attaques de la fiche qui ne sont pas des armes
@@ -18142,7 +18155,7 @@ var COFantasy2 = COFantasy2 || function() {
       if (!avant) {
         if (typeActionPossible(perso, 'A')) {
           let command = "!cof2-options-tactiques " + perso.token.id;
-          ligne += boutonSimple(command, "Options tactiques", BS_BUTTON) + '<br/>';
+          ligne += boutonSimple(command, "Options tactiques") + '<br/>';
         } else if (typeActionPossible(perso, 'M')) {
           //la seule action tactique possible est de retarder son tour
           ligne += boutonRetarderTour(perso) + '<br/>';
@@ -18231,7 +18244,7 @@ var COFantasy2 = COFantasy2 || function() {
         } else {
           titre = "Aucune action possible. " + suivant + " ?";
           if (actionsDuTour != 1) {
-            let commande = boutonSimple("!cof2-liste-actions --select " + perso.token.id, "Actions du tour", BS_BUTTON);
+            let commande = boutonSimple("!cof2-liste-actions --select " + perso.token.id, PICTO_LISTE_ACTIONS.picto + " Actions du tour", BS_LISTE_ACTIONS);
             ligne += commande + '<br/>';
           }
         }
@@ -18667,6 +18680,15 @@ var COFantasy2 = COFantasy2 || function() {
     return !inactif;
   }
 
+  function persoConscient(perso) {
+    let inactif =
+      getState(perso, 'mort') ||
+      getState(perso, 'assomme') || getState(perso, 'etourdi') ||
+      getState(perso, 'paralyse') || getState(perso, 'endormi') ||
+      attributeAsBool(perso, 'petrifie');
+    return !inactif;
+  }
+
   function persoImmobilise(perso) {
     return (!isActive(perso) ||
       getState(perso, 'immobilise') ||
@@ -18735,7 +18757,7 @@ var COFantasy2 = COFantasy2 || function() {
       labelArme = arme.label;
     }
     if (arme) {
-      let ligne = boutonSimple('!cof2-degainer --select ' + perso.token.id, '<span style="font-family:Pictos">}</span>', BS_BUTTON) + " Rengainer pendant le mouvement";
+      let ligne = boutonSimple('!cof2-degainer --select ' + perso.token.id, '<span style="font-family:Pictos">}</span>') + " Rengainer pendant le mouvement";
       whisperChar(perso.charId, ligne);
     } else {
       let labelArmeGauche;
@@ -19880,9 +19902,9 @@ var COFantasy2 = COFantasy2 || function() {
                     if (pv < pvMax) {
                       //Donner le choix entre récupérer des PV et récupérer 1 PM
                       sendPerso(p, "utiliser l'âme de " + nomPerso(perso) + " pour récupérer " +
-                        boutonSimple("!cof2-recuperer-pm " + manaRecup + " --select " + p.token.id, manaRecup + " PM", BS_BUTTON) +
+                        boutonSimple("!cof2-recuperer-pm " + manaRecup + " --select " + p.token.id, manaRecup + " PM") +
                         ' ou ' +
-                        boutonSimple("!cof2-soin " + soins + " --select " + p.token.id, soins + " PV", BS_BUTTON),
+                        boutonSimple("!cof2-soin " + soins + " --select " + p.token.id, soins + " PV"),
                         true);
                     } else {
                       //récupérer 1 PM
@@ -24837,14 +24859,14 @@ var COFantasy2 = COFantasy2 || function() {
     }
     let titre = "Équipe " + nom;
     if (nom != 'joueurs') {
-      titre += ' ' + boutonSimple("!cof2-gerer-equipe " + nom + " --commande renommer ?{Nouveau nom d'équipe}", '<span title="renommer", style="font-family: \'Pictos\'">p</span>', BS_BUTTON);
+      titre += ' ' + boutonSimple("!cof2-gerer-equipe " + nom + " --commande renommer ?{Nouveau nom d'équipe}", '<span title="renommer", style="font-family: \'Pictos\'">p</span>');
     }
     let action_right = "Pas une alliance";
     if (equipe.alliance) {
-      let b = boutonSimple("!cof2-gerer-equipe " + nom + " --commande nonAllies", '<span title="mettre fin à l\'alliance", style="font-family: \'Pictos\'">D</span>', BS_BUTTON);
+      let b = boutonSimple("!cof2-gerer-equipe " + nom + " --commande nonAllies", '<span title="mettre fin à l\'alliance", style="font-family: \'Pictos\'">D</span>');
       action_right = "Alliance " + b;
     } else {
-      action_right += ' ' + boutonSimple("!cof2-gerer-equipe " + nom + " --commande allier", '<span title="former une alliance", style="font-family: \'Pictos\'">j</span>', BS_BUTTON);
+      action_right += ' ' + boutonSimple("!cof2-gerer-equipe " + nom + " --commande allier", '<span title="former une alliance", style="font-family: \'Pictos\'">j</span>');
     }
     const optionsDisplay = {
       secret: true,
@@ -24872,16 +24894,16 @@ var COFantasy2 = COFantasy2 || function() {
       if (!chef && equipe.alliance) {
         let cmd = "!cof2-gerer-equipe " + nom + " --commande nommerChef " + cid;
         let b = '<span title="nommer chef de l\'équipe", style="font-family: \'Pictos\'">S</span>';
-        nommer = boutonSimple(cmd, b, BS_BUTTON);
+        nommer = boutonSimple(cmd, b);
       }
-      let enlever = boutonSimple("!cof2-gerer-equipe " + nom + " --commande enleverCharId " + cid, '<span title="enlever de l\'équipe", style="font-family: \'Pictos\'">D</span>', BS_BUTTON);
+      let enlever = boutonSimple("!cof2-gerer-equipe " + nom + " --commande enleverCharId " + cid, '<span title="enlever de l\'équipe", style="font-family: \'Pictos\'">D</span>');
       addCellInFramedDisplay(display, nommer + enlever, 100, false, fond, "text-align:right;");
       fond = !fond;
     }
-    let ajouter = boutonSimple("!cof2-gerer-equipe " + nom + " --commande ajouter --select @{target|personnage à ajouter|token_id}", '<span title="ajouter un personnage", style="font-family: \'Pictos\'">+</span>', BS_BUTTON);
-    let dupliquer = boutonSimple("!cof2-gerer-equipe " + nom + " --commande dupliquer ?{Nom de la nouvelle équipe}", '<span title="dupliquer l\'équipe", style="font-family: \'Pictos\'">|</span>', BS_BUTTON);
+    let ajouter = boutonSimple("!cof2-gerer-equipe " + nom + " --commande ajouter --select @{target|personnage à ajouter|token_id}", '<span title="ajouter un personnage", style="font-family: \'Pictos\'">+</span>');
+    let dupliquer = boutonSimple("!cof2-gerer-equipe " + nom + " --commande dupliquer ?{Nom de la nouvelle équipe}", '<span title="dupliquer l\'équipe", style="font-family: \'Pictos\'">|</span>');
     addCellInFramedDisplay(display, "&nbsp;" + ajouter + " &emsp; " + dupliquer, 100, true, fond);
-    let lister = boutonSimple("!cof2-lister-equipes", '<span title="Lister toutes les équipes", style="font-family: \'Pictos\'">l</span>', BS_BUTTON);
+    let lister = boutonSimple("!cof2-lister-equipes", '<span title="Lister toutes les équipes", style="font-family: \'Pictos\'">l</span>');
     addCellInFramedDisplay(display, lister, 100, false, fond);
     sendFramedDisplay(display);
   }
@@ -24928,9 +24950,9 @@ var COFantasy2 = COFantasy2 || function() {
     const display = startFramedDisplay(playerId, titre, persoPrincipal, optionsDisplay);
     equipesAGerer.forEach(function(nom) {
       let equipe = equipes[nom];
-      let b1 = boutonSimple("!cof2-gerer-equipe " + nom, '<span style="font-family: \'Pictos\'">l</span>', BS_BUTTON);
+      let b1 = boutonSimple("!cof2-gerer-equipe " + nom, '<span style="font-family: \'Pictos\'">l</span>');
       let b2 = '';
-      if (nom != 'joueurs') b2 = boutonSimple("!cof2-gerer-equipe " + nom + " --commande effacer", '<span title="effacer l\'équipe", style="font-family: \'Pictos\'">D</span>', BS_BUTTON);
+      if (nom != 'joueurs') b2 = boutonSimple("!cof2-gerer-equipe " + nom + " --commande effacer", '<span title="effacer l\'équipe", style="font-family: \'Pictos\'">D</span>');
       let a = '';
       let nb = Object.keys(equipe.membres).length;
       if (nb === 0) {
@@ -24943,7 +24965,7 @@ var COFantasy2 = COFantasy2 || function() {
       let ligne = '<table style="width:100%"><tr><td width="25px">' + b1 + '</td> <td>' + nom + a + '</td><td style="text-align:right;">' + b2 + '</td></tr></table>';
       addLineToFramedDisplay(display, ligne);
     });
-    let b = boutonSimple("!cof2-gerer-equipe ?{Nom de la nouvelle équipe} --commande creer", '<span title="créer une nouvelle équipe", style="font-family: \'Pictos\'">+</span>', BS_BUTTON);
+    let b = boutonSimple("!cof2-gerer-equipe ?{Nom de la nouvelle équipe} --commande creer", '<span title="créer une nouvelle équipe", style="font-family: \'Pictos\'">+</span>');
     addLineToFramedDisplay(display, b);
     sendFramedDisplay(display);
   }
@@ -26822,9 +26844,9 @@ var COFantasy2 = COFantasy2 || function() {
     let tr = jetCaracteristique(perso, carac, testId, evt, options);
     tr.rerolls = '';
     if (!tr.roll.tourDeForce && carac == 'FOR' && predicateAsBool(perso, 'tourDeForce')) {
-        let cmd = "!cof2-bouton-tour-de-force " + perso.token.id + ' ' + evt.id + " " + testId;
-      tr.choiceBefore = "jet "+ boutonSimple(cmd+' non', 'normal', BS_BUTTON)+" ou " + boutonSimple(cmd, 'tour de force', BS_BUTTON)+" ?";
-      }
+      let cmd = "!cof2-bouton-tour-de-force " + perso.token.id + ' ' + evt.id + " " + testId;
+      tr.choiceBefore = "jet " + boutonSimple(cmd + ' non', 'normal') + " ou " + boutonSimple(cmd, 'tour de force') + " ?";
+    }
     let jetTotal = tr.total;
     if (tr.critique) {
       tr.reussite = true;
@@ -27014,7 +27036,7 @@ var COFantasy2 = COFantasy2 || function() {
     attr = attr[0];
     let carac = attr.get('current');
     let action = "!cof2-save-state " + etat + ' ' + carac + ' ' + attr.get('max');
-    let b = boutonSimple(action, "Jet", BS_BUTTON);
+    let b = boutonSimple(action, "Jet");
     return b + " pour " + textOfSaveState(etat, perso);
   }
 
@@ -27531,10 +27553,10 @@ var COFantasy2 = COFantasy2 || function() {
     if (options.titre) addLineToFramedDisplay(display, titre);
     if (difficulte === undefined) {
       let rt = jetCaracteristique(perso, caracteristique, testId, evt, options);
-    if (!rt.roll.tourDeForce && caracteristique == 'FOR' && predicateAsBool(perso, 'tourDeForce')) {
+      if (!rt.roll.tourDeForce && caracteristique == 'FOR' && predicateAsBool(perso, 'tourDeForce')) {
         let cmd = "!cof2-bouton-tour-de-force " + perso.token.id + ' ' + evt.id + " " + testId;
-      sendPerso(perso, "jet "+ boutonSimple(cmd+' non', 'normal', BS_BUTTON)+" ou " + boutonSimple(cmd, 'tour de force', BS_BUTTON)+" ?");
-      return;
+        sendPerso(perso, "jet " + boutonSimple(cmd + ' non', 'normal') + " ou " + boutonSimple(cmd, 'tour de force') + " ?");
+        return;
       }
       addLineToFramedDisplay(display, "<b>Résultat :</b> " + rt.texte);
       rt.explications.forEach(function(m) {
@@ -27695,13 +27717,13 @@ var COFantasy2 = COFantasy2 || function() {
     comps.forEach(function(comp) {
       if (sec) cell += ' ';
       else sec = true;
-      cell += boutonSimple(action + " --competence " + comp, comp, BS_BUTTON);
+      cell += boutonSimple(action + " --competence " + comp, comp);
     });
     let c = choixBonusCapacite(perso);
     if (c) {
       if (sec) cell += ' ';
       else sec = true;
-      cell += boutonSimple(action + ' ' + c, "choisir bonus", BS_BUTTON);
+      cell += boutonSimple(action + ' ' + c, "choisir bonus");
     }
     addCellInFramedDisplay(display, cell, 80, false, fond);
   }
@@ -27894,7 +27916,7 @@ var COFantasy2 = COFantasy2 || function() {
           texte1 += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso1.token.id + ' ' + evt.id + " " + rollId1, "Prouesse");
         }
         if (!rt1.roll.tourDeForce && predicateAsBool(perso1, 'tourDeForce') && carac1 == 'FOR') {
-          texte1 += '<br/>' + boutonSimple("!cof2-bouton-tour-de-force " + perso1.token.id + ' ' + evt.id + " " + rollId1, "Tour de force", BS_BUTTON);
+          texte1 += '<br/>' + boutonSimple("!cof2-bouton-tour-de-force " + perso1.token.id + ' ' + evt.id + " " + rollId1, "Tour de force");
         }
         let pacteSanglant = predicateAsInt(perso1, 'pacteSanglant', 0);
         if (pacteSanglant >= 3) {
@@ -27925,7 +27947,7 @@ var COFantasy2 = COFantasy2 || function() {
           texte2 += '<br/>' + boutonSimple("!cof2-bouton-prouesse " + perso2.token.id + ' ' + evt.id + " " + rollId2, "Prouesse");
         }
         if (!rt2.roll.tourDeForce && predicateAsBool(perso2, 'tourDeForce') && carac2 == 'FOR') {
-          texte2 += '<br/>' + boutonSimple("!cof2-bouton-tour-de-force " + perso2.token.id + ' ' + evt.id + " " + rollId2, "Tour de force", BS_BUTTON);
+          texte2 += '<br/>' + boutonSimple("!cof2-bouton-tour-de-force " + perso2.token.id + ' ' + evt.id + " " + rollId2, "Tour de force");
         }
         let pacteSanglant = predicateAsInt(perso2, 'pacteSanglant', 0);
         if (pacteSanglant >= 3) {
@@ -28359,11 +28381,11 @@ var COFantasy2 = COFantasy2 || function() {
     if (predicateAsBool(perso, 'bonusTerrainDifficile') && estEnTerrainDifficile(perso)) init += 3;
     if (aUnCapitaine(perso, undefined, pageId)) init += 2;
     if (capaciteDisponible(perso, 'instinctDeSurviePNJ', 'combat') && !persoImmobilise(perso)) {
-        let vitesse = vitessePerso(perso);
-        let b = "!cof2-mvt " + perso.token.id + ' ' + vitesse + " --limiteParCombat 1 instinctDeSurviePNJ";
-        let picto = '<span style="font-family: \'Pictos\'">4</span> ';
-        let style = 'style="background-color:#272751"';
-        sendPerso(perso, boutonSimple(b, picto, style) + " Se déplacer de " + vitesse + " m avant son tour", true);
+      let vitesse = vitessePerso(perso);
+      let b = "!cof2-mvt " + perso.token.id + ' ' + vitesse + " --limiteParCombat 1 instinctDeSurviePNJ";
+      let picto = '<span style="font-family: \'Pictos\'">4</span> ';
+      let style = 'style="background-color:#272751"';
+      sendPerso(perso, boutonSimple(b, picto, style) + " Se déplacer de " + vitesse + " m avant son tour", true);
       updateNextInit(perso);
     }
     init += predicateAsBool(perso, 'bonusDivination', 0);
@@ -31492,7 +31514,7 @@ var COFantasy2 = COFantasy2 || function() {
       let charId = a.get('characterid');
       let commande = '!cof2-ramasser-arme ' + label + ' ' + charId;
       if (nomComplet == 'armeLachee') {
-        whisperChar(charId, boutonSimple(commande, "Ramasser " + nomArme, BS_BUTTON) + ' ?');
+        whisperChar(charId, boutonSimple(commande, "Ramasser " + nomArme) + ' ?');
       } else {
         let tokenName = nomComplet.substring(nomComplet.indexOf('_MOOK_') + 6);
         let token = tokens.find(function(t) {
@@ -31504,7 +31526,7 @@ var COFantasy2 = COFantasy2 || function() {
             token
           };
           if (isActive(perso)) {
-            sendPerso(perso, boutonSimple(commande + ' ' + token.id, "Ramasser " + nomArme, BS_BUTTON) + ' ?', true);
+            sendPerso(perso, boutonSimple(commande + ' ' + token.id, "Ramasser " + nomArme) + ' ?', true);
           }
         }
       }
@@ -31537,7 +31559,7 @@ var COFantasy2 = COFantasy2 || function() {
         else degainerArme(perso, arme, evt);
       }
       if (attributeAsBool(perso, 'armureSacree')) {
-        let b = boutonSimple('!cof2-effet armureSacree false --select ' + perso.token.id, "retirer son armure sacrée", BS_BUTTON);
+        let b = boutonSimple('!cof2-effet armureSacree false --select ' + perso.token.id, "retirer son armure sacrée");
         sendPerso(perso, b, true);
       }
     });
@@ -31709,7 +31731,7 @@ var COFantasy2 = COFantasy2 || function() {
     //Manteau d'ombre
     if (attributeAsBool(perso, 'manteauDOmbre')) {
       let cmd = "!cof2-disparaitre-dans-son-ombre " + perso.token.id;
-      sendPerso(perso, boutonSimple(cmd, "Disparaître dans son ombre", BS_BUTTON) + ' ?', true, true);
+      sendPerso(perso, boutonSimple(cmd, "Disparaître dans son ombre") + ' ?', true, true);
     }
     setState(perso, 'mort', true, evt);
     if (predicateAsBool(perso, 'familierDeMage')) {
@@ -34138,19 +34160,19 @@ var COFantasy2 = COFantasy2 || function() {
           if (zero) {
             for (let j = zero; j < i; j++) {
               let M = monnaie[j].toUpperCase();
-              ligne_monnaie += '0 ' + boutonSimple(command + j + ' ?{Combien de ' + M + '}', M, BS_BUTTON);
+              ligne_monnaie += '0 ' + boutonSimple(command + j + ' ?{Combien de ' + M + '}', M);
             }
             zero = 0;
           }
           ligne_monnaie += '  ';
           let M = m.toUpperCase();
-          ligne_monnaie += n + ' ' + boutonSimple(command + i + ' ?{Combien de ' + M + '}', M, BS_BUTTON);
+          ligne_monnaie += n + ' ' + boutonSimple(command + i + ' ?{Combien de ' + M + '}', M);
         } else if (ligne_monnaie !== '' && !zero) {
           zero = i;
         }
       }
       if (ligne_monnaie !== '') {
-        ligne_monnaie += ' &nbsp; ' + boutonSimple(command + 'tout', 'Tout', BS_BUTTON);
+        ligne_monnaie += ' &nbsp; ' + boutonSimple(command + 'tout', 'Tout');
         addLineToFramedDisplay(display, ligne_monnaie);
       }
       //On affiche la liste de l'équipement pour proposer un équipement à donner
@@ -34172,7 +34194,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (nb < 1) continue;
         let c = command + pref;
         if (nb > 2) c += ' ?{combien ?}';
-        let ligne = nb + ' ' + boutonSimple(c, nom, BS_BUTTON);
+        let ligne = nb + ' ' + boutonSimple(c, nom);
         if (eq['equip-on']) {
           let p = pref.toLowerCase();
           if (p == id_armure || p == id_arme || (eq['equip-predicats'] && eq['equipe-predicats'].trim() !== '')) {
@@ -34197,7 +34219,7 @@ var COFantasy2 = COFantasy2 || function() {
         if (nb == 1) c += ' 1';
         else c += ' ?{nombre}';
         c += ' munition';
-        let ligne = nb + ' ' + boutonSimple(c, nom, BS_BUTTON);
+        let ligne = nb + ' ' + boutonSimple(c, nom);
         addLineToFramedDisplay(display, ligne);
       }
       sendFramedDisplay(display);
@@ -34848,7 +34870,7 @@ var COFantasy2 = COFantasy2 || function() {
         (aBouclier || ficheAttributeAsBool(perso, 'bouclier', false))) {
         let msg = "ne porte pas son bouclier";
         if (!(armeEnMain && armeEnMain.deuxMains) && !armeEnMainGaucheLabel) {
-          msg += ' ' + boutonSimple('!cof2-equiper-bouclier --select ' + perso.token.id + " --typeAction L", '<span style="font-family:\'Pictos Custom\'">e</span>', BS_BUTTON);
+          msg += ' ' + boutonSimple('!cof2-equiper-bouclier --select ' + perso.token.id + " --typeAction L", '<span style="font-family:\'Pictos Custom\'">e</span>');
         }
         addLineToFramedDisplay(display, msg);
       }
@@ -34858,7 +34880,7 @@ var COFantasy2 = COFantasy2 || function() {
         let label = a.get('current');
         let msg = "a laché " + nomArme + ", ";
         let commande = '!cof2-ramasser-arme ' + label + ' ' + perso.charId + ' ' + perso.token.id;
-        msg += boutonSimple(commande, "ramasser l'arme", BS_BUTTON) + ' ?';
+        msg += boutonSimple(commande, "ramasser l'arme") + ' ?';
         addLineToFramedDisplay(display, msg);
       });
       if (attributeAsBool(perso, 'etatExsangue')) {
@@ -36376,8 +36398,13 @@ var COFantasy2 = COFantasy2 || function() {
       return;
     }
     let effet = cmd[1];
-    if (cof_states[effet] && (cmd.length > 2 || ctx.fin)) { //remplacer par sa version effet temporaire
-      effet += 'Temp';
+    if (cof_states[effet]) {
+      if (cmd.length > 2 || ctx.fin) { //remplacer par sa version effet temporaire
+        effet += 'Temp';
+      } else {
+        etatOption(ctx, cmd, options, state, optionString, pageId);
+        return;
+      }
     } else if (!estEffet(effet)) {
       if (!options.noError)
         error(cmd[1] + " n'est pas un effet répertorié", cmd);
@@ -36977,7 +37004,6 @@ var COFantasy2 = COFantasy2 || function() {
     attaqueAssuree: boolDefaultOption,
     attaqueBrutale: {
       fn: integerOption,
-      min: 3,
     },
     attaqueContactOpposee: boolDefaultOption,
     attaqueMentale: boolDefaultOption,
@@ -37354,6 +37380,10 @@ var COFantasy2 = COFantasy2 || function() {
     },
     reroll1: boolDefaultOption,
     runeDePuissance: boolDefaultOption,
+    sacrifiePV: {
+      fn: additionalDmgOption,
+      optName: 'sacrifiePV',
+    },
     sacrifiePVPourDM: boolDefaultOption,
     saufAllies: {
       fn: selectionOption
@@ -38601,7 +38631,7 @@ var COFantasy2 = COFantasy2 || function() {
     let finir = '!cof2-terminer-mvt ' + perso.token.id;
     let msg = '';
     if (rest < 1) {
-      msg = "Mouvement terminé " + boutonSimple(finir, 'Confirmer', BS_BUTTON);
+      msg = "Mouvement terminé " + boutonSimple(finir, 'Confirmer');
       if (!typeActionPossible(perso, 'M')) {
         msg += ' ' + boutonSimple("!cof2-tour-suivant", "Au suivant", BS_ATTENDRE);
       } else if (plusLoin && sprintPossible(perso, mvt)) {
@@ -38612,9 +38642,9 @@ var COFantasy2 = COFantasy2 || function() {
         mvt.sprintPropose = true;
       }
     } else {
-      msg = "Encore " + rest + " m." + boutonSimple(finir, 'Terminé', BS_BUTTON) + " ?";
+      msg = "Encore " + rest + " m." + boutonSimple(finir, 'Terminé') + " ?";
     }
-    msg += ' ' + boutonSimple('!cof2-undo-dernier-mvt ' + perso.token.id, UNDO, BS_BUTTON);
+    msg += ' ' + boutonSimple('!cof2-undo-dernier-mvt ' + perso.token.id, UNDO);
     //Verifie si on s'éloigne de quelqu'un de teigneux, dans ce cas, il faut retarder l'envoi du message, voire faire un undo
     if (!mvt.repoussePar) {
       let ennemisOrg = ennemisAuContact(perso, pageId, {

@@ -415,6 +415,7 @@ tr {line-height: 25px;}
                   <li><code>--saveParJour <i>carac seuil</i></code> : même effet que <code>--save</code>, mais donne droit à un jet à la fin de chaque jour au lieu d'un jet au moment de l'attaque.</li>
                   <li><code>--fx <i>effet</i></code> : ajoute un <a href="https://wiki.roll20.net/Custom_FX">effet</a> qui part de l'attaquant à la cible. Si l'attaque rate, l'effet rate aussi, d'autant plus que le jet d'attaque est loin de la défense. Il est possible d'utiliser un effet que vous avez défini vous-même en utilisant l'option <code>--fx custom <i>nom</i></code>, où <i>nom</i> est le nom de votre effet.</li>
                   <li><code>--fxCible <i>effet</i></code> : ajoute un <a href="https://wiki.roll20.net/Custom_FX">effet</a> au niveau de la cible (l'effet ne doit pas être directionnel). Comme avec <code>--fx</code>, on peut utiliser un effet qu'on a créé.</li>
+                  <li><code>--sacrifiePV <i>dm</i></code> : pour faire l'attaque, l'attaquant doit sacrifier ce montant de PVs.</li>
                   <li>
                     <code>--conditionAttaque <i>condition</i></code> : l'attaque n'est possible que si <i>condition</i> est validée. Une condition peut être
                     <ul id="conditions">
@@ -438,7 +439,6 @@ tr {line-height: 25px;}
                   <li><code>--decrAttribute <i>nom</i></code> : l'attaque n'est possible que si l'attribut existe et si sa valeur est strictement positive. L'attaque diminue cette valeur de 1. On peut preciser une valeur plus grande après le nom de l'attribut (<code>--decrAttribute <i>nom</i> <i>d</i></code> teste si la valeur est supérieure à <i>d</i> et la diminue de <i>d</i>). Si cette option est utilisée à l'intérieur d'un <code>--if</code>, alors l'option se contente de diminuer l'attribut (on peut savoir si la valeur est positive grâce à <code>--if etat <i>nom</i></code>).</li>
                   <li><code>--decrLimitePredicatParTour <i>nom</i></code> : l'attaque n'est possible que si un prédicat <i>nom</i> existe et si elle n'a pas été utilisée plus de fois dans le tour que la valeur de ce prédicat. L'attaque augmente ce nombre de 1.</li>
                   <li><code>--tempsRecharge <i>effet</i> <i>duree</i></code> : l'attaque n'est possible que si l'effet est inactif sur l'attaquant, et de plus active l'effet sur l'attaquant pour la durée indiquée si l'attaque est possible. Il existe un effet temporaire générique, <code>rechargeGen(<i>desc</i>)</code> que vous pouvez utiliser si aucun effet existant ne correspond pour votre attaque.</li>
-                  <li><code>--etat <i>e</i></code>: si l'attaque touche, la cible passe dans l'état <i>e</i>. Il est aussi possible de spécifier une caractéristique et un seuil (comme pour <code>!cof-set-state</code>) pour faire afficher à chaque tour une action permettant de se libérer de l'état.</li>
                   <li><code>--finEtat <i>e</i></code>: si l'attaque touche, la cible sort de l'état <i>e</i>.</li>
                   <li><code>--effet <i>e duree</i></code> : ajoute à la cible l'effet temporaire <i>e</i> pour la duree spécifiée. Pour que cela soit automatiquement mis à jour, il faut utiliser le turn tracker. Noter que l'argument de durée peut être omis pour certains effets, comme ceux qui par définition durent tout le combat. Optionnellement, on peut ajouter en troisième argument le rang d'initiative à laquelle on diminute la durée restante de l'effet.</li>
                   <li><code>--effetSurLanceur <i>e duree</i></code> : comme <code>--effet</code> mais sur le personnage à l'origine de l'attaque.</li>
@@ -1163,7 +1163,7 @@ tr {line-height: 25px;}
                 <ol>
                   <li><strong>Arguments de taille :</strong> le script ajoute un buff pour les PV, et ajoute le bonus aux jets des alliés, mais je ne suis pas encore très satisfait de la façon dont on peut proposer ces jets. Si quelqu'un a des idées...</li>
                   <li><strong>Tour de force :</strong> le script gère l'armure et propose d'utiliser un tour de force pour les jets de force, mais il reste encore pas mal de cas où la proposition arrive après avoir pris connaissance du jet. Je compte améliorer ça, me demander si c'est pressé.</li>
-                  <li></li>
+                  <li><strong> Attaque grutale :</strong> tout devrait être géré.</li>
                   <li><strong>Force héroïque :</strong> le script ajoute un buff sur l'augmentation de caractéristique, et donne un dé bonus aux tests (sans toucher au champ de caractéristique héroïque sur la fiche)</li>
                 </ol>
                 <h4 class="text-secondary">Voie du pagne</h4>
